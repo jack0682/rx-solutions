@@ -1,4 +1,6 @@
 .git
+target
+.cache
 **/node_modules
 **/dist
 build

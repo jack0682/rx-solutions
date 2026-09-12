@@ -1866,3 +1866,53 @@ textarea:focus-visible {
   width: auto;
   margin: 3px 0 0;
 }
+
+/* Fixed graph depths keep the production UI compatible with a self-only style CSP. */
+.graph-depth-0 {
+  margin-left: 0px;
+}
+.graph-depth-1 {
+  margin-left: 14px;
+}
+.graph-depth-2 {
+  margin-left: 28px;
+}
+.graph-depth-3 {
+  margin-left: 42px;
+}
+.graph-depth-4 {
+  margin-left: 56px;
+}
+.graph-depth-5 {
+  margin-left: 70px;
+}
+.graph-depth-6 {
+  margin-left: 84px;
+}
+.review-depth-0 {
+  padding-left: 0px;
+}
+.review-depth-1 {
+  padding-left: 16px;
+}
+.review-depth-2 {
+  padding-left: 32px;
+}
+.review-depth-3 {
+  padding-left: 48px;
+}
+.review-depth-4 {
+  padding-left: 64px;
+}
+.review-depth-5 {
+  padding-left: 80px;
+}
+.review-depth-6 {
+  padding-left: 96px;
+}
+.review-depth-7 {
+  padding-left: 112px;
+}
+.review-depth-8 {
+  padding-left: 128px;
+}

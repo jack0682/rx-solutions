@@ -1,6 +1,6 @@
 use super::*;
-use serde::Serialize;
-#[derive(Clone, Debug, Serialize)]
+use serde::{Deserialize, Serialize};
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct StopSnapshot {
     pub host_boot: Id,
     pub admission_open: bool,
@@ -79,5 +79,29 @@ impl<N: NativeAdapter, C: Clock, H: BoundaryHook> Host<N, C, H> {
             safe_to_drop: safe,
             physical_shutdown_assessed: safe && core.native.environment() == Environment::Physical,
         })
+    }
+}
+
+impl<N: NativeAdapter, C: Clock, H: BoundaryHook> Host<N, C, H> {
+    pub(crate) fn seal_service_stop(
+        &self,
+        identity: Digest,
+        startup_configuration_digest: Digest,
+        attempt: &Id,
+    ) -> Result<crate::service::maintenance::StopSeal> {
+        let snapshot = self.service_stop_snapshot()?;
+        let mut core = self.lock()?;
+        if core.accepting.load(std::sync::atomic::Ordering::SeqCst)
+            || core.boot != snapshot.host_boot
+        {
+            return Err(HostError::Guard);
+        }
+        Ok(crate::service::maintenance::seal_stop(
+            &mut core.store,
+            identity,
+            startup_configuration_digest,
+            attempt,
+            snapshot,
+        )?)
     }
 }
