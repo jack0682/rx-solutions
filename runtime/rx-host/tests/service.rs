@@ -301,3 +301,78 @@ async fn startup_rejects_a_symlink_at_the_actual_host_writer_lock_path() {
     );
     assert_eq!(std::fs::read(&outside).unwrap(), b"unchanged");
 }
+
+#[test]
+fn binding_inspection_compares_full_cohort_without_creating_installation_or_restoring_authority() {
+    use rx_process_contract::host_binding_plan::{HostTarget, Plan};
+    let (_dir, file, _) = fixture();
+    let current = Loaded::read(&file).unwrap();
+    let mut proposed = Loaded::read(&file).unwrap();
+    let b = &current.bindings[0];
+    let plan = Plan {
+        schema: name("rx.host-binding-plan.v1"),
+        installation: current.config.installation.clone(),
+        cell: b.cell.clone(),
+        device_context_digest: Digest::from_bytes([11; 32]),
+        process_review_digest: Digest::from_bytes([12; 32]),
+        before_configuration: b.definition.clone(),
+        after_configuration: b.definition.clone(),
+        definition: b.definition.clone(),
+        envelope: b.envelope.clone(),
+        environment: name("SIMULATION"),
+        scopes: b.scope_ids.iter().cloned().collect(),
+        hosts: [(
+            b.host.clone(),
+            HostTarget {
+                required_intents: b.allowed_intents.clone(),
+                required_conditions: b.condition_ids.iter().cloned().collect(),
+                device_packages: vec![],
+                other_affected_cells: Default::default(),
+            },
+        )]
+        .into(),
+    };
+    let checked = service::binding_change::inspect(&plan, &current, &proposed).unwrap();
+    assert!(checked.software_matches);
+    assert!(!checked.activation_authorized && !checked.installation_changed);
+    assert_eq!(checked.native_processes_started, Counter(0));
+    assert!(!current.config.data_directory.exists());
+    proposed.bindings[0].qualification_revision = Counter(2);
+    assert!(
+        !service::binding_change::inspect(&plan, &current, &proposed)
+            .unwrap()
+            .software_matches
+    );
+    proposed.bindings[0] = b.clone();
+    proposed.bindings[0]
+        .allowed_intents
+        .push(b.allowed_intents[0].clone());
+    assert!(
+        !service::binding_change::inspect(&plan, &current, &proposed)
+            .unwrap()
+            .software_matches
+    );
+    proposed.bindings[0] = b.clone();
+    proposed.config.data_directory = current.config.runtime_directory.join("other");
+    assert!(
+        !service::binding_change::inspect(&plan, &current, &proposed)
+            .unwrap()
+            .software_matches
+    );
+    proposed.config = current.config.clone();
+    let mut partial = plan.clone();
+    partial
+        .hosts
+        .get_mut(&b.host)
+        .unwrap()
+        .other_affected_cells
+        .insert(name("cell/missing"));
+    assert!(
+        !service::binding_change::inspect(&partial, &current, &proposed)
+            .unwrap()
+            .software_matches
+    );
+    let mut wrong = plan;
+    wrong.installation = id();
+    assert!(service::binding_change::inspect(&wrong, &current, &proposed).is_err());
+}
