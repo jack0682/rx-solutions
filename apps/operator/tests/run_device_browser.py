@@ -1,7 +1,7 @@
 """Actual S JTC authoring -> P package store/API -> browser declaration preview. Test keys only."""
 import argparse, hashlib, json, os, shlex, socket, subprocess, sys, tempfile
 from pathlib import Path
-p=argparse.ArgumentParser();p.add_argument('--evidence-dir',type=Path,required=True);p.add_argument('--review-api',action='store_true');p.add_argument('--review-ui',action='store_true');p.add_argument('--binding-api',action='store_true');p.add_argument('--candidate-authoring',action='store_true');p.add_argument('--mixed-package-policy',action='store_true');p.add_argument('--device-process-review',action='store_true');a=p.parse_args()
+p=argparse.ArgumentParser();p.add_argument('--evidence-dir',type=Path,required=True);p.add_argument('--review-api',action='store_true');p.add_argument('--review-ui',action='store_true');p.add_argument('--binding-api',action='store_true');p.add_argument('--candidate-authoring',action='store_true');p.add_argument('--mixed-package-policy',action='store_true');p.add_argument('--device-process-review',action='store_true');p.add_argument('--host-binding-plan',action='store_true');a=p.parse_args()
 project=Path(__file__).resolve().parents[1];ws=project.parents[2];platform=ws/'rx-platform';solutions=ws/'rx-solutions'
 for port in (8080,5173):
  with socket.socket() as sock:
@@ -10,11 +10,12 @@ a.evidence_dir.mkdir(parents=True,exist_ok=False)
 def run(cmd,cwd,env):return subprocess.run(cmd,cwd=cwd,env=env,check=True,capture_output=True,text=True)
 def write(path,value):path.write_text(json.dumps(value,separators=(',',':'),sort_keys=True))
 env=dict(os.environ,CARGO_INCREMENTAL='0')
+if a.host_binding_plan:a.device_process_review=True;env['RX_HOST_BINDING_PLAN_ENABLED']='1'
 if a.device_process_review:a.mixed_package_policy=True;env['RX_DEVICE_PROCESS_REVIEW_ENABLED']='1'
 if a.mixed_package_policy:a.candidate_authoring=True;env['RX_MIXED_POLICY_ENABLED']='1'
 if a.candidate_authoring:a.binding_api=True;env['RX_DEVICE_CANDIDATES_ENABLED']='1'
 if a.binding_api:env['RX_DEVICE_BINDING_ENABLED']='1'
-run([str(solutions/'tools/cargo'),'build','-p','rx-device-package','-p','rx-process-package','-p','rx-process','--locked','--offline'],solutions,env)
+run([str(solutions/'tools/cargo'),'build','-p','rx-device-package','-p','rx-process-package','-p','rx-process','-p','rx-host','--locked','--offline'],solutions,env)
 run([str(platform/'tools/cargo'),'build','-p','rx-api','--bin','rx-platform-local','--locked','--offline'],platform,env)
 with tempfile.TemporaryDirectory(prefix='rx-device-browser-') as temp:
  temp=Path(temp);fixture=temp/'platform';native=temp/'device'

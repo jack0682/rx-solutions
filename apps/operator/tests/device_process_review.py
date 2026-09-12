@@ -76,7 +76,14 @@ def exercise_process_review(author, limited, verifier, origin, out, info, plan, 
                          'decision_revision': decision['revision']}}
     response = author.post(origin + '/api/v1/process-changes', headers=headers,
                            data={'request_key': str(uuid.uuid4()), 'command': change})
-    assert not response.ok
+    if os.environ.get('RX_HOST_BINDING_PLAN_ENABLED')=='1':
+        assert response.ok, response.text()
+        from host_binding_plan import exercise_host_plan
+        exercise_host_plan(author, verifier, origin, headers, out, info, response.json())
+    else:
+        # Device proposals can now be recorded; physical preparation/application remains unsupported.
+        assert response.ok, response.text()
+        assert response.json()['host_binding_plan']
     # Retire the underlying approval through the actual device-review decision API.
     dependency = job['device_context']['dependencies'][0]
     dv, dd = dependency['version'], dependency['decision']

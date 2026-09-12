@@ -2,6 +2,19 @@ use rx_host::service::{self, config::Loaded};
 #[tokio::main]
 async fn main() -> service::Result<()> {
     let args = std::env::args().skip(1).collect::<Vec<_>>();
+    if args.len() == 4 && args[0] == "inspect-binding-change" {
+        let plan: rx_process_contract::host_binding_plan::Plan =
+            rx_package::policy::read(std::path::Path::new(&args[1]))?;
+        let current = Loaded::read(std::path::Path::new(&args[2]))?;
+        let proposed = Loaded::read(std::path::Path::new(&args[3]))?;
+        println!(
+            "{}",
+            serde_json::to_string(&service::binding_change::inspect(
+                &plan, &current, &proposed
+            )?)?
+        );
+        return Ok(());
+    }
     if args.as_slice() == ["drivers", "jtc"] {
         println!(
             "{}",
@@ -17,7 +30,7 @@ async fn main() -> service::Result<()> {
         return Ok(());
     }
     if args.len() != 2 || !matches!(args[0].as_str(), "inspect" | "init" | "run") {
-        return Err("usage: rx-hostd drivers [jtc] | inspect|init|run CONFIG".into());
+        return Err("usage: rx-hostd drivers [jtc] | inspect|init|run CONFIG | inspect-binding-change PLAN CURRENT_CONFIG PROPOSED_CONFIG".into());
     }
     let loaded = Loaded::read(std::path::Path::new(&args[1]))?;
     if args[0] == "inspect" {

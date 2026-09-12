@@ -50,3 +50,6 @@ supervisor의 control lifecycle authority/검증된 driver recipe는 아직 연�
 
 
 MELSEC 상태 보장 어댑터 library와 native journal/모의 Host 시험을 추가했다. [구현 범위·publication 전제](MELSEC_ADAPTER.md)를 따른다. phase58에서 signed-package factory·native identity의 원자 초기화와 물리 binding의 현재 qualification 필수 검사를 연결했다. 현장 qualification을 완료한 것으로 표시하지 않는다.
+# Host binding 변경 검사 추가
+
+phase71의 읽기 전용 `inspect-binding-change`는 [현재·제안 설정 비교](HOST_BINDING_INSPECTION.md)를 따른다. 설정 일치 결과는 Host 설치/실행 권한이 아니며 기존 `init`·`run`의 설치 identity 검사를 우회하지 않는다.

@@ -1,4 +1,5 @@
 //! Product Host process composition. No test clock, fault injection or native startup action.
+pub mod binding_change;
 pub mod config;
 pub mod device_package;
 mod factory;
