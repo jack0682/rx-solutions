@@ -892,8 +892,7 @@ export function Packages({
                                 <b>{f.id}</b>
                                 {previewRows(source.data, i).map((r, j) => (
                                   <div
-                                    className="review-flow-row"
-                                    style={{ paddingLeft: Math.min(r.depth, 8) * 16 }}
+                                    className={`review-flow-row review-depth-${Math.max(0, Math.min(r.depth, 8))}`}
                                     key={`${f.id}-${j}`}
                                   >
                                     <span>{String(j + 1).padStart(2, '0')}</span>

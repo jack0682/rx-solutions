@@ -508,8 +508,9 @@ export function App() {
           ))}
         </nav>
         <div className="sidebar-bottom">
-          <span className="signal" />
-          로컬 개발 환경<p>장비 제어 비활성</p>
+          {fresh && <span className="signal" />}
+          {fresh ? (data?.user.terminal ? '등록 단말 연결' : '서비스 연결') : '연결 확인 필요'}
+          <p>운전 상태는 셀별로 확인</p>
           <div className="sidebar-rule" />
           <b>ROBOTIS</b>
           <small>RX AUTOMATION / 0.1</small>

@@ -4,6 +4,7 @@ pub mod config;
 pub mod device_package;
 mod factory;
 pub mod jtc_package;
+pub mod maintenance;
 use crate::{Binding, Clock, Environment, Host, NativeAdapter};
 use config::{Backend, Loaded};
 pub use factory::{Builtin, BuiltinAdapter};
@@ -87,6 +88,8 @@ pub enum NativeInstallation {
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Installation {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    maintenance_protocol: Option<Name>,
     schema: Name,
     identity: Digest,
     installation: Id,
@@ -244,7 +247,8 @@ pub fn initialize_with<C: Clock + Clone + 'static, F: AdapterFactory<C>>(
         private_write(
             &stage.join("installation.json"),
             &canonical::bytes(&Installation {
-                schema: name("rx.host-installation.v1"),
+                maintenance_protocol: Some(name("rx.host-maintenance.v1")),
+                schema: name("rx.host-installation.v2"),
                 identity: loaded.identity,
                 installation: loaded.config.installation.clone(),
                 host: loaded.config.host.clone(),
@@ -302,6 +306,28 @@ fn publish_installation(parent: &Path, stage: &Path, target: &Path) -> Result<()
         Err("atomic no-replace installation publication unsupported".into())
     }
 }
+
+fn runtime_owner(directory: &Path) -> Result<std::fs::File> {
+    real_directory(directory)?;
+    let lock_path = directory.join("host.lock");
+    if let Ok(m) = fs::symlink_metadata(&lock_path)
+        && (!m.is_file() || m.file_type().is_symlink())
+    {
+        return Err("invalid runtime lock".into());
+    }
+    let mut options = fs::OpenOptions::new();
+    options.create(true).truncate(false).read(true).write(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.mode(0o600);
+    }
+    let owner = options.open(lock_path)?;
+    owner
+        .try_lock()
+        .map_err(|_| "another process owns this Host runtime")?;
+    Ok(owner)
+}
 pub async fn run_with<C: Clock + Clone + Send + Sync + 'static, F: AdapterFactory<C>>(
     loaded: Loaded,
     clock: C,
@@ -317,8 +343,14 @@ pub async fn run_with<C: Clock + Clone + Send + Sync + 'static, F: AdapterFactor
         return Err("installation descriptor too large".into());
     }
     let descriptor: Installation = canonical::decode_json(&fs::read(descriptor_path)?)?;
-    if descriptor.schema.as_str() != "rx.host-installation.v1"
-        || descriptor.identity != loaded.identity
+    if !matches!(
+        (
+            descriptor.schema.as_str(),
+            descriptor.maintenance_protocol.as_ref().map(Name::as_str)
+        ),
+        ("rx.host-installation.v1", None)
+            | ("rx.host-installation.v2", Some("rx.host-maintenance.v1"))
+    ) || descriptor.identity != loaded.identity
         || descriptor.installation != loaded.config.installation
         || descriptor.host != loaded.config.host
     {
@@ -327,23 +359,9 @@ pub async fn run_with<C: Clock + Clone + Send + Sync + 'static, F: AdapterFactor
     if !loaded.config.data_directory.join("host.db").is_file() {
         return Err("Host journal missing; explicit restore required".into());
     }
-    let lock_path = loaded.config.runtime_directory.join("host.lock");
-    if let Ok(m) = fs::symlink_metadata(&lock_path)
-        && (!m.is_file() || m.file_type().is_symlink())
-    {
-        return Err("invalid runtime lock".into());
-    }
-    let mut options = fs::OpenOptions::new();
-    options.create(true).truncate(false).read(true).write(true);
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::OpenOptionsExt;
-        options.mode(0o600);
-    }
-    let _owner = options.open(lock_path)?;
-    _owner
-        .try_lock()
-        .map_err(|_| "another process owns this Host runtime")?;
+    let _owner = runtime_owner(&loaded.config.runtime_directory)?;
+    let startup_attempt = crate::journal::id();
+    let startup_configuration_digest = maintenance::startup_digest(&loaded.config)?;
     // Verify existing journal identities before Host::open could initialize missing rows.
     {
         use rx_ports::Repository;
@@ -384,6 +402,12 @@ pub async fn run_with<C: Clock + Clone + Send + Sync + 'static, F: AdapterFactor
                     ));
                 }
             }
+            maintenance::begin_startup(
+                tx,
+                loaded.identity,
+                startup_configuration_digest,
+                &startup_attempt,
+            )?;
             Ok(())
         })?;
     }
@@ -580,6 +604,13 @@ pub async fn run_with<C: Clock + Clone + Send + Sync + 'static, F: AdapterFactor
     } else {
         "STOPPED"
     });
+    if service_error.is_none() {
+        host.seal_service_stop(
+            loaded.identity,
+            startup_configuration_digest,
+            &startup_attempt,
+        )?;
+    }
     view.admission_open = false;
     admission_owner.graceful = true;
     status(&loaded.config.runtime_directory, &view)?;

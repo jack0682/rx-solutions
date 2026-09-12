@@ -64,3 +64,6 @@ Python 시험 의존성은 `tests/requirements-browser.txt`에 고정했다. hea
 Engineer/Verifier는 공정 초안을 조회하고 Engineer는 새 초안·노드/흐름 편집·저장·복사·버전 비교를 수행한다. 미완성 내용은 오류와 함께 저장하고 설치된 셀은 바꾸지 않는다. 고급 JSON 입력은 적용 전 buffer로 보존한다. [초안 저장과 실행의 경계](https://github.com/jack0682/rx-platform/blob/codex/initial-draft/crates/rx-application/PROCESS_DRAFTS.md)를 따른다.
 
 [패키지 반입·검토 화면](PACKAGE_REVIEW_UI.md)은 실제 API와 전역 pending 복구를 연결한다. 과거 revision과 최신 승인 대상을 구별하며 소프트웨어 승인으로 운전하지 않는다.
+# 제품 이미지의 앱 제공
+
+phase73의 [두 이미지·직접 단말 HTTPS 제공](DELIVERY.md)이 개발 서버와 별도로 연결됐다. 실제 제공·파일 검증·mTLS 브라우저 시험과 남은 StartRun/실행기 배정 범위는 해당 문서를 따른다.

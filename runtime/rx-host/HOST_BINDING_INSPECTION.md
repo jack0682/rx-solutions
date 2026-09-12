@@ -1,5 +1,7 @@
 # Host 기동 설정 변경의 수동 검사
 
+phase72의 [영속 준비·조회·취소](HOST_MAINTENANCE_PREPARATION.md)가 이 비교 다음에 연결된다. 비교와 준비 모두 실제 설치 교체나 native 운전은 수행하지 않는다.
+
 phase71. 명령은 파일을 읽어 비교하며 Host 초기화, driver 기동, device 연결, native submit과 설치 파일 교체를 하지 않는다.
 
 ```text

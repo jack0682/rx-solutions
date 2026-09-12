@@ -376,3 +376,345 @@ fn binding_inspection_compares_full_cohort_without_creating_installation_or_rest
     wrong.installation = id();
     assert!(service::binding_change::inspect(&wrong, &current, &proposed).is_err());
 }
+
+fn maintenance_plan(loaded: &Loaded) -> rx_process_contract::host_binding_plan::Plan {
+    use rx_process_contract::host_binding_plan::*;
+    let b = &loaded.bindings[0];
+    Plan {
+        schema: name("rx.host-binding-plan.v1"),
+        installation: loaded.config.installation.clone(),
+        cell: b.cell.clone(),
+        device_context_digest: Digest::from_bytes([23; 32]),
+        process_review_digest: Digest::from_bytes([24; 32]),
+        before_configuration: b.definition.clone(),
+        after_configuration: b.definition.clone(),
+        definition: b.definition.clone(),
+        envelope: b.envelope.clone(),
+        environment: name("SIMULATION"),
+        scopes: b.scope_ids.iter().cloned().collect(),
+        hosts: [(
+            b.host.clone(),
+            HostTarget {
+                required_intents: b.allowed_intents.clone(),
+                required_conditions: b.condition_ids.iter().cloned().collect(),
+                device_packages: vec![],
+                other_affected_cells: Default::default(),
+            },
+        )]
+        .into(),
+    }
+}
+#[tokio::test]
+async fn durable_maintenance_requires_real_stop_recovers_same_request_and_blocks_startup_until_cancelled()
+ {
+    use service::maintenance as m;
+    let (_dir, file, clock) = fixture();
+    let loaded = Loaded::read(&file).unwrap();
+    let plan = maintenance_plan(&loaded);
+    service::initialize_with(&loaded, clock.clone(), &service::Builtin).unwrap();
+    let request = id();
+    assert!(m::prepare(&plan, &loaded, &loaded, &request).is_err());
+    let (stop, signal) = tokio::sync::oneshot::channel();
+    let c = clock.clone();
+    let running = Loaded::read(&file).unwrap();
+    let task = tokio::spawn(service::run_with(running, c, service::Builtin, async {
+        let _ = signal.await;
+    }));
+    status(
+        &loaded.config.runtime_directory.join("host-status.json"),
+        "SOFTWARE_READY_UNARMED",
+    )
+    .await;
+    assert!(m::prepare(&plan, &loaded, &loaded, &request).is_err());
+    stop.send(()).unwrap();
+    task.await.unwrap().unwrap();
+    let prepared = m::prepare(&plan, &loaded, &loaded, &request).unwrap();
+    assert_eq!(prepared.state, m::State::Prepared);
+    assert!(!prepared.installation_changed && !prepared.activation_authorized);
+    assert_eq!(
+        canonical::bytes(&prepared).unwrap(),
+        canonical::bytes(&m::prepare(&plan, &loaded, &loaded, &request).unwrap()).unwrap()
+    );
+    assert_eq!(
+        m::lookup(&loaded, &request)
+            .unwrap()
+            .unwrap()
+            .request_digest,
+        prepared.request_digest
+    );
+    assert!(m::prepare(&plan, &loaded, &loaded, &id()).is_err());
+    let mut changed = plan.clone();
+    changed.process_review_digest = Digest::from_bytes([25; 32]);
+    assert!(m::prepare(&changed, &loaded, &loaded, &request).is_err());
+    assert!(
+        service::run_with(
+            Loaded::read(&file).unwrap(),
+            clock.clone(),
+            service::Builtin,
+            async {}
+        )
+        .await
+        .is_err()
+    );
+    assert_eq!(
+        m::cancel(&loaded, &request).unwrap().state,
+        m::State::Cancelled
+    );
+    assert_eq!(
+        m::cancel(&loaded, &request).unwrap().state,
+        m::State::Cancelled
+    );
+    assert_eq!(
+        m::prepare(&plan, &loaded, &loaded, &request).unwrap().state,
+        m::State::Cancelled
+    );
+    service::run_with(
+        Loaded::read(&file).unwrap(),
+        clock,
+        service::Builtin,
+        async {},
+    )
+    .await
+    .unwrap();
+    let next = m::prepare(&plan, &loaded, &loaded, &id()).unwrap();
+    assert_ne!(next.stop.attempt, prepared.stop.attempt);
+    assert_eq!(
+        next.stop.journal_tail, prepared.stop.journal_tail,
+        "maintenance history is not native evidence"
+    );
+}
+#[tokio::test]
+async fn failed_startup_invalidates_old_stop_even_when_old_status_file_still_says_stopped() {
+    use service::maintenance as m;
+    let (_dir, file, clock) = fixture();
+    let loaded = Loaded::read(&file).unwrap();
+    let plan = maintenance_plan(&loaded);
+    service::initialize_with(&loaded, clock.clone(), &service::Builtin).unwrap();
+    service::run_with(
+        Loaded::read(&file).unwrap(),
+        clock.clone(),
+        service::Builtin,
+        async {},
+    )
+    .await
+    .unwrap();
+    let status_file = loaded.config.runtime_directory.join("host-status.json");
+    let old_status = std::fs::read(&status_file).unwrap();
+    let occupied = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let mut failing = Loaded::read(&file).unwrap();
+    failing.config.bind = occupied.local_addr().unwrap();
+    assert!(
+        service::run_with(failing, clock.clone(), service::Builtin, async {})
+            .await
+            .is_err()
+    );
+    assert_eq!(std::fs::read(&status_file).unwrap(), old_status);
+    assert!(m::prepare(&plan, &loaded, &loaded, &id()).is_err());
+    drop(occupied);
+    service::run_with(
+        Loaded::read(&file).unwrap(),
+        clock,
+        service::Builtin,
+        async {},
+    )
+    .await
+    .unwrap();
+    assert!(m::prepare(&plan, &loaded, &loaded, &id()).is_ok());
+}
+#[tokio::test]
+async fn operational_state_changes_after_stop_invalidate_preparation_without_reinitializing_the_journal()
+ {
+    use rx_ports::{Document, Repository};
+    use service::maintenance as m;
+    let (_dir, file, clock) = fixture();
+    let loaded = Loaded::read(&file).unwrap();
+    let plan = maintenance_plan(&loaded);
+    service::initialize_with(&loaded, clock.clone(), &service::Builtin).unwrap();
+    service::run_with(
+        Loaded::read(&file).unwrap(),
+        clock,
+        service::Builtin,
+        async {},
+    )
+    .await
+    .unwrap();
+    let mut store =
+        rx_storage::SqliteRepository::open(loaded.config.data_directory.join("host.db")).unwrap();
+    store
+        .transact(|tx| {
+            tx.put(
+                &name("external/change"),
+                None,
+                &Document {
+                    schema: name("test.change.v1"),
+                    value: serde_json::json!({"changed":true}),
+                },
+            )?;
+            Ok(())
+        })
+        .unwrap();
+    drop(store);
+    assert!(m::prepare(&plan, &loaded, &loaded, &id()).is_err());
+    assert!(m::lookup(&loaded, &id()).unwrap().is_none());
+}
+
+#[cfg(feature = "test-harness")]
+#[test]
+#[ignore = "abrupt-exit helper invoked only by the maintenance crash test"]
+fn maintenance_crash_child() {
+    let file = std::env::var("RX_MAINTENANCE_TEST_CONFIG").unwrap();
+    let loaded = Loaded::read(Path::new(&file)).unwrap();
+    let plan = maintenance_plan(&loaded);
+    let request = Id::new(std::env::var("RX_MAINTENANCE_TEST_REQUEST").unwrap()).unwrap();
+    let point = std::env::var("RX_MAINTENANCE_TEST_POINT").unwrap();
+    service::maintenance::prepare_with_boundary(
+        &plan,
+        &loaded,
+        &loaded,
+        &request,
+        || {
+            if point == "before" {
+                std::process::exit(71)
+            }
+            Ok(())
+        },
+        || {
+            if point == "after" {
+                std::process::exit(72)
+            }
+        },
+    )
+    .unwrap();
+}
+#[cfg(feature = "test-harness")]
+#[tokio::test]
+async fn preparation_commit_crashes_preserve_atomicity_and_durable_same_request_recovery() {
+    use service::maintenance as m;
+    for point in ["before", "after"] {
+        let (_dir, file, clock) = fixture();
+        let loaded = Loaded::read(&file).unwrap();
+        service::initialize_with(&loaded, clock.clone(), &service::Builtin).unwrap();
+        service::run_with(
+            Loaded::read(&file).unwrap(),
+            clock,
+            service::Builtin,
+            async {},
+        )
+        .await
+        .unwrap();
+        let request = id();
+        let status = std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--ignored", "--exact", "maintenance_crash_child"])
+            .env("RX_MAINTENANCE_TEST_CONFIG", &file)
+            .env("RX_MAINTENANCE_TEST_REQUEST", request.as_str())
+            .env("RX_MAINTENANCE_TEST_POINT", point)
+            .stdout(std::process::Stdio::null())
+            .status()
+            .unwrap();
+        assert_eq!(status.code(), Some(if point == "before" { 71 } else { 72 }));
+        assert_eq!(
+            m::lookup(&loaded, &request).unwrap().is_some(),
+            point == "after"
+        );
+        let plan = maintenance_plan(&loaded);
+        let recovered = m::prepare(&plan, &loaded, &loaded, &request).unwrap();
+        assert_eq!(recovered.state, m::State::Prepared);
+        assert_eq!(
+            m::lookup(&loaded, &request)
+                .unwrap()
+                .unwrap()
+                .request_digest,
+            recovered.request_digest
+        );
+        assert_eq!(
+            m::cancel(&loaded, &request).unwrap().state,
+            m::State::Cancelled
+        );
+    }
+}
+#[tokio::test]
+async fn maintenance_requires_descriptor_feature_marker_and_does_not_silently_upgrade_legacy_installations()
+ {
+    let (_dir, file, clock) = fixture();
+    let loaded = Loaded::read(&file).unwrap();
+    service::initialize_with(&loaded, clock.clone(), &service::Builtin).unwrap();
+    let descriptor = loaded.config.data_directory.join("installation.json");
+    let bytes = std::fs::read(&descriptor).unwrap();
+    let mut value: serde_json::Value = canonical::decode_json(&bytes).unwrap();
+    assert_eq!(value["maintenance_protocol"], "rx.host-maintenance.v1");
+    value
+        .as_object_mut()
+        .unwrap()
+        .remove("maintenance_protocol");
+    std::fs::write(&descriptor, canonical::bytes(&value).unwrap()).unwrap();
+    assert!(
+        service::run_with(
+            Loaded::read(&file).unwrap(),
+            clock.clone(),
+            service::Builtin,
+            async {}
+        )
+        .await
+        .is_err()
+    );
+    value["schema"] = serde_json::json!("rx.host-installation.v1");
+    std::fs::write(&descriptor, canonical::bytes(&value).unwrap()).unwrap();
+    service::run_with(
+        Loaded::read(&file).unwrap(),
+        clock,
+        service::Builtin,
+        async {},
+    )
+    .await
+    .unwrap();
+    assert!(
+        service::maintenance::prepare(&maintenance_plan(&loaded), &loaded, &loaded, &id()).is_err()
+    );
+    assert!(
+        serde_json::from_slice::<serde_json::Value>(&std::fs::read(&descriptor).unwrap())
+            .unwrap()
+            .get("maintenance_protocol")
+            .is_none()
+    );
+}
+
+#[tokio::test]
+async fn preparation_cannot_swap_both_current_and_proposed_around_the_actual_stopped_startup() {
+    let (_dir, file, clock) = fixture();
+    let loaded = Loaded::read(&file).unwrap();
+    service::initialize_with(&loaded, clock.clone(), &service::Builtin).unwrap();
+    service::run_with(
+        Loaded::read(&file).unwrap(),
+        clock,
+        service::Builtin,
+        async {},
+    )
+    .await
+    .unwrap();
+    let plan = maintenance_plan(&loaded);
+    for field in ["release", "bind", "drain"] {
+        let mut swapped = Loaded::read(&file).unwrap();
+        match field {
+            "release" => swapped.config.release_digest = Digest::from_bytes([88; 32]),
+            "bind" => swapped.config.bind = "127.0.0.1:17777".parse().unwrap(),
+            _ => swapped.config.publication_drain_ms = Counter(9123),
+        }
+        assert_eq!(
+            swapped.identity, loaded.identity,
+            "old installation identity intentionally excludes these settings"
+        );
+        assert!(
+            service::binding_change::inspect(&plan, &swapped, &swapped)
+                .unwrap()
+                .software_matches
+        );
+        let request = id();
+        assert!(service::maintenance::prepare(&plan, &swapped, &swapped, &request).is_err());
+        assert!(
+            service::maintenance::lookup(&loaded, &request)
+                .unwrap()
+                .is_none()
+        );
+    }
+    assert!(service::maintenance::prepare(&plan, &loaded, &loaded, &id()).is_ok());
+}

@@ -2,6 +2,37 @@ use rx_host::service::{self, config::Loaded};
 #[tokio::main]
 async fn main() -> service::Result<()> {
     let args = std::env::args().skip(1).collect::<Vec<_>>();
+    if args.len() == 5 && args[0] == "prepare-binding-change" {
+        let plan = rx_package::policy::read(std::path::Path::new(&args[1]))?;
+        let current = Loaded::read(std::path::Path::new(&args[2]))?;
+        let proposed = Loaded::read(std::path::Path::new(&args[3]))?;
+        let request = rx_domain::types::Id::new(&args[4])?;
+        println!(
+            "{}",
+            serde_json::to_string(&service::maintenance::prepare(
+                &plan, &current, &proposed, &request
+            )?)?
+        );
+        return Ok(());
+    }
+    if args.len() == 3 && args[0] == "lookup-binding-preparation" {
+        let current = Loaded::read(std::path::Path::new(&args[1]))?;
+        let request = rx_domain::types::Id::new(&args[2])?;
+        println!(
+            "{}",
+            serde_json::to_string(&service::maintenance::lookup(&current, &request)?)?
+        );
+        return Ok(());
+    }
+    if args.len() == 3 && args[0] == "cancel-binding-preparation" {
+        let current = Loaded::read(std::path::Path::new(&args[1]))?;
+        let request = rx_domain::types::Id::new(&args[2])?;
+        println!(
+            "{}",
+            serde_json::to_string(&service::maintenance::cancel(&current, &request)?)?
+        );
+        return Ok(());
+    }
     if args.len() == 4 && args[0] == "inspect-binding-change" {
         let plan: rx_process_contract::host_binding_plan::Plan =
             rx_package::policy::read(std::path::Path::new(&args[1]))?;
@@ -30,7 +61,7 @@ async fn main() -> service::Result<()> {
         return Ok(());
     }
     if args.len() != 2 || !matches!(args[0].as_str(), "inspect" | "init" | "run") {
-        return Err("usage: rx-hostd drivers [jtc] | inspect|init|run CONFIG | inspect-binding-change PLAN CURRENT_CONFIG PROPOSED_CONFIG".into());
+        return Err("usage: rx-hostd drivers [jtc] | inspect|init|run CONFIG | inspect-binding-change PLAN CURRENT_CONFIG PROPOSED_CONFIG | prepare-binding-change PLAN CURRENT_CONFIG PROPOSED_CONFIG REQUEST_ID | cancel-binding-preparation|lookup-binding-preparation CURRENT_CONFIG REQUEST_ID".into());
     }
     let loaded = Loaded::read(std::path::Path::new(&args[1]))?;
     if args[0] == "inspect" {

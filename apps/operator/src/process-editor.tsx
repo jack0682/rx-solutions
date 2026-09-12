@@ -78,7 +78,10 @@ function Tree({
       {previewRows(source, flowIndex).map((row, i) => {
         const node = flow?.nodes[row.nodeIndex];
         return (
-          <div key={i} className="graph-branch" style={{ marginLeft: Math.min(row.depth, 6) * 14 }}>
+          <div
+            key={i}
+            className={`graph-branch graph-depth-${Math.max(0, Math.min(row.depth, 6))}`}
+          >
             {row.problem ? (
               <div className="graph-missing">
                 {row.problem} · {row.nodeId}
