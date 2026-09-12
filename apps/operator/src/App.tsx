@@ -18,6 +18,15 @@ import {
 import { Conditions } from './conditions';
 import { text, short, time } from './labels';
 import { Runs, Work, Configuration } from './views';
+import { RunStart } from './run-start';
+import {
+  attemptPath,
+  readStartWatch,
+  saveStartWatch,
+  validateAttemptContext,
+  validateStartReceipt,
+  type StartWatch,
+} from './run-start-schema';
 import { Cases } from './cases';
 import { useState, useEffect, useRef, useCallback, type FormEvent } from 'react';
 import { z } from 'zod';
@@ -52,6 +61,8 @@ export function App() {
   const [selected, setSelected] = useState('');
   const [dialog, setDialog] = useState<{ kind: 'run' | 'hold'; cell: CellOverview } | null>(null);
   const [pending, setPending] = useState<Pending | null>(null);
+  const [startWatch, setStartWatch] = useState<StartWatch | null>(null);
+  const [runSelections, setRunSelections] = useState<Record<string, string>>({});
   const [storageError, setStorageError] = useState(false);
   const [working, setWorking] = useState(false);
   const busy = useRef(false);
@@ -62,6 +73,7 @@ export function App() {
   useEffect(() => {
     try {
       setPending(readPending(sessionStorage));
+      setStartWatch(readStartWatch(sessionStorage));
     } catch {
       setStorageError(true);
     }
@@ -91,6 +103,7 @@ export function App() {
         setPackageReceipt(null);
         setDraftReceipt(null);
         setBindingReceipt(null);
+        setRunSelections({});
       }
       setData(result);
       setReadStarted(started);
@@ -164,6 +177,17 @@ export function App() {
   const fresh = !!data && !error && now - lastReadSteady < 10000;
   const cell = data?.cells.find((c) => c.cell.value.id === selected);
   const canOperate = !!data?.user.roles.includes('OPERATOR');
+  const recoverableStart =
+    data &&
+    pending?.route === '/api/v1/runs/start' &&
+    canRecover(
+      pending,
+      data.user.principal,
+      data.installation.id,
+      data.installation.store_generation,
+    )
+      ? pending
+      : null;
   const canAuthor = !!data?.user.roles.includes('ENGINEER');
   const canReadDrafts = canAuthor || !!data?.user.roles.includes('VERIFIER');
   const canEditDraft = canAuthor && !pending && !working && !storageError;
@@ -358,7 +382,35 @@ export function App() {
           });
         } else if (record.route === '/api/v1/runs') {
           const run = runSchema.parse(result);
-          if (run.cell !== record.command.cell) throw new Error('cell correlation');
+          if (
+            run.cell !== record.command.cell ||
+            run.recipe_digest !== record.command.recipe_digest
+          )
+            throw new Error('run correlation');
+          setRunSelections((old) => ({ ...old, [run.cell]: run.id }));
+          setSelected(run.cell);
+        } else if (record.route === '/api/v1/runs/start') {
+          const receipt = validateStartReceipt(record, result);
+          // The unchanged POST receipt has no budget/configuration fields. Read the same
+          // attempt and Run before releasing the durable unknown-request record.
+          const checked = validateAttemptContext(
+            await api(attemptPath(receipt.cell, receipt.run, receipt.id)),
+            data,
+            receipt.cell,
+            receipt.run,
+            receipt.id,
+            record,
+          );
+          const watch = { request: record, attempt: checked.attempt };
+          try {
+            saveStartWatch(sessionStorage, watch);
+          } catch (error) {
+            setStorageError(true);
+            throw error;
+          }
+          setStartWatch(watch);
+          setRunSelections((old) => ({ ...old, [receipt.cell]: receipt.run }));
+          setSelected(receipt.cell);
         } else if (record.route === '/api/v1/cells/hold') {
           const held = z
             .object({
@@ -422,7 +474,7 @@ export function App() {
           </footer>
         </section>
         <section className="entry-form">
-          <div className="pill">LOCAL DEVELOPMENT</div>
+          <div className="pill">RX OPERATIONS</div>
           <h2>운영 공간에 로그인</h2>
           <p className="muted">현장 계정으로 접근 가능한 셀을 확인하세요.</p>
           {phase === 'checking' ? (
@@ -469,9 +521,9 @@ export function App() {
             </form>
           )}
           <p className="entry-note">
-            현재는 로컬 개발 환경입니다.
+            로그인 후 현재 셀과 단말 연결 상태를 확인합니다.
             <br />
-            실장비 시작과 현장 단말 인증은 활성화되지 않았습니다.
+            작업 시작은 등록 단말과 현재 운전 자격·조건을 검사합니다.
           </p>
         </section>
       </div>
@@ -816,8 +868,12 @@ export function App() {
                         <div className="check-line">
                           <span className="check-mark neutral">—</span>
                           <div>
-                            <b>실장비 시작 비활성</b>
-                            <p>등록된 현장 단말과 배포 경로의 연결이 필요합니다.</p>
+                            <b>{data.user.terminal ? '등록 단말 인증됨' : '등록 단말 인증 없음'}</b>
+                            <p>
+                              {data.user.terminal
+                                ? `${data.user.terminal} · 실행을 선택해 현재 시작 조건을 조회하세요.`
+                                : '작업 시작 요청에는 등록 단말 인증이 필요합니다.'}
+                            </p>
                           </div>
                         </div>
                         <button
@@ -920,6 +976,42 @@ export function App() {
                 ) : (
                   <Configuration cell={cell} />
                 ))}
+              {cell && (tab === '운영' || tab === '실행 기록') && (
+                <RunStart
+                  key={JSON.stringify([
+                    data.user.principal,
+                    data.installation.id,
+                    data.installation.store_generation,
+                    cell.cell.value.id,
+                  ])}
+                  data={data}
+                  cell={cell}
+                  selectedRun={
+                    runSelections[cell.cell.value.id] ??
+                    (recoverableStart?.start_review?.cell === cell.cell.value.id
+                      ? String(recoverableStart.command.run)
+                      : undefined) ??
+                    (startWatch &&
+                    canRecover(
+                      startWatch.request,
+                      data.user.principal,
+                      data.installation.id,
+                      data.installation.store_generation,
+                    ) &&
+                    startWatch.attempt.cell === cell.cell.value.id
+                      ? startWatch.attempt.run
+                      : '')
+                  }
+                  onSelectRun={(run) =>
+                    setRunSelections((old) => ({ ...old, [cell.cell.value.id]: run }))
+                  }
+                  canRequest={canRequest}
+                  fresh={fresh}
+                  working={working}
+                  watch={startWatch}
+                  onSubmit={(record) => submit(undefined, record)}
+                />
+              )}
             </>
           )}
           <footer className="page-footer">

@@ -1,15 +1,23 @@
 import { diagnosticsSchema } from './diagnostics-schema';
 import { z } from 'zod';
-const counter = z
+export const counter = z
   .string()
   .regex(/^(0|[1-9][0-9]{0,19})$/)
-  .refine((s) => BigInt(s) <= 18446744073709551615n);
+  .refine((s) => /^(0|[1-9][0-9]{0,19})$/.test(s) && BigInt(s) <= 18446744073709551615n);
 const id = z.uuid();
-const time = z.object({ clock_id: z.string(), ticks_ns: counter });
-const artifact = z.object({
+export const timeSchema = z.object({ clock_id: z.string(), ticks_ns: counter });
+const time = timeSchema;
+export const artifactSchema = z.object({
   sha256: z.string().regex(/^[0-9a-f]{64}$/),
   schema_id: z.string(),
   size_bytes: counter,
+});
+const artifact = artifactSchema;
+export const installationSchema = z.object({
+  id,
+  store_generation: id,
+  runtime_boot: id,
+  clock_id: z.string(),
 });
 const environment = z.enum(['SIMULATION', 'PHYSICAL']);
 export const profileSchema = z.object({
@@ -86,6 +94,7 @@ export const runSchema = z.object({
   recipe_digest: z.string(),
   envelope_digest: z.string(),
   part_ids: z.array(id),
+  pending_attempt: id.nullable().optional(),
 });
 const operation = z.object({
   operation_id: id,
@@ -108,7 +117,7 @@ export const overviewSchema = z.object({
   snapshot_id: id,
   observed_at: time,
   user: profileSchema,
-  installation: z.object({ id, store_generation: id, runtime_boot: id, clock_id: z.string() }),
+  installation: installationSchema,
   cells: z.array(
     z.object({
       cell: z.object({ revision: counter, value: cell }),
@@ -125,29 +134,65 @@ export const overviewSchema = z.object({
 export type Overview = z.infer<typeof overviewSchema>;
 export type CellOverview = Overview['cells'][number];
 export type Profile = z.infer<typeof profileSchema>;
-export const pendingSchema = z.object({
-  request_key: id,
-  route: z.enum([
-    '/api/v1/runs',
-    '/api/v1/cells/hold',
-    '/api/v1/cells',
-    '/api/v1/cases/acknowledge',
-    '/api/v1/process-drafts',
-    '/api/v1/process-draft-bindings',
-    '/api/v1/package-intakes',
-    '/api/v1/process-reviews',
-    '/api/v1/process-review/reports',
-    '/api/v1/process-review/decisions',
-    '/api/v1/device-reviews',
-    '/api/v1/device-review/reports',
-    '/api/v1/device-review/decisions',
-  ]),
-  command: z.record(z.string(), z.unknown()),
-  label: z.string(),
-  principal: z.string(),
-  installation: id,
-  store_generation: id,
-});
+export const startCommandSchema = z
+  .object({
+    run: id,
+    envelope_digest: z.string().regex(/^[0-9a-f]{64}$/),
+    purpose: z.literal('PRODUCTION'),
+    budget_unit: z.literal('PART_ATTEMPT'),
+    budget_limit: counter.refine((value) => /^[0-9]+$/.test(value) && BigInt(value) > 0n),
+    expected_cell: counter,
+    expected_run: counter.refine(
+      (value) => /^[0-9]+$/.test(value) && BigInt(value) < 18446744073709551615n,
+    ),
+  })
+  .strict();
+export const startReviewSchema = z
+  .object({
+    cell: z.string().min(1),
+    epoch: counter,
+    scope_epochs: z.record(z.string(), counter),
+    recipe_digest: z.string().regex(/^[0-9a-f]{64}$/),
+    runtime_boot: id,
+  })
+  .strict();
+export const pendingSchema = z
+  .object({
+    request_key: id,
+    route: z.enum([
+      '/api/v1/runs',
+      '/api/v1/runs/start',
+      '/api/v1/cells/hold',
+      '/api/v1/cells',
+      '/api/v1/cases/acknowledge',
+      '/api/v1/process-drafts',
+      '/api/v1/process-draft-bindings',
+      '/api/v1/package-intakes',
+      '/api/v1/process-reviews',
+      '/api/v1/process-review/reports',
+      '/api/v1/process-review/decisions',
+      '/api/v1/device-reviews',
+      '/api/v1/device-review/reports',
+      '/api/v1/device-review/decisions',
+    ]),
+    command: z.record(z.string(), z.unknown()),
+    label: z.string(),
+    principal: z.string(),
+    installation: id,
+    store_generation: id,
+    start_review: startReviewSchema.optional(),
+  })
+  .superRefine((value, context) => {
+    if (
+      value.route === '/api/v1/runs/start' &&
+      (!value.start_review || !startCommandSchema.safeParse(value.command).success)
+    ) {
+      context.addIssue({
+        code: 'custom',
+        message: 'A start request requires its exact command and reviewed cell context.',
+      });
+    }
+  });
 export type Pending = z.infer<typeof pendingSchema>;
 
 export const caseSnapshotSchema = z.object({
