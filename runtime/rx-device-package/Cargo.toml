@@ -1,0 +1,23 @@
+[package]
+name = "rx-device-package"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+[dependencies]
+rx-process-contract = {path="../../sdk/crates/rx-process-contract"}
+rx-host = {path="../rx-host"}
+rx-domain = {path="../../sdk/crates/rx-domain"}
+rx-package = {path="../../sdk/crates/rx-package"}
+serde = {version="1",features=["derive"]}
+serde_json = "1"
+semver = {version="1",features=["serde"]}
+thiserror = "2"
+[dev-dependencies]
+uuid = {version="1",features=["v4"]}
+rcgen = "0.14"
+tokio = {version="1",features=["rt-multi-thread","macros","time"]}
+tempfile = "3"
+ed25519-dalek = "3"
+rx-melsec-mc = {path="../../drivers/rx-melsec-mc"}
+[lints]
+workspace = true

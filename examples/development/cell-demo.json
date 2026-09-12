@@ -1,0 +1,101 @@
+{
+  "id": "cell/demo",
+  "environment": "SIMULATION",
+  "definition": {
+    "sha256": "0101010101010101010101010101010101010101010101010101010101010101",
+    "schema_id": "rx.development.placeholder.v1",
+    "size_bytes": "1"
+  },
+  "envelope": {
+    "sha256": "0202020202020202020202020202020202020202020202020202020202020202",
+    "schema_id": "rx.development.placeholder.v1",
+    "size_bytes": "1"
+  },
+  "recipe": {
+    "sha256": "0303030303030303030303030303030303030303030303030303030303030303",
+    "schema_id": "rx.development.placeholder.v1",
+    "size_bytes": "1"
+  },
+  "site_config_digest": "0404040404040404040404040404040404040404040404040404040404040404",
+  "scopes": [
+    "zone/demo"
+  ],
+  "hosts": [
+    "host/sim"
+  ],
+  "executor": "executor/sim",
+  "maximum_budget": "10",
+  "permit_ttl_ns": "100000000",
+  "start_timeout_ns": "1000000000",
+  "start_conditions": [
+    {
+      "fact": "ready",
+      "schema": "boolean/v1",
+      "unit": "unitless",
+      "expected": {
+        "boolean": true
+      },
+      "op": "EQ"
+    }
+  ],
+  "maintained_conditions": [],
+  "fact_specs": [
+    {
+      "id": "ready",
+      "host": "host/sim",
+      "schema": "boolean/v1",
+      "unit": "unitless",
+      "maximum_age_ns": "1000000000",
+      "maximum_uncertainty_ns": "0"
+    }
+  ],
+  "steps": [
+    {
+      "id": "step/place",
+      "host": "host/sim",
+      "predecessors": [],
+      "conditions": [
+        {
+          "fact": "ready",
+          "schema": "boolean/v1",
+          "unit": "unitless",
+          "expected": {
+            "boolean": true
+          },
+          "op": "EQ"
+        }
+      ],
+      "condition_ids": [
+        "ready"
+      ],
+      "condition_revision": "1",
+      "handover_max_age_ns": "1000000000",
+      "completion": {
+        "kind": "UNOBSERVABLE"
+      },
+      "intent": {
+        "kind": "ENSURE_STATE",
+        "target": "device/sim",
+        "profile_digest": "0808080808080808080808080808080808080808080808080808080808080808",
+        "site_config_digest": "0404040404040404040404040404040404040404040404040404040404040404",
+        "calibration_digests": [],
+        "resource_set": [
+          "controller/sim"
+        ],
+        "execution_timeout_ms": "500",
+        "prepare_validity_ms": "100",
+        "completion_rule": "sim/closed",
+        "cancel_rule": "sim/stop",
+        "body": {
+          "predicate": {
+            "predicate_id": "closed",
+            "target": {
+              "boolean": true
+            },
+            "settle_ms": "0"
+          }
+        }
+      }
+    }
+  ]
+}

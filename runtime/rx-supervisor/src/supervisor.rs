@@ -1,0 +1,488 @@
+use crate::{Error, Result, model::*, process::Backend};
+use rx_domain::{canonical, types::*};
+use rx_ports::{Document, Repository, StoreError};
+use rx_solution_catalog::OwnPlatformCatalog;
+use std::{
+    collections::BTreeMap,
+    time::{Duration, Instant},
+};
+fn name(s: &str) -> Name {
+    Name::new(s).expect("internal name")
+}
+fn id() -> Id {
+    Id::new(uuid::Uuid::new_v4().to_string()).expect("generated UUID")
+}
+const KEY: &str = "supervisor/state";
+const SCHEMA: &str = "rx.supervisor-state.v1";
+fn document(state: &State) -> rx_ports::Result<Document> {
+    Ok(Document {
+        schema: name(SCHEMA),
+        value: serde_json::to_value(state).map_err(|e| StoreError::Invalid(e.to_string()))?,
+    })
+}
+fn decode(record: &rx_ports::Record) -> rx_ports::Result<State> {
+    if record.document.schema != name(SCHEMA) {
+        return Err(StoreError::Integrity("supervisor schema differs".into()));
+    }
+    canonical::decode_json(
+        &canonical::bytes(&record.document.value)
+            .map_err(|e| StoreError::Integrity(e.to_string()))?,
+    )
+    .map_err(|e| StoreError::Integrity(e.to_string()))
+}
+pub struct Supervisor<R, B, A> {
+    repository: R,
+    backend: B,
+    authority: A,
+    plan: Plan,
+    programs: BTreeMap<Name, Program>,
+    started: BTreeMap<Id, Instant>,
+    stopping: BTreeMap<Id, Instant>,
+    retry_after: BTreeMap<Name, Instant>,
+    stop_latched: bool,
+}
+impl<R: Repository, B: Backend, A: LifecycleAuthority> Supervisor<R, B, A> {
+    pub fn open(
+        mut repository: R,
+        backend: B,
+        authority: A,
+        plan: Plan,
+        programs: BTreeMap<Name, Program>,
+        support: &OwnPlatformCatalog,
+    ) -> Result<Self> {
+        let digest = plan.validate(&programs, support)?;
+        let existing = repository.snapshot()?.1;
+        if !existing.iter().any(|r| r.key == name(KEY))
+            && (!existing.is_empty() || repository.journal_head()?.0 != 0)
+        {
+            return Err(Error::Invalid(
+                "supervisor requires a dedicated empty store".into(),
+            ));
+        }
+
+        repository.transact(|tx| {
+            if let Some(old) = tx.get(&name(KEY))? {
+                let mut state = decode(&old)?;
+                if state.plan != plan.id || state.plan_digest != digest {
+                    return Err(StoreError::KeyConflict);
+                }
+                for record in state.records.values_mut() {
+                    if matches!(
+                        record.phase,
+                        Phase::SpawnEntered
+                            | Phase::Starting
+                            | Phase::ProcessReady
+                            | Phase::Unready
+                            | Phase::StopRequested
+                    ) {
+                        record.phase = Phase::Unknown;
+                        record.error =
+                            Some("supervisor ownership lost; no PID adoption or replay".into());
+                    }
+                }
+                tx.put(&name(KEY), Some(old.revision), &document(&state)?)?;
+            } else {
+                if tx.control_head()?.0 != 0 {
+                    return Err(StoreError::Invalid(
+                        "supervisor requires a dedicated empty store".into(),
+                    ));
+                }
+                let records = plan
+                    .processes
+                    .iter()
+                    .map(|p| {
+                        (
+                            p.id.clone(),
+                            Record {
+                                id: p.id.clone(),
+                                instance: None,
+                                phase: Phase::Pending,
+                                attempts: Counter(0),
+                                pid: None,
+                                exit_code: None,
+                                error: None,
+                            },
+                        )
+                    })
+                    .collect();
+                tx.put(
+                    &name(KEY),
+                    None,
+                    &document(&State {
+                        schema: name(SCHEMA),
+                        plan: plan.id.clone(),
+                        plan_digest: digest,
+                        stop_requested: false,
+                        records,
+                    })?,
+                )?;
+            }
+            Ok(())
+        })?;
+        Ok(Self {
+            repository,
+            backend,
+            authority,
+            plan,
+            programs,
+            started: BTreeMap::new(),
+            stopping: BTreeMap::new(),
+            retry_after: BTreeMap::new(),
+            stop_latched: false,
+        })
+    }
+    pub fn state(&mut self) -> Result<State> {
+        Ok(self.repository.transact(|tx| {
+            decode(
+                &tx.get(&name(KEY))?
+                    .ok_or_else(|| StoreError::Integrity("supervisor state missing".into()))?,
+            )
+        })?)
+    }
+    fn change(&mut self, change: impl FnOnce(&mut State)) -> Result<()> {
+        self.repository.transact(|tx| {
+            let old = tx
+                .get(&name(KEY))?
+                .ok_or_else(|| StoreError::Integrity("supervisor state missing".into()))?;
+            let mut state = decode(&old)?;
+            change(&mut state);
+            tx.put(&name(KEY), Some(old.revision), &document(&state)?)?;
+            tx.append(&id(), &document(&state)?)?;
+            Ok(())
+        })?;
+        Ok(())
+    }
+    pub fn request_stop(&mut self) -> Result<()> {
+        self.stop_latched = true;
+        self.change(|s| s.stop_requested = true)
+    }
+    /// Explicit non-actuating reactivation only, after a durably completed shutdown.
+    pub fn rearm_software(&mut self) -> Result<()> {
+        let state = self.state()?;
+        if !state.stop_requested
+            || state
+                .records
+                .values()
+                .any(|r| !matches!(r.phase, Phase::Exited | Phase::Skipped | Phase::StartFailed))
+            || self
+                .plan
+                .processes
+                .iter()
+                .any(|p| self.programs[&p.program].effect != Effect::NonActuating)
+        {
+            return Err(Error::Reconciliation(
+                "software reactivation prerequisites not satisfied".into(),
+            ));
+        }
+        for record in state.records.values() {
+            if let Some(instance) = &record.instance
+                && self.backend.owns(instance)
+            {
+                self.backend.forget_exited(instance)?;
+            }
+        }
+        self.started.clear();
+        self.stopping.clear();
+        self.change(|s| {
+            s.stop_requested = false;
+            for r in s.records.values_mut() {
+                r.phase = Phase::Pending;
+                r.instance = None;
+                r.attempts = Counter(0);
+                r.pid = None;
+                r.exit_code = None;
+                r.error = None;
+            }
+        })?;
+        self.stop_latched = false;
+        self.retry_after.clear();
+        Ok(())
+    }
+    pub fn tick(&mut self) -> Result<Status> {
+        let mut blocked = vec![];
+        for process in self.plan.processes.clone() {
+            let state = self.state()?;
+            let record = state.records[&process.id].clone();
+            let program = self.programs[&process.program].clone();
+            if record.phase == Phase::Exited
+                && let Some(instance) = &record.instance
+            {
+                if self.backend.owns(instance) {
+                    self.backend.forget_exited(instance)?;
+                }
+                self.started.remove(instance);
+                self.stopping.remove(instance);
+            }
+
+            if record.phase == Phase::Unknown {
+                blocked.push(format!("{}: process ownership unknown", process.id));
+                continue;
+            }
+            if let Some(instance) = &record.instance
+                && matches!(
+                    record.phase,
+                    Phase::Starting | Phase::ProcessReady | Phase::Unready | Phase::StopRequested
+                )
+            {
+                if !self.backend.owns(instance) {
+                    self.change(|s| {
+                        let r = s.records.get_mut(&process.id).unwrap();
+                        r.phase = Phase::Unknown;
+                        r.error = Some("live process handle unavailable".into());
+                    })?;
+                    continue;
+                }
+                if let Some(code) = self.backend.exited(instance)? {
+                    self.change(|s| {
+                        let r = s.records.get_mut(&process.id).unwrap();
+                        r.phase = Phase::Exited;
+                        r.exit_code = code;
+                        if !s.stop_requested {
+                            r.error = Some("unexpected service exit".into());
+                        }
+                    })?;
+                    self.backend.forget_exited(instance)?;
+                    self.started.remove(instance);
+                    self.stopping.remove(instance);
+                    self.retry_after.insert(
+                        process.id.clone(),
+                        Instant::now() + Duration::from_millis(process.restart_backoff_ms.0),
+                    );
+                    continue;
+                }
+            }
+            if matches!(record.phase, Phase::Starting | Phase::ProcessReady)
+                && process
+                    .depends_on
+                    .iter()
+                    .any(|d| state.records[d].phase != Phase::ProcessReady)
+            {
+                blocked.push(format!(
+                    "{}: dependency lost; readiness is not control authority",
+                    process.id
+                ));
+            }
+            if state.stop_requested || self.stop_latched {
+                if matches!(record.phase, Phase::Pending | Phase::Prepared) {
+                    self.change(|s| {
+                        s.records.get_mut(&process.id).unwrap().phase = Phase::Skipped
+                    })?;
+                    continue;
+                }
+                if matches!(
+                    record.phase,
+                    Phase::Exited | Phase::StartFailed | Phase::Skipped
+                ) {
+                    continue;
+                }
+                let Some(instance) = record.instance.clone() else {
+                    blocked.push(format!("{}: no process identity", process.id));
+                    continue;
+                };
+                let launch = process.launch(&program, instance.clone())?;
+                if self.plan.processes.iter().any(|p| {
+                    p.depends_on.contains(&process.id)
+                        && !matches!(
+                            state.records[&p.id].phase,
+                            Phase::Exited
+                                | Phase::StartFailed
+                                | Phase::Skipped
+                                | Phase::Pending
+                                | Phase::Prepared
+                        )
+                }) {
+                    blocked.push(format!("{}: dependent process still present", process.id));
+                    continue;
+                }
+                if !self.authority.may_stop(&self.plan, &process, &launch) {
+                    blocked.push(format!("{}: release/stop authority required", process.id));
+                    continue;
+                }
+                if record.phase != Phase::StopRequested {
+                    self.change(|s| {
+                        s.records.get_mut(&process.id).unwrap().phase = Phase::StopRequested
+                    })?;
+                    if !self.authority.may_stop(&self.plan, &process, &launch) {
+                        blocked.push(format!("{}: stop authority changed", process.id));
+                        continue;
+                    }
+                    self.stopping.insert(instance.clone(), Instant::now());
+                    self.backend.terminate(&instance, false)?;
+                } else if !self.stopping.contains_key(&instance) {
+                    self.stopping.insert(instance.clone(), Instant::now());
+                    self.backend.terminate(&instance, false)?;
+                } else if self.stopping.get(&instance).is_some_and(|t| {
+                    t.elapsed() >= Duration::from_millis(process.shutdown_timeout_ms.0)
+                }) {
+                    if program.effect == Effect::NonActuating {
+                        self.backend.terminate(&instance, true)?;
+                    } else {
+                        blocked.push(format!(
+                            "{}: control process is retained; forced termination not allowed",
+                            process.id
+                        ));
+                    }
+                }
+                continue;
+            }
+            match record.phase {
+                Phase::Pending | Phase::Prepared | Phase::Exited | Phase::StartFailed => {
+                    if record.attempts.0 > 0
+                        && (program.effect != Effect::NonActuating
+                            || record.attempts.0 > process.restart_limit.0)
+                    {
+                        blocked.push(format!(
+                            "{}: restart budget exhausted or explicit control restart required",
+                            process.id
+                        ));
+                        continue;
+                    }
+                    if self
+                        .retry_after
+                        .get(&process.id)
+                        .is_some_and(|t| Instant::now() < *t)
+                        || process
+                            .depends_on
+                            .iter()
+                            .any(|d| state.records[d].phase != Phase::ProcessReady)
+                    {
+                        continue;
+                    }
+                    let instance = if record.phase == Phase::Prepared {
+                        record
+                            .instance
+                            .clone()
+                            .ok_or_else(|| Error::Invalid("prepared identity missing".into()))?
+                    } else {
+                        id()
+                    };
+                    let launch = process.launch(&program, instance.clone())?;
+                    if !self.authority.may_start(&self.plan, &process, &launch) {
+                        blocked.push(format!(
+                            "{}: platform startup authority required",
+                            process.id
+                        ));
+                        continue;
+                    }
+                    if record.phase != Phase::Prepared {
+                        self.change(|s| {
+                            let r = s.records.get_mut(&process.id).unwrap();
+                            r.phase = Phase::Prepared;
+                            r.instance = Some(instance.clone());
+                            r.pid = None;
+                            r.exit_code = None;
+                            r.error = None;
+                        })?;
+                    }
+                    self.change(|s| {
+                        let r = s.records.get_mut(&process.id).unwrap();
+                        r.phase = Phase::SpawnEntered;
+                        r.attempts = Counter(r.attempts.0 + 1);
+                    })?;
+                    if !self.authority.may_start(&self.plan, &process, &launch) {
+                        self.change(|s| {
+                            let r = s.records.get_mut(&process.id).unwrap();
+                            r.phase = Phase::StartFailed;
+                            r.error = Some("startup authority changed before OS invocation".into());
+                        })?;
+                        continue;
+                    }
+                    let authority = &self.authority;
+                    let plan = &self.plan;
+                    match self.backend.spawn(&launch, &mut || {
+                        authority.may_start(plan, &process, &launch)
+                    }) {
+                        Ok(pid) => {
+                            self.started.insert(instance, Instant::now());
+                            self.change(|s| {
+                                let r = s.records.get_mut(&process.id).unwrap();
+                                r.pid = Some(pid);
+                                r.phase = Phase::Starting;
+                            })?;
+                        }
+                        Err(failure) => {
+                            let (phase, error) = match failure {
+                                crate::process::SpawnFailure::NotStarted(error) => {
+                                    (Phase::StartFailed, error)
+                                }
+                                crate::process::SpawnFailure::Uncertain(error) => {
+                                    (Phase::Unknown, error)
+                                }
+                            };
+                            self.change(|s| {
+                                let r = s.records.get_mut(&process.id).unwrap();
+                                r.phase = phase;
+                                r.error = Some(error.to_string());
+                            })?;
+                            self.retry_after.insert(
+                                process.id.clone(),
+                                Instant::now()
+                                    + Duration::from_millis(process.restart_backoff_ms.0),
+                            );
+                        }
+                    }
+                }
+                Phase::SpawnEntered => {
+                    let owned = record
+                        .instance
+                        .as_ref()
+                        .filter(|id| self.started.contains_key(*id))
+                        .and_then(|id| self.backend.pid(id));
+                    self.change(|s| {
+                        let r = s.records.get_mut(&process.id).unwrap();
+                        if let Some(pid) = owned {
+                            r.phase = Phase::Starting;
+                            r.pid = Some(pid);
+                        } else {
+                            r.phase = Phase::Unknown;
+                            r.error = Some("spawn boundary is unconfirmed; retry forbidden".into());
+                        }
+                    })?;
+                }
+                Phase::Starting => {
+                    let instance = record.instance.clone().unwrap();
+                    let launch = process.launch(&program, instance.clone())?;
+                    if self.backend.ready(&launch)? {
+                        self.change(|s| {
+                            s.records.get_mut(&process.id).unwrap().phase = Phase::ProcessReady
+                        })?;
+                    } else if self.started.get(&instance).is_some_and(|t| {
+                        t.elapsed() >= Duration::from_millis(process.startup_timeout_ms.0)
+                    }) {
+                        self.change(|s| {
+                            let r = s.records.get_mut(&process.id).unwrap();
+                            r.phase = Phase::Unready;
+                            r.error = Some(
+                                "startup probe deadline exceeded; process may still be alive"
+                                    .into(),
+                            );
+                        })?;
+                    }
+                }
+                Phase::Unready => blocked.push(format!(
+                    "{}: startup not confirmed; process retained",
+                    process.id
+                )),
+                Phase::ProcessReady => {}
+                Phase::Skipped | Phase::StopRequested | Phase::Unknown => {}
+            }
+        }
+        let state = self.state()?;
+        let all_exited = state.stop_requested
+            && state
+                .records
+                .values()
+                .all(|r| matches!(r.phase, Phase::Exited | Phase::Skipped | Phase::StartFailed));
+        Ok(Status {
+            schema: "rx.supervisor-status.v1",
+            state,
+            blocked,
+            all_exited,
+            control_prepared: false,
+            physical_shutdown_assessed: false,
+        })
+    }
+    pub fn into_parts(self) -> (R, B, A) {
+        (self.repository, self.backend, self.authority)
+    }
+}

@@ -1,0 +1,21 @@
+repositories:
+  DynamixelSDK:
+    type: git
+    url: https://github.com/ROBOTIS-GIT/DynamixelSDK.git
+    version: 2ded684dff05a40ac78d6a16105c6ddc1b3b9930
+  dynamixel_hardware_interface:
+    type: git
+    url: https://github.com/ROBOTIS-GIT/dynamixel_hardware_interface.git
+    version: 6bb5f93ecad1fe3c231e3ece580344e8f0a6efc3
+  open_manipulator:
+    type: git
+    url: https://github.com/ROBOTIS-GIT/open_manipulator.git
+    version: 9187eca0920458be04d2399906388f55242f81f1
+  ai_worker:
+    type: git
+    url: https://github.com/ROBOTIS-GIT/ai_worker.git
+    version: 2e29aae2dee9926691922fc0fa58d97ad88e068f
+  ai_sapiens:
+    type: git
+    url: https://github.com/ROBOTIS-GIT/ai_sapiens.git
+    version: 7d62dff281f02b6265ebe07db6c0ae32ba8de381

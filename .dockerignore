@@ -1,0 +1,10 @@
+.git
+**/node_modules
+**/dist
+build
+install
+log
+var
+vendor
+.env
+.DS_Store

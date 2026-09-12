@@ -1,0 +1,56 @@
+[package]
+name = "rx-host"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[features]
+test-harness = []
+
+[[bin]]
+name = "rx-hostd"
+path = "src/bin/rx-hostd.rs"
+
+[[bin]]
+name = "rx-host-crash-fixture"
+path = "tests/support/crash_harness.rs"
+required-features = ["test-harness"]
+
+[[bin]]
+name = "rx-host-sim-server"
+path = "tests/support/sim_server.rs"
+required-features = ["test-harness"]
+
+[dependencies]
+rx-process-contract = {path="../../sdk/crates/rx-process-contract"}
+rx-melsec-mc = { path = "../../drivers/rx-melsec-mc" }
+rx-package = {path="../../sdk/crates/rx-package"}
+rustix = {version="1",features=["time","fs","event"]}
+rx-domain = { path = "../../sdk/crates/rx-domain" }
+rx-ports = { path = "../../sdk/crates/rx-ports" }
+rx-storage = { path = "../../sdk/crates/rx-storage" }
+rx-protocol = { path = "../../sdk/crates/rx-protocol" }
+rx-solution-catalog = {path="../rx-solution-catalog"}
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+uuid = { version = "1", features = ["v4","v7"] }
+thiserror = "2"
+tonic = { version = "0.14", features = ["tls-ring"] }
+tokio = { version = "1", features = ["rt-multi-thread","macros","net","sync","time","signal"] }
+tokio-stream = { version = "0.1", features = ["net"] }
+sha2 = "0.10"
+prost = "0.14"
+tempfile = "3"
+
+[build-dependencies]
+serde_json = "1"
+sha2 = "0.10"
+
+[dev-dependencies]
+ed25519-dalek = "3"
+semver = "1"
+tempfile = "3"
+rcgen = "0.14"
+
+[lints]
+workspace = true

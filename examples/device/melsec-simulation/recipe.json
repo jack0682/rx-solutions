@@ -1,0 +1,1 @@
+{"package":"test/device","publisher":"test/publisher","schema":"rx.device-package-recipe.v1","targets":[{"architecture":"ARM64","os":"LINUX","ros_distribution":null}],"version":"1.0.0"}

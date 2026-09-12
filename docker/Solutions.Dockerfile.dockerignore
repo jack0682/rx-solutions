@@ -1,0 +1,13 @@
+.git
+**/node_modules
+**/dist
+**/target
+.cache
+vendor
+build
+install
+log
+var
+**/__pycache__
+.env
+.DS_Store
