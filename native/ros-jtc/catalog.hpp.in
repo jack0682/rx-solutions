@@ -1,0 +1,5 @@
+#pragma once
+namespace rx::ros_bridge {
+inline constexpr const char* catalog_sha256="@RX_CATALOG_SHA256@";
+inline constexpr const char* catalog_json=R"rx_catalog(@RX_CATALOG_JSON@)rx_catalog";
+}

@@ -1,0 +1,22 @@
+{
+  "schema": "rx.solutions-startup.v1",
+  "state_subdirectory": "software-supervision",
+  "plan": {
+    "schema": "rx.solutions-process-plan.v1",
+    "id": "ad3dd650-859c-4cbe-bca1-41a6c44c8001",
+    "environment": "SIMULATION",
+    "profiles": ["OM-05"],
+    "processes": [
+      {
+        "id": "status",
+        "program": "rx/status-http",
+        "parameters": {"bind": "0.0.0.0", "port": "8081"},
+        "depends_on": [],
+        "startup_timeout_ms": "10000",
+        "shutdown_timeout_ms": "5000",
+        "restart_limit": "0",
+        "restart_backoff_ms": "500"
+      }
+    ]
+  }
+}

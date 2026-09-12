@@ -1,0 +1,28 @@
+cmake_minimum_required(VERSION 3.22)
+project(rx_contract_validation LANGUAGES CXX)
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+find_package(Protobuf REQUIRED)
+set(RX_PROTO_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../interfaces")
+include("${CMAKE_CURRENT_SOURCE_DIR}/verify_bundle.cmake")
+set(RX_GENERATED "${CMAKE_CURRENT_BINARY_DIR}/generated")
+file(MAKE_DIRECTORY "${RX_GENERATED}")
+set(RX_PROTO_FILES rx/contract/v1/contract.proto rx/cell/v1/cell.proto)
+set(RX_PROTO_SOURCES)
+foreach(PROTO IN LISTS RX_PROTO_FILES)
+  string(REPLACE ".proto" ".pb.cc" CPP "${PROTO}")
+  string(REPLACE ".proto" ".pb.h" HEADER "${PROTO}")
+  add_custom_command(
+    OUTPUT "${RX_GENERATED}/${CPP}" "${RX_GENERATED}/${HEADER}"
+    COMMAND protobuf::protoc --cpp_out=${RX_GENERATED} --proto_path=${RX_PROTO_ROOT} "${RX_PROTO_ROOT}/${PROTO}"
+    DEPENDS "${RX_PROTO_ROOT}/${PROTO}" "${RX_PROTO_ROOT}/rx/contract/v1/contract.proto"
+    VERBATIM)
+  list(APPEND RX_PROTO_SOURCES "${RX_GENERATED}/${CPP}")
+endforeach()
+add_library(rx_contract_wire ${RX_PROTO_SOURCES} strict_wire.cpp)
+target_include_directories(rx_contract_wire PUBLIC "${RX_GENERATED}" "${CMAKE_CURRENT_SOURCE_DIR}")
+target_link_libraries(rx_contract_wire PUBLIC protobuf::libprotobuf)
+target_compile_options(rx_contract_wire PRIVATE -Wall -Wextra -Werror)
+add_executable(rx-protocol-interop interop.cpp)
+target_link_libraries(rx-protocol-interop PRIVATE rx_contract_wire)
+target_compile_options(rx-protocol-interop PRIVATE -Wall -Wextra -Werror)

@@ -1,0 +1,10 @@
+{
+  "files": {
+    "cell_operations_manifest.json": "e0225c1e39b179f941d98f91daa94b387a6028e4e872b4499f20d63440d270c8",
+    "contracts_manifest.json": "66756d119140d436da477cce4331f34ef705900b83c338a870bdbe2ced78dd3b",
+    "rx/cell/v1/cell.proto": "79471c513559c862f8461de355e7dc7f79bbe6907f94d2c5d518b234b7013b83",
+    "rx/contract/v1/contract.proto": "35f0aee44287f4f0914487f16fbd4efda963c314ac440b17438014ee44f27626",
+    "semantic_fields.json": "32792a527ca48375304efe392aa5a23c0573cac44d0064a518fa8c8f7e83fc53"
+  },
+  "schema": "rx.protocol-source-bundle.v1"
+}

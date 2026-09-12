@@ -1,0 +1,14 @@
+{
+  "schema": "rx.ros-schema-source.v1",
+  "commit": "11ca24a41f31480dfb9562ba99f2a5b93d3ebda5",
+  "files": {
+    "package_format3.xsd": {
+      "url": "https://raw.githubusercontent.com/ros-infrastructure/rep/11ca24a41f31480dfb9562ba99f2a5b93d3ebda5/xsd/package_format3.xsd",
+      "sha256": "f096a197ed6d7878984bb2501a55f7f1bd4895d254399fb7857e154bfb644f41"
+    },
+    "package_common.xsd": {
+      "url": "https://raw.githubusercontent.com/ros-infrastructure/rep/11ca24a41f31480dfb9562ba99f2a5b93d3ebda5/xsd/package_common.xsd",
+      "sha256": "941ea8645344f3c4b7b9d7e68799898309d65a18225fa9cbef4169d95d1a3211"
+    }
+  }
+}

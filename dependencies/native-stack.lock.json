@@ -1,0 +1,146 @@
+{
+  "schema": "rx.native-stack-lock.v1",
+  "ros": {
+    "distribution": "jazzy",
+    "base_image": "ros:jazzy-ros-base@sha256:386d06ec6d4188f731bae5678e07b4cb64a4e4d4152090c0bd1f881dcf7706f5",
+    "rosdistro_commit": "86ac06531559f070ce9ea5ad485714395336ec6f"
+  },
+  "repositories": [
+    {
+      "name": "DynamixelSDK",
+      "url": "https://github.com/ROBOTIS-GIT/DynamixelSDK.git",
+      "commit": "2ded684dff05a40ac78d6a16105c6ddc1b3b9930",
+      "required": true
+    },
+    {
+      "name": "dynamixel_hardware_interface",
+      "url": "https://github.com/ROBOTIS-GIT/dynamixel_hardware_interface.git",
+      "commit": "6bb5f93ecad1fe3c231e3ece580344e8f0a6efc3",
+      "required": true
+    },
+    {
+      "name": "open_manipulator",
+      "url": "https://github.com/ROBOTIS-GIT/open_manipulator.git",
+      "commit": "9187eca0920458be04d2399906388f55242f81f1",
+      "required": true
+    },
+    {
+      "name": "ai_worker",
+      "url": "https://github.com/ROBOTIS-GIT/ai_worker.git",
+      "commit": "2e29aae2dee9926691922fc0fa58d97ad88e068f",
+      "required": true
+    },
+    {
+      "name": "ai_sapiens",
+      "url": "https://github.com/ROBOTIS-GIT/ai_sapiens.git",
+      "commit": "7d62dff281f02b6265ebe07db6c0ae32ba8de381",
+      "required": true
+    },
+    {
+      "name": "dynamixel_interfaces",
+      "url": "https://github.com/ROBOTIS-GIT/dynamixel_interfaces.git",
+      "commit": "5704b4be9149f34f0214ae99c31edf6a5a103b24",
+      "required": true
+    },
+    {
+      "name": "robotis_interfaces",
+      "url": "https://github.com/ROBOTIS-GIT/robotis_interfaces.git",
+      "commit": "d3b446df00d287e1c18fc7e8c1e1d5aba0e26753",
+      "required": true
+    },
+    {
+      "name": "robotis_hand",
+      "url": "https://github.com/ROBOTIS-GIT/robotis_hand.git",
+      "commit": "d54c6311753c4db11caec313d6382767cc9fe2c2",
+      "required": true
+    }
+  ],
+  "onnxruntime": {
+    "version": "1.23.2",
+    "assets": {
+      "arm64": {
+        "url": "https://github.com/microsoft/onnxruntime/releases/download/v1.23.2/onnxruntime-linux-aarch64-1.23.2.tgz",
+        "sha256": "7c63c73560ed76b1fac6cff8204ffe34fe180e70d6582b5332ec094810241e5c"
+      },
+      "amd64": {
+        "url": "https://github.com/microsoft/onnxruntime/releases/download/v1.23.2/onnxruntime-linux-x64-1.23.2.tgz",
+        "sha256": "1fa4dcaef22f6f7d5cd81b28c2800414350c10116f5fdd46a2160082551c5f9b"
+      }
+    }
+  },
+  "required_external_assets": [],
+  "policy_assets": [
+    {
+      "repository": "ai_sapiens",
+      "path": "ai_sapiens_sim2real/assets/k1/locomotion/velocity/walk_default/exported/policy.onnx",
+      "sha256": "be72f4c1ecc00a48be79a4dfbd80c50743b2bb25ebbb1342539235fe29e71c34",
+      "bytes": 1470787
+    },
+    {
+      "repository": "ai_sapiens",
+      "path": "ai_sapiens_sim2real/assets/k1/locomotion/velocity/walk_default/params/sim2real.yaml",
+      "sha256": "f3c5bf714425040578d0cba9c7a47515ef5602f60605728ea132800729594df7",
+      "bytes": 5102
+    },
+    {
+      "repository": "ai_sapiens",
+      "path": "ai_sapiens_sim2real/assets/k1/mimic/dance1/exported/policy.onnx",
+      "sha256": "2e6cac6ba6d5ea5702cee3f47617618b0fb8951783ebcc323b948ccf1c4eb98b",
+      "bytes": 926017
+    },
+    {
+      "repository": "ai_sapiens",
+      "path": "ai_sapiens_sim2real/assets/k1/mimic/dance1/params/dance1.csv",
+      "sha256": "5129fbc1d657d9529eb3fb7beedcf173f05e20839d8b34bf6ce13eef12c2f493",
+      "bytes": 112006
+    },
+    {
+      "repository": "ai_sapiens",
+      "path": "ai_sapiens_sim2real/assets/k1/mimic/dance1/params/sim2real.yaml",
+      "sha256": "1e74ce5f92d3776cb23145dbc8db5c43911754e725cea22cb96c43a19f8668d0",
+      "bytes": 4940
+    },
+    {
+      "repository": "ai_sapiens",
+      "path": "ai_sapiens_sim2real/assets/k1/mimic/dance2/exported/policy.onnx",
+      "sha256": "9be08b1009ab834e8cdead4fe54df80e8a728f947541b653c6396b2071c54c49",
+      "bytes": 926017
+    },
+    {
+      "repository": "ai_sapiens",
+      "path": "ai_sapiens_sim2real/assets/k1/mimic/dance2/params/dance2.csv",
+      "sha256": "aa2add063a7f01336fe47696eee2ac4e25bbf9f95d0cda523ecec1226e0bbeeb",
+      "bytes": 111520
+    },
+    {
+      "repository": "ai_sapiens",
+      "path": "ai_sapiens_sim2real/assets/k1/mimic/dance2/params/sim2real.yaml",
+      "sha256": "1e74ce5f92d3776cb23145dbc8db5c43911754e725cea22cb96c43a19f8668d0",
+      "bytes": 4940
+    },
+    {
+      "repository": "ai_sapiens",
+      "path": "ai_sapiens_sim2real/assets/k1/mimic/squat/exported/policy.onnx",
+      "sha256": "2e3ac6a34b054291deff984d91ae9ed45daa0b7409564903840e2dff9808daf7",
+      "bytes": 926017
+    },
+    {
+      "repository": "ai_sapiens",
+      "path": "ai_sapiens_sim2real/assets/k1/mimic/squat/params/sim2real.yaml",
+      "sha256": "1e74ce5f92d3776cb23145dbc8db5c43911754e725cea22cb96c43a19f8668d0",
+      "bytes": 4940
+    },
+    {
+      "repository": "ai_sapiens",
+      "path": "ai_sapiens_sim2real/assets/k1/mimic/squat/params/squat.csv",
+      "sha256": "cad0d926cc86a1547c0921289c816fa378021e7d18bd45ea6680b02dc0903c73",
+      "bytes": 111177
+    }
+  ],
+  "apt_inventory_locks": {
+    "arm64": {
+      "path": "dependencies/native-apt-locks/arm64.tsv",
+      "sha256": "07fb26de68af096a6c21ae568775891a129c4c26bedc7cca8e05f478225b6750"
+    }
+  }
+}

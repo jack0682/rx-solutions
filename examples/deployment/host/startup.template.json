@@ -1,0 +1,19 @@
+{
+  "schema": "rx.host-startup.v1",
+  "installation": "00000000-0000-4000-8000-000000000001",
+  "release_digest": "0000000000000000000000000000000000000000000000000000000000000000",
+  "host": "host/laser-cell",
+  "bind": "0.0.0.0:7444",
+  "data_directory": "/var/lib/rx-solutions/host",
+  "runtime_directory": "/run/rx-host",
+  "bindings": {"path": "/config/bindings.json", "sha256": "0000000000000000000000000000000000000000000000000000000000000000"},
+  "backend": {"kind": "FILE_SIMULATION"},
+  "tls": {
+    "certificate": {"path": "/config/host.pem", "sha256": "0000000000000000000000000000000000000000000000000000000000000000"},
+    "key": {"path": "/config/host.key", "sha256": "0000000000000000000000000000000000000000000000000000000000000000"},
+    "ca": {"path": "/config/platform-ca.pem", "sha256": "0000000000000000000000000000000000000000000000000000000000000000"}
+  },
+  "allowed_platform_certificates": {"0000000000000000000000000000000000000000000000000000000000000000": "platform/example"},
+  "publisher": null,
+  "publication_drain_ms": "3000"
+}

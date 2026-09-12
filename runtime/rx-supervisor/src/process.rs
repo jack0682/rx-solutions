@@ -1,0 +1,227 @@
+//! OS operations are outside storage transactions. A saved PID is never sufficient to signal a process.
+use crate::{Error, Result, model::*};
+use rx_domain::{canonical, types::*};
+use sha2::{Digest as _, Sha256};
+use std::{
+    collections::BTreeMap,
+    fs::OpenOptions,
+    io::{Read, Write},
+    net::{Ipv4Addr, SocketAddrV4, TcpStream},
+    path::PathBuf,
+    process::{Child, Command, Stdio},
+    time::Duration,
+};
+pub enum SpawnFailure {
+    NotStarted(Error),
+    Uncertain(Error),
+}
+pub trait Backend {
+    fn spawn(
+        &mut self,
+        launch: &Launch,
+        authorize: &mut dyn FnMut() -> bool,
+    ) -> std::result::Result<u32, SpawnFailure>;
+    fn pid(&self, instance: &Id) -> Option<u32>;
+    fn owns(&self, instance: &Id) -> bool;
+    fn forget_exited(&mut self, instance: &Id) -> Result<()>;
+    fn exited(&mut self, instance: &Id) -> Result<Option<Option<i32>>>;
+    fn ready(&mut self, launch: &Launch) -> Result<bool>;
+    fn terminate(&mut self, instance: &Id, force: bool) -> Result<()>;
+}
+pub struct OsProcesses {
+    children: BTreeMap<Id, Child>,
+    logs: PathBuf,
+}
+impl OsProcesses {
+    pub fn owned_instances(&self) -> Vec<Id> {
+        self.children.keys().cloned().collect()
+    }
+    pub fn new(logs: PathBuf) -> Result<Self> {
+        std::fs::create_dir_all(&logs)?;
+        Ok(Self {
+            children: BTreeMap::new(),
+            logs,
+        })
+    }
+}
+pub fn verify(path: &std::path::Path, expected: Digest) -> Result<()> {
+    if !path.is_absolute() || !path.is_file() {
+        return Err(Error::Invalid(
+            "program path must be an absolute regular file".into(),
+        ));
+    }
+    let bytes = std::fs::read(path)?;
+    if Digest::from_bytes(Sha256::digest(bytes).into()) != expected {
+        return Err(Error::Invalid(format!(
+            "program file integrity differs: {}",
+            path.display()
+        )));
+    }
+    Ok(())
+}
+impl Backend for OsProcesses {
+    fn spawn(
+        &mut self,
+        l: &Launch,
+        authorize: &mut dyn FnMut() -> bool,
+    ) -> std::result::Result<u32, SpawnFailure> {
+        self.spawn_local(l, authorize)
+            .map_err(SpawnFailure::NotStarted)
+    }
+    fn pid(&self, instance: &Id) -> Option<u32> {
+        self.children.get(instance).map(Child::id)
+    }
+    fn owns(&self, instance: &Id) -> bool {
+        self.children.contains_key(instance)
+    }
+    fn forget_exited(&mut self, instance: &Id) -> Result<()> {
+        let child = self
+            .children
+            .get_mut(instance)
+            .ok_or_else(|| Error::Reconciliation("unknown process handle".into()))?;
+        if child.try_wait()?.is_none() {
+            return Err(Error::Reconciliation(
+                "cannot discard a live process handle".into(),
+            ));
+        }
+        self.children.remove(instance);
+        Ok(())
+    }
+    fn exited(&mut self, instance: &Id) -> Result<Option<Option<i32>>> {
+        let child = self
+            .children
+            .get_mut(instance)
+            .ok_or_else(|| Error::Reconciliation("no owned process handle".into()))?;
+        Ok(child.try_wait()?.map(|exit| exit.code()))
+    }
+    fn ready(&mut self, l: &Launch) -> Result<bool> {
+        self.ready_local(l)
+    }
+    fn terminate(&mut self, instance: &Id, force: bool) -> Result<()> {
+        self.terminate_local(instance, force)
+    }
+}
+impl OsProcesses {
+    fn spawn_local(&mut self, l: &Launch, authorize: &mut dyn FnMut() -> bool) -> Result<u32> {
+        if self.children.contains_key(&l.instance) {
+            return Err(Error::Invalid("instance already owned".into()));
+        }
+        verify(&l.executable, l.executable_sha256)?;
+        for (p, h) in &l.files {
+            verify(p, *h)?;
+        }
+        let stdout = OpenOptions::new()
+            .create_new(true)
+            .write(true)
+            .open(self.logs.join(format!("{}.stdout.log", l.instance)))?;
+        let stderr = OpenOptions::new()
+            .create_new(true)
+            .write(true)
+            .open(self.logs.join(format!("{}.stderr.log", l.instance)))?;
+        let mut command = Command::new(&l.executable);
+        command
+            .args(&l.arguments)
+            .env_clear()
+            .env("PATH", "/usr/bin:/bin")
+            .env("LANG", "C.UTF-8")
+            .env("PYTHONDONTWRITEBYTECODE", "1")
+            .env("RX_PROCESS_INSTANCE_ID", l.instance.as_str())
+            .stdin(Stdio::null())
+            .stdout(stdout)
+            .stderr(stderr);
+        #[cfg(unix)]
+        {
+            use std::os::unix::process::CommandExt;
+            command.process_group(0);
+        }
+        if !authorize() {
+            return Err(Error::Invalid(
+                "startup authority unavailable at OS boundary".into(),
+            ));
+        }
+        let child = command.spawn()?;
+        let pid = child.id();
+        self.children.insert(l.instance.clone(), child);
+        Ok(pid)
+    }
+    fn ready_local(&mut self, l: &Launch) -> Result<bool> {
+        if !self.children.contains_key(&l.instance) {
+            return Ok(false);
+        }
+        match l.ready {
+            ReadyProbe::AliveOnly => Ok(true),
+            ReadyProbe::HttpStatus { .. } => {
+                let address = SocketAddrV4::new(
+                    Ipv4Addr::LOCALHOST,
+                    l.port
+                        .ok_or_else(|| Error::Invalid("probe port missing".into()))?,
+                );
+                let Ok(mut stream) =
+                    TcpStream::connect_timeout(&address.into(), Duration::from_millis(50))
+                else {
+                    return Ok(false);
+                };
+                stream.set_read_timeout(Some(Duration::from_millis(100)))?;
+                stream.set_write_timeout(Some(Duration::from_millis(100)))?;
+                stream.write_all(
+                    b"GET /health HTTP/1.0\r\nHost: localhost\r\nConnection: close\r\n\r\n",
+                )?;
+                let mut bytes = vec![];
+                if stream.take(1_048_577).read_to_end(&mut bytes).is_err() {
+                    return Ok(false);
+                }
+                if bytes.len() > 1_048_576 {
+                    return Ok(false);
+                }
+                let Some(split) = bytes.windows(4).position(|s| s == b"\r\n\r\n") else {
+                    return Ok(false);
+                };
+                if !bytes.starts_with(b"HTTP/1.0 200 ") && !bytes.starts_with(b"HTTP/1.1 200 ") {
+                    return Ok(false);
+                }
+                let Ok(value) = canonical::decode_json::<serde_json::Value>(&bytes[split + 4..])
+                else {
+                    return Ok(false);
+                };
+                Ok(value["schema"] == "rx.solutions-status.v1"
+                    && value["phase"] == "SOFTWARE_READY_UNCOMMISSIONED"
+                    && value["supervisor_instance"] == l.instance.as_str())
+            }
+        }
+    }
+    fn terminate_local(&mut self, instance: &Id, force: bool) -> Result<()> {
+        let child = self.children.get_mut(instance).ok_or_else(|| {
+            Error::Reconciliation(
+                "cannot signal a recorded PID without its live child handle".into(),
+            )
+        })?;
+        // No concurrent reaper exists. An exited child remains unreaped until this owner checks it.
+        if child.try_wait()?.is_some() {
+            return Ok(());
+        }
+        #[cfg(unix)]
+        {
+            let status = Command::new("/bin/kill")
+                .env_clear()
+                .args([
+                    if force { "-KILL" } else { "-TERM" },
+                    "--",
+                    &format!("-{}", child.id()),
+                ])
+                .status()?;
+            if !status.success() {
+                return Err(Error::Reconciliation(
+                    "process-group signal was not confirmed".into(),
+                ));
+            }
+        }
+        #[cfg(not(unix))]
+        {
+            let _ = force;
+            return Err(Error::Invalid(
+                "OS process termination is supported only on Unix in this draft".into(),
+            ));
+        }
+        Ok(())
+    }
+}

@@ -1,0 +1,62 @@
+{
+  "schema": "rx.process-source.v1",
+  "process": "example/material-supply",
+  "entry": "main",
+  "conditions": {},
+  "flows": [
+    {
+      "id": "main",
+      "root": "supply",
+      "nodes": [
+        {
+          "id": "supply",
+          "body": {
+            "kind": "SEQUENCE",
+            "children": [
+              "door-open",
+              "place",
+              "clamp",
+              "withdraw",
+              "door-close"
+            ]
+          }
+        },
+        {
+          "id": "door-open",
+          "body": {
+            "kind": "OPERATION",
+            "binding": "door-open"
+          }
+        },
+        {
+          "id": "place",
+          "body": {
+            "kind": "OPERATION",
+            "binding": "place"
+          }
+        },
+        {
+          "id": "clamp",
+          "body": {
+            "kind": "OPERATION",
+            "binding": "clamp"
+          }
+        },
+        {
+          "id": "withdraw",
+          "body": {
+            "kind": "OPERATION",
+            "binding": "withdraw"
+          }
+        },
+        {
+          "id": "door-close",
+          "body": {
+            "kind": "OPERATION",
+            "binding": "door-close"
+          }
+        }
+      ]
+    }
+  ]
+}

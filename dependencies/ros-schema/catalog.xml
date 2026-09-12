@@ -1,0 +1,5 @@
+<?xml version="1.0"?>
+<catalog xmlns="urn:oasis:names:tc:entity:xmlns:xml:catalog">
+  <rewriteSystem systemIdStartString="http://download.ros.org/schema/" rewritePrefix="/opt/rx/ros-schema/"/>
+  <rewriteURI uriStartString="http://download.ros.org/schema/" rewritePrefix="/opt/rx/ros-schema/"/>
+</catalog>

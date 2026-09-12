@@ -1,0 +1,157 @@
+{
+  "door-open": {
+    "host": "host/machine-sim",
+    "intent": {
+      "kind": "FINITE_ACTION",
+      "target": "machine/sim",
+      "profile_digest": "0101010101010101010101010101010101010101010101010101010101010101",
+      "site_config_digest": "0202020202020202020202020202020202020202020202020202020202020202",
+      "calibration_digests": [],
+      "resource_set": [
+        "controller/machine-sim"
+      ],
+      "execution_timeout_ms": "5000",
+      "prepare_validity_ms": "1000",
+      "completion_rule": "simulation/completed",
+      "cancel_rule": "simulation/cancel",
+      "body": {
+        "program": {
+          "program": {
+            "sha256": "0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a",
+            "schema_id": "rx.development.placeholder.v1",
+            "size_bytes": "1"
+          },
+          "parameter_set": {
+            "sha256": "1414141414141414141414141414141414141414141414141414141414141414",
+            "schema_id": "rx.development.placeholder.v1",
+            "size_bytes": "1"
+          }
+        }
+      }
+    }
+  },
+  "place": {
+    "host": "host/robot-sim",
+    "intent": {
+      "kind": "FINITE_ACTION",
+      "target": "robot/sim",
+      "profile_digest": "0101010101010101010101010101010101010101010101010101010101010101",
+      "site_config_digest": "0202020202020202020202020202020202020202020202020202020202020202",
+      "calibration_digests": [],
+      "resource_set": [
+        "controller/robot-sim"
+      ],
+      "execution_timeout_ms": "5000",
+      "prepare_validity_ms": "1000",
+      "completion_rule": "simulation/completed",
+      "cancel_rule": "simulation/cancel",
+      "body": {
+        "program": {
+          "program": {
+            "sha256": "0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b",
+            "schema_id": "rx.development.placeholder.v1",
+            "size_bytes": "1"
+          },
+          "parameter_set": {
+            "sha256": "1515151515151515151515151515151515151515151515151515151515151515",
+            "schema_id": "rx.development.placeholder.v1",
+            "size_bytes": "1"
+          }
+        }
+      }
+    }
+  },
+  "clamp": {
+    "host": "host/machine-sim",
+    "intent": {
+      "kind": "FINITE_ACTION",
+      "target": "machine/sim",
+      "profile_digest": "0101010101010101010101010101010101010101010101010101010101010101",
+      "site_config_digest": "0202020202020202020202020202020202020202020202020202020202020202",
+      "calibration_digests": [],
+      "resource_set": [
+        "controller/machine-sim"
+      ],
+      "execution_timeout_ms": "5000",
+      "prepare_validity_ms": "1000",
+      "completion_rule": "simulation/completed",
+      "cancel_rule": "simulation/cancel",
+      "body": {
+        "program": {
+          "program": {
+            "sha256": "0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c",
+            "schema_id": "rx.development.placeholder.v1",
+            "size_bytes": "1"
+          },
+          "parameter_set": {
+            "sha256": "1616161616161616161616161616161616161616161616161616161616161616",
+            "schema_id": "rx.development.placeholder.v1",
+            "size_bytes": "1"
+          }
+        }
+      }
+    }
+  },
+  "withdraw": {
+    "host": "host/robot-sim",
+    "intent": {
+      "kind": "FINITE_ACTION",
+      "target": "robot/sim",
+      "profile_digest": "0101010101010101010101010101010101010101010101010101010101010101",
+      "site_config_digest": "0202020202020202020202020202020202020202020202020202020202020202",
+      "calibration_digests": [],
+      "resource_set": [
+        "controller/robot-sim"
+      ],
+      "execution_timeout_ms": "5000",
+      "prepare_validity_ms": "1000",
+      "completion_rule": "simulation/completed",
+      "cancel_rule": "simulation/cancel",
+      "body": {
+        "program": {
+          "program": {
+            "sha256": "0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d",
+            "schema_id": "rx.development.placeholder.v1",
+            "size_bytes": "1"
+          },
+          "parameter_set": {
+            "sha256": "1717171717171717171717171717171717171717171717171717171717171717",
+            "schema_id": "rx.development.placeholder.v1",
+            "size_bytes": "1"
+          }
+        }
+      }
+    }
+  },
+  "door-close": {
+    "host": "host/machine-sim",
+    "intent": {
+      "kind": "FINITE_ACTION",
+      "target": "machine/sim",
+      "profile_digest": "0101010101010101010101010101010101010101010101010101010101010101",
+      "site_config_digest": "0202020202020202020202020202020202020202020202020202020202020202",
+      "calibration_digests": [],
+      "resource_set": [
+        "controller/machine-sim"
+      ],
+      "execution_timeout_ms": "5000",
+      "prepare_validity_ms": "1000",
+      "completion_rule": "simulation/completed",
+      "cancel_rule": "simulation/cancel",
+      "body": {
+        "program": {
+          "program": {
+            "sha256": "0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e",
+            "schema_id": "rx.development.placeholder.v1",
+            "size_bytes": "1"
+          },
+          "parameter_set": {
+            "sha256": "1818181818181818181818181818181818181818181818181818181818181818",
+            "schema_id": "rx.development.placeholder.v1",
+            "size_bytes": "1"
+          }
+        }
+      }
+    }
+  }
+}

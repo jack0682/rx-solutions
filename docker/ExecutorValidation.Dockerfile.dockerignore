@@ -1,0 +1,8 @@
+**
+!vendor/
+!vendor/BehaviorTree.CPP/
+!vendor/BehaviorTree.CPP/**
+vendor/BehaviorTree.CPP/.git/
+!native/
+!native/executor/
+!native/executor/**

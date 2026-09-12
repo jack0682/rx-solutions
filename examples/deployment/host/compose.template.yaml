@@ -1,0 +1,20 @@
+# Deployment template. Supply installation-specific reviewed bindings, certificate pins and config.
+# Host uses the existing solutions image; no third repository or image is introduced.
+services:
+  host:
+    image: rx-solutions:runtime-draft
+    command: [host, run, /config/startup.json]
+    user: "10001:10001"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    restart: "no"
+    volumes:
+      - ./config:/config:ro
+      - host-data:/var/lib/rx-solutions
+    tmpfs:
+      - /tmp:rw,nosuid,nodev
+      - /run/rx-host:rw,uid=10001,gid=10001,mode=700
+    expose: ["7444"]
+volumes:
+  host-data:
