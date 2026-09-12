@@ -3,12 +3,14 @@ pub mod binding_change;
 pub mod config;
 pub mod device_package;
 mod factory;
+mod guarded_status;
 pub mod jtc_package;
 pub mod maintenance;
 use crate::{Binding, Clock, Environment, Host, NativeAdapter};
 use config::{Backend, Loaded};
 pub use factory::{Builtin, BuiltinAdapter};
 use rx_domain::{canonical, types::*};
+use rx_service_status::{GuardedScope, GuardedState, Reporter};
 use serde::{Deserialize, Serialize};
 use std::{
     fs,
@@ -360,6 +362,36 @@ pub async fn run_with<C: Clock + Clone + Send + Sync + 'static, F: AdapterFactor
         return Err("Host journal missing; explicit restore required".into());
     }
     let _owner = runtime_owner(&loaded.config.runtime_directory)?;
+    // Validate and write the optional supervisor protocol before native opening or RPC admission.
+    let reporter = Reporter::from_environment(GuardedScope::Host {
+        installation: loaded.config.installation.clone(),
+        host: loaded.config.host.clone(),
+        installation_identity: loaded.identity,
+    })?;
+    let instance = if let Some(reporter) = &reporter {
+        reporter.instance().clone()
+    } else {
+        std::env::var("RX_PROCESS_INSTANCE_ID")
+            .ok()
+            .map(Id::new)
+            .transpose()?
+            .unwrap_or_else(crate::journal::id)
+    };
+    type GuardedTarget<N, C> = Arc<std::sync::OnceLock<Arc<Host<N, C>>>>;
+    let guarded_target: GuardedTarget<F::Adapter, C> = Arc::new(std::sync::OnceLock::new());
+    let mut guarded = if let Some(reporter) = reporter {
+        let target = guarded_target.clone();
+        Some(
+            guarded_status::Heartbeat::start(reporter, move || {
+                if let Some(host) = target.get() {
+                    host.request_service_stop();
+                }
+            })
+            .map_err(std::io::Error::other)?,
+        )
+    } else {
+        None
+    };
     let startup_attempt = crate::journal::id();
     let startup_configuration_digest = maintenance::startup_digest(&loaded.config)?;
     // Verify existing journal identities before Host::open could initialize missing rows.
@@ -413,6 +445,10 @@ pub async fn run_with<C: Clock + Clone + Send + Sync + 'static, F: AdapterFactor
     }
     let listener = tokio::net::TcpListener::bind(loaded.config.bind).await?;
     let address = listener.local_addr()?;
+    if let Some(error) = guarded.as_ref().and_then(|g| g.failure()) {
+        // No adapter exists yet, so a failed reporter can still reject startup directly.
+        return Err(error.into());
+    }
     let native = factory.open_passive(
         &loaded.config.backend,
         &loaded.config.data_directory,
@@ -428,6 +464,16 @@ pub async fn run_with<C: Clock + Clone + Send + Sync + 'static, F: AdapterFactor
         host: host.clone(),
         graceful: false,
     };
+    let _ = guarded_target.set(host.clone());
+    // Once Host owns the adapter, reporter failure must retain that ownership until
+    // the existing cooperative stop loop obtains the final safe_to_drop proof.
+    let mut service_error = guarded
+        .as_ref()
+        .and_then(|g| g.failure())
+        .map(|error| format!("guarded Host status failed: {error}"));
+    if service_error.is_some() {
+        host.request_service_stop();
+    }
     let journals = host.journals()?;
     if descriptor.delivery_journal != journals.delivery_journal
         || descriptor.evidence_journal != journals.evidence_journal
@@ -442,26 +488,36 @@ pub async fn run_with<C: Clock + Clone + Send + Sync + 'static, F: AdapterFactor
             allowed_certificates: loaded.config.allowed_platform_certificates,
         },
     )?;
-    let instance = std::env::var("RX_PROCESS_INSTANCE_ID")
-        .ok()
-        .map(Id::new)
-        .transpose()?
-        .unwrap_or_else(crate::journal::id);
     let mut view = Status {
         schema: name("rx.host-service-status.v1"),
-        phase: name("SOFTWARE_READY_UNARMED"),
+        phase: name(if service_error.is_some() {
+            "STATUS_WRITE_FAILED"
+        } else {
+            "SOFTWARE_READY_UNARMED"
+        }),
         installation: loaded.config.installation,
         host: loaded.config.host,
         instance,
         host_boot: host.boot_id()?,
         endpoint: format!("https://{address}"),
         clock_id: clock.now().clock_id,
-        admission_open: true,
+        admission_open: service_error.is_none(),
         publication: "DISABLED".into(),
         stop: None,
         pending_evidence: None,
         qualification_or_arm_restored: false,
     };
+    if service_error.is_none()
+        && let Some(guarded) = &mut guarded
+    {
+        // This software-ready observation grants no qualification, arm or P admission.
+        if let Err(error) = guarded.publish(GuardedState::Ready).await {
+            host.request_service_stop();
+            view.admission_open = false;
+            view.phase = name("STATUS_WRITE_FAILED");
+            service_error = Some(format!("guarded Host status failed: {error}"));
+        }
+    }
     let (stop_rpc, rpc_stop) = tokio::sync::oneshot::channel();
     let mut serving = tokio::spawn(rpc.serve(listener, loaded.tls, async {
         let _ = rpc_stop.await;
@@ -484,15 +540,33 @@ pub async fn run_with<C: Clock + Clone + Send + Sync + 'static, F: AdapterFactor
     tokio::pin!(stop);
     let mut stopping = !view.admission_open;
     let mut server_done = false;
-    let mut service_error = None;
     let mut check: Option<tokio::task::JoinHandle<crate::Result<crate::gate::StopSnapshot>>> = None;
     let mut drain_started = None;
     let mut last = String::new();
+    let mut guarded_phase = GuardedState::Ready;
     loop {
+        if let Some(error) = guarded.as_ref().and_then(|g| g.failure()) {
+            host.request_service_stop();
+            stopping = true;
+            service_error.get_or_insert(format!("guarded Host status failed: {error}"));
+        }
         if stopping {
             host.request_service_stop();
             view.admission_open = false;
             view.phase = name("STOP_WAITING_FOR_ADAPTER");
+            let next = if service_error.is_some() {
+                GuardedState::Attention
+            } else {
+                GuardedState::Stopping
+            };
+            if next != guarded_phase {
+                guarded_phase = next;
+                if let Some(guarded) = &mut guarded
+                    && let Err(error) = guarded.publish(next).await
+                {
+                    service_error.get_or_insert(format!("guarded Host status failed: {error}"));
+                }
+            }
             if check.is_none() {
                 let h = host.clone();
                 check = Some(tokio::task::spawn_blocking(move || {
@@ -592,6 +666,9 @@ pub async fn run_with<C: Clock + Clone + Send + Sync + 'static, F: AdapterFactor
         let _ = status(&loaded.config.runtime_directory, &view);
         tokio::time::sleep(Duration::from_millis(100)).await;
     }
+    if let Some(error) = guarded.as_ref().and_then(|g| g.failure()) {
+        service_error.get_or_insert(format!("guarded Host status failed: {error}"));
+    }
     view.phase = name(if service_error.is_some() {
         "STOPPED_WITH_SERVICE_ERROR"
     } else if view.pending_evidence.is_none_or(|n| n.0 > 0)
@@ -604,18 +681,61 @@ pub async fn run_with<C: Clock + Clone + Send + Sync + 'static, F: AdapterFactor
     } else {
         "STOPPED"
     });
-    if service_error.is_none() {
-        host.seal_service_stop(
+    if service_error.is_none()
+        && let Err(error) = host.seal_service_stop(
             loaded.identity,
             startup_configuration_digest,
             &startup_attempt,
-        )?;
+        )
+    {
+        if let Some(guarded) = &mut guarded {
+            let _ = guarded.finish(GuardedState::Attention).await;
+        }
+        return Err(error.into());
     }
     view.admission_open = false;
     admission_owner.graceful = true;
-    status(&loaded.config.runtime_directory, &view)?;
+    if let Err(error) = status(&loaded.config.runtime_directory, &view) {
+        if let Some(guarded) = &mut guarded {
+            let _ = guarded.finish(GuardedState::Attention).await;
+        }
+        return Err(error);
+    }
+    if let Some(guarded) = &mut guarded {
+        // Both the final adapter proof and service stop seal above precede STOPPED.
+        let final_state = guarded_final_state(
+            &view,
+            service_error.is_some() || guarded.failure().is_some(),
+        );
+        if let Err(error) = guarded.finish(final_state).await {
+            service_error.get_or_insert(format!("guarded Host status failed: {error}"));
+        }
+    }
     if let Some(error) = service_error {
         return Err(error.into());
     }
     Ok(())
 }
+
+fn guarded_final_state(view: &Status, service_error: bool) -> GuardedState {
+    if service_error
+        || view.admission_open
+        || view
+            .stop
+            .as_ref()
+            .is_none_or(|s| !s.safe_to_drop || s.admission_open)
+    {
+        GuardedState::Attention
+    } else {
+        GuardedState::Stopped {
+            reconciliation_required: view.pending_evidence.is_none_or(|n| n.0 > 0)
+                || view
+                    .stop
+                    .as_ref()
+                    .is_some_and(|s| !s.pending_operations.is_empty()),
+        }
+    }
+}
+
+#[cfg(test)]
+mod guarded_tests;

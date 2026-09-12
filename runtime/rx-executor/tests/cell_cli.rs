@@ -95,6 +95,8 @@ impl Fixture {
             .arg(&self.config)
             .env("RX_EXECUTOR_BEFORE_CONNECT_PROBE", &self.probe)
             .env_remove("RX_EXECUTOR_CELL_INIT_FAIL_AFTER_MANIFEST")
+            .env_remove("RX_PROCESS_STATUS_PATH")
+            .env_remove("RX_PROCESS_INSTANCE_ID")
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
         if partial_init {
@@ -122,6 +124,37 @@ impl Fixture {
             "{output:?}"
         );
         assert_eq!(probe_count(&self.probe), before + 1);
+    }
+}
+
+#[test]
+fn guarded_status_validation_fails_before_executor_peer_registration() {
+    let _serial = serial();
+    let fixture = fixture();
+    fixture.init();
+    for include_instance in [false, true] {
+        let mut command = Command::new(env!("CARGO_BIN_EXE_rx-executor-service"));
+        command
+            .args(["cell", "run"])
+            .arg(&fixture.config)
+            .env("RX_EXECUTOR_BEFORE_CONNECT_PROBE", &fixture.probe)
+            .env(
+                "RX_PROCESS_STATUS_PATH",
+                "relative-status-is-forbidden.json",
+            )
+            .env_remove("RX_PROCESS_INSTANCE_ID")
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
+        if include_instance {
+            command.env("RX_PROCESS_INSTANCE_ID", id(30).as_str());
+        }
+        let output = bounded_output(command);
+        assert!(!output.status.success(), "{output:?}");
+        assert_eq!(
+            probe_count(&fixture.probe),
+            0,
+            "status failure reached Session.Open: {output:?}"
+        );
     }
 }
 fn probe_count(path: &Path) -> usize {

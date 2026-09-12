@@ -5,6 +5,7 @@ edition.workspace = true
 publish.workspace = true
 
 [dependencies]
+rx-service-status = {path="../rx-service-status"}
 rx-ports = {path="../../sdk/crates/rx-ports"}
 rx-storage = {path="../../sdk/crates/rx-storage"}
 rx-domain = {path="../../sdk/crates/rx-domain"}

@@ -6,6 +6,13 @@ use std::{
     collections::BTreeMap,
     path::{Path, PathBuf},
 };
+
+mod services;
+pub use services::{
+    ConfigurationPin, Initializer, ServiceConfigurations, ServiceInput, ServiceRole,
+    add_guarded_services, validate_service_plan,
+};
+
 #[derive(Deserialize)]
 struct Inventory {
     schema: String,

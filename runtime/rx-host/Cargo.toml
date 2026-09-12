@@ -22,6 +22,7 @@ path = "tests/support/sim_server.rs"
 required-features = ["test-harness"]
 
 [dependencies]
+rx-service-status = {path="../rx-service-status"}
 rx-process-contract = {path="../../sdk/crates/rx-process-contract"}
 rx-melsec-mc = { path = "../../drivers/rx-melsec-mc" }
 rx-package = {path="../../sdk/crates/rx-package"}

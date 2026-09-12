@@ -24,11 +24,37 @@ fn decode(record: &rx_ports::Record) -> rx_ports::Result<State> {
     if record.document.schema != name(SCHEMA) {
         return Err(StoreError::Integrity("supervisor schema differs".into()));
     }
-    canonical::decode_json(
+    let state: State = canonical::decode_json(
         &canonical::bytes(&record.document.value)
             .map_err(|e| StoreError::Integrity(e.to_string()))?,
     )
-    .map_err(|e| StoreError::Integrity(e.to_string()))
+    .map_err(|e| StoreError::Integrity(e.to_string()))?;
+    for record in state.records.values() {
+        if let Some(exit) = &record.guarded_exit {
+            if record.phase != Phase::Exited
+                || record.instance.is_none()
+                || record.pid.is_none_or(|pid| pid == 0)
+            {
+                return Err(StoreError::Integrity(
+                    "guarded exit without owned process identity".into(),
+                ));
+            }
+            if let GuardedExit::Confirmed {
+                sequence,
+                observed_at,
+                ..
+            } = exit
+                && (record.exit_code != Some(0)
+                    || sequence.0 == 0
+                    || observed_at.clock_id.is_empty())
+            {
+                return Err(StoreError::Integrity(
+                    "guarded exit proof shape differs".into(),
+                ));
+            }
+        }
+    }
+    Ok(state)
 }
 pub struct Supervisor<R, B, A> {
     repository: R,
@@ -40,6 +66,7 @@ pub struct Supervisor<R, B, A> {
     stopping: BTreeMap<Id, Instant>,
     retry_after: BTreeMap<Name, Instant>,
     stop_latched: bool,
+    observed_guarded_exits: BTreeMap<Id, GuardedExit>,
 }
 impl<R: Repository, B: Backend, A: LifecycleAuthority> Supervisor<R, B, A> {
     pub fn open(
@@ -101,6 +128,7 @@ impl<R: Repository, B: Backend, A: LifecycleAuthority> Supervisor<R, B, A> {
                                 pid: None,
                                 exit_code: None,
                                 error: None,
+                                guarded_exit: None,
                             },
                         )
                     })
@@ -129,6 +157,7 @@ impl<R: Repository, B: Backend, A: LifecycleAuthority> Supervisor<R, B, A> {
             stopping: BTreeMap::new(),
             retry_after: BTreeMap::new(),
             stop_latched: false,
+            observed_guarded_exits: BTreeMap::new(),
         })
     }
     pub fn state(&mut self) -> Result<State> {
@@ -212,6 +241,7 @@ impl<R: Repository, B: Backend, A: LifecycleAuthority> Supervisor<R, B, A> {
                 }
                 self.started.remove(instance);
                 self.stopping.remove(instance);
+                self.observed_guarded_exits.remove(instance);
             }
 
             if record.phase == Phase::Unknown {
@@ -233,17 +263,61 @@ impl<R: Repository, B: Backend, A: LifecycleAuthority> Supervisor<R, B, A> {
                     continue;
                 }
                 if let Some(code) = self.backend.exited(instance)? {
+                    let guarded = program.effect == Effect::ProtocolGuardedService;
+                    let exit = if let Some(observed) = self.observed_guarded_exits.get(instance) {
+                        Some(observed.clone())
+                    } else if guarded {
+                        let launch = process.launch(&program, instance.clone())?;
+                        let observed = match self.backend.guarded_status(&launch) {
+                            Ok(Some(observation)) if code == Some(0) => match observation.state {
+                                GuardedState::Stopped {
+                                    reconciliation_required,
+                                } => GuardedExit::Confirmed {
+                                    reconciliation_required,
+                                    sequence: observation.sequence,
+                                    observed_at: observation.observed_at,
+                                    payload_digest: observation.payload_digest,
+                                },
+                                _ => GuardedExit::Unconfirmed {
+                                    reason: "exited without terminal guarded status".into(),
+                                },
+                            },
+                            Ok(_) => GuardedExit::Unconfirmed {
+                                reason: "zero exit and current guarded stop report required".into(),
+                            },
+                            Err(error) => GuardedExit::Unconfirmed {
+                                reason: error.to_string(),
+                            },
+                        };
+                        // This exact report was read after observing this owned child's exit.
+                        // Keep its original source time across a local commit failure; never refresh it.
+                        self.observed_guarded_exits
+                            .insert(instance.clone(), observed.clone());
+                        Some(observed)
+                    } else {
+                        None
+                    };
+                    let unexpected_guarded_exit = guarded && !state.stop_requested;
+                    if unexpected_guarded_exit {
+                        // Restrict the remaining RX daemons; never reactivate a failed owner.
+                        self.stop_latched = true;
+                    }
                     self.change(|s| {
                         let r = s.records.get_mut(&process.id).unwrap();
                         r.phase = Phase::Exited;
                         r.exit_code = code;
+                        r.guarded_exit = exit;
                         if !s.stop_requested {
                             r.error = Some("unexpected service exit".into());
+                        }
+                        if unexpected_guarded_exit {
+                            s.stop_requested = true;
                         }
                     })?;
                     self.backend.forget_exited(instance)?;
                     self.started.remove(instance);
                     self.stopping.remove(instance);
+                    self.observed_guarded_exits.remove(instance);
                     self.retry_after.insert(
                         process.id.clone(),
                         Instant::now() + Duration::from_millis(process.restart_backoff_ms.0),
@@ -306,11 +380,11 @@ impl<R: Repository, B: Backend, A: LifecycleAuthority> Supervisor<R, B, A> {
                         blocked.push(format!("{}: stop authority changed", process.id));
                         continue;
                     }
-                    self.stopping.insert(instance.clone(), Instant::now());
                     self.backend.terminate(&instance, false)?;
+                    self.stopping.insert(instance.clone(), Instant::now());
                 } else if !self.stopping.contains_key(&instance) {
-                    self.stopping.insert(instance.clone(), Instant::now());
                     self.backend.terminate(&instance, false)?;
+                    self.stopping.insert(instance.clone(), Instant::now());
                 } else if self.stopping.get(&instance).is_some_and(|t| {
                     t.elapsed() >= Duration::from_millis(process.shutdown_timeout_ms.0)
                 }) {
@@ -372,6 +446,7 @@ impl<R: Repository, B: Backend, A: LifecycleAuthority> Supervisor<R, B, A> {
                             r.pid = None;
                             r.exit_code = None;
                             r.error = None;
+                            r.guarded_exit = None;
                         })?;
                     }
                     self.change(|s| {
@@ -442,7 +517,18 @@ impl<R: Repository, B: Backend, A: LifecycleAuthority> Supervisor<R, B, A> {
                 Phase::Starting => {
                     let instance = record.instance.clone().unwrap();
                     let launch = process.launch(&program, instance.clone())?;
-                    if self.backend.ready(&launch)? {
+                    let ready = if program.effect == Effect::ProtocolGuardedService {
+                        match self.backend.guarded_status(&launch) {
+                            Ok(value) => value.is_some_and(|o| o.state == GuardedState::Ready),
+                            Err(error) => {
+                                blocked.push(format!("{}: {error}", process.id));
+                                false
+                            }
+                        }
+                    } else {
+                        self.backend.ready(&launch)?
+                    };
+                    if ready {
                         self.change(|s| {
                             s.records.get_mut(&process.id).unwrap().phase = Phase::ProcessReady
                         })?;
@@ -463,7 +549,22 @@ impl<R: Repository, B: Backend, A: LifecycleAuthority> Supervisor<R, B, A> {
                     "{}: startup not confirmed; process retained",
                     process.id
                 )),
-                Phase::ProcessReady => {}
+                Phase::ProcessReady => {
+                    if program.effect == Effect::ProtocolGuardedService {
+                        let launch = process.launch(&program, record.instance.clone().unwrap())?;
+                        let observed = self.backend.guarded_status(&launch);
+                        if !matches!(observed, Ok(Some(ref o)) if o.state == GuardedState::Ready) {
+                            self.stop_latched = true;
+                            self.change(|s| {
+                                s.stop_requested = true;
+                                s.records.get_mut(&process.id).unwrap().error = Some(
+                                    "protocol readiness lost; cooperative stop required".into(),
+                                );
+                            })?;
+                            blocked.push(format!("{}: protocol readiness lost", process.id));
+                        }
+                    }
+                }
                 Phase::Skipped | Phase::StopRequested | Phase::Unknown => {}
             }
         }
@@ -473,6 +574,28 @@ impl<R: Repository, B: Backend, A: LifecycleAuthority> Supervisor<R, B, A> {
                 .records
                 .values()
                 .all(|r| matches!(r.phase, Phase::Exited | Phase::Skipped | Phase::StartFailed));
+        let guarded_shutdown_confirmed = all_exited
+            && self.plan.processes.iter().all(|p| {
+                self.programs[&p.program].effect != Effect::ProtocolGuardedService
+                    || matches!(
+                        state.records[&p.id].phase,
+                        Phase::Skipped | Phase::StartFailed
+                    )
+                    || matches!(
+                        state.records[&p.id].guarded_exit,
+                        Some(GuardedExit::Confirmed { .. })
+                    )
+            });
+        let reconciliation_required = state.records.values().any(|r| {
+            matches!(
+                r.guarded_exit,
+                Some(GuardedExit::Unconfirmed { .. })
+                    | Some(GuardedExit::Confirmed {
+                        reconciliation_required: true,
+                        ..
+                    })
+            )
+        });
         Ok(Status {
             schema: "rx.supervisor-status.v1",
             state,
@@ -480,6 +603,8 @@ impl<R: Repository, B: Backend, A: LifecycleAuthority> Supervisor<R, B, A> {
             all_exited,
             control_prepared: false,
             physical_shutdown_assessed: false,
+            guarded_shutdown_confirmed,
+            reconciliation_required,
         })
     }
     pub fn into_parts(self) -> (R, B, A) {
