@@ -11,11 +11,13 @@ use rx_domain::types::*;
 use rx_protocol::{base, cell};
 use serde::{Deserialize, Serialize};
 use std::{sync::Arc, time::Duration};
+use tokio::time::Instant;
 use tonic::{
     Code, Status,
     transport::{Certificate, Channel, ClientTlsConfig, Identity},
 };
 pub const CONTROL_VIEW: &str = "site-cell-control-v1";
+const IDLE_PROBE_INTERVAL: Duration = Duration::from_secs(1);
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -85,8 +87,20 @@ struct Connection {
     channel: Channel,
     session: base::Session,
     probe: bool,
+    // Only an accepted, durably acknowledged empty Publish advances this monotonic
+    // timestamp. Local idle ticks and failed requests must not postpone remote checks.
+    last_probe: Option<Instant>,
     max_batch: usize,
     max_bytes: usize,
+}
+impl Connection {
+    fn needs_probe(&self, records_empty: bool, now: Instant) -> bool {
+        self.probe
+            || (records_empty
+                && self
+                    .last_probe
+                    .is_none_or(|last| now >= last + IDLE_PROBE_INTERVAL))
+    }
 }
 pub struct Publisher<N, C> {
     host: Arc<Host<N, C>>,
@@ -209,6 +223,7 @@ impl<N: NativeAdapter + 'static, C: Clock + 'static> Publisher<N, C> {
             channel,
             session,
             probe: true,
+            last_probe: None,
             max_batch,
             max_bytes,
         });
@@ -221,12 +236,13 @@ impl<N: NativeAdapter + 'static, C: Clock + 'static> Publisher<N, C> {
             self.connect(&chunk).await?;
         }
         let connection = self.connection.as_mut().expect("connected publisher");
-        if !connection.probe && chunk.records.is_empty() {
+        let probe = connection.needs_probe(chunk.records.is_empty(), Instant::now());
+        if !probe && chunk.records.is_empty() {
             self.status
                 .send_replace(StatusView::Idle(chunk.cursor.clone()));
             return Ok(chunk.cursor);
         }
-        let records = if connection.probe {
+        let records = if probe {
             vec![]
         } else {
             chunk
@@ -250,9 +266,7 @@ impl<N: NativeAdapter + 'static, C: Clock + 'static> Publisher<N, C> {
         while batch.encoded_len() > connection.max_bytes && !batch.records.is_empty() {
             batch.records.pop();
         }
-        if batch.encoded_len() > connection.max_bytes
-            || (!connection.probe && batch.records.is_empty())
-        {
+        if batch.encoded_len() > connection.max_bytes || (!probe && batch.records.is_empty()) {
             return Err(Error::Local(HostError::Invalid(
                 "one evidence record exceeds negotiated transport size".into(),
             )));
@@ -291,7 +305,11 @@ impl<N: NativeAdapter + 'static, C: Clock + 'static> Publisher<N, C> {
             tokio::task::spawn_blocking(move || host.acknowledge_publication(&destination, ack))
                 .await
                 .map_err(|_| Error::Worker)??;
-        self.connection.as_mut().expect("connected publisher").probe = false;
+        let connection = self.connection.as_mut().expect("connected publisher");
+        connection.probe = false;
+        if probe {
+            connection.last_probe = Some(Instant::now());
+        }
         self.status
             .send_replace(StatusView::Published(cursor.clone()));
         Ok(cursor)
@@ -340,3 +358,6 @@ impl<N: NativeAdapter + 'static, C: Clock + 'static> Publisher<N, C> {
 fn parse_id(value: &str) -> Result<Id, Status> {
     Id::new(value).map_err(|_| Status::data_loss("invalid acknowledgment identity"))
 }
+
+#[cfg(test)]
+mod tests;

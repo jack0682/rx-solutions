@@ -14,11 +14,17 @@ P와 H의 cursor는 별개다. H에서는 delivery journal seq와 evidence journ
 
 ## 실행 수명
 
-`tick`은 하나의 제한된 publication 작업이다. `run`은 이를 반복하며, 정상 유휴 확인100ms와 일시 오류100ms→최대5초 backoff를 적용한다. 인증 session이 사라지면 증거 경로의 handshake를 다시 수행한다. 이 재접속으로 native 권한이 살아나지 않는다.
+`tick`은 하나의 제한된 publication 작업이다. `run`은 이를 반복하며, 정상 유휴 확인100ms와 일시 오류100ms→최대5초 backoff를 적용한다. 증거가 없어도 마지막으로 성공한 빈 원격 Publish probe에서1초가 지나면 현재 session으로 빈 batch를 보내 세션과 수락된 prefix를 확인한다. 이 주기는 별도 monotonic 시각으로 계산하며 로컬 Idle tick으로 미루지 않는다. probe 실패도 성공 시각을 갱신하지 않으므로 재시도가 로컬 Idle 성공으로 바뀌어 기존 backoff가 초기화되지 않는다. 전송할 증거가 있으면 기존 batch 처리를 우선하고, 연결 직후에는 기존대로 빈 prefix probe를 먼저 수행한다.
+
+Publish가 `Unauthenticated`를 반환하면 증거 경로의 연결을 버리고 같은 pinned endpoint·destination·installation/store generation·release와 같은 Host boot/evidence journal로 Session.Open, 모든 Cell.Open, prefix probe를 다시 수행한다. timeout/Unavailable은 현재 연결과 기존 요청·cursor 의미를 유지한 채 backoff한다. 원격 응답에 맞춰 pin이나 journal을 교체하지 않는다. 이 재접속은 증거 통신 회복이며 operating HostRegistration rebind, qualification·Arm·grant·새 Run 시작이나 native 권한 복구가 아니다.
 
 협상 불일치·무결성/연속성 상실 등은 Blocked 상태로 종료한다. timeout·ack 유실은 이미 저장한 같은 evidence의 재전송으로 처리한다. 제어용 native 명령의 재실행은 하지 않는다. shutdown/watch sender 종료로 loop를 닫으며, 완료가 미확정인 장비 작업을 완료 처리하지 않는다.
 
 StatusView의 Idle은 전송할 증거가 없다는 뜻이다. 실제 장비 정상·현재 네트워크 건강·작업 완료를 뜻하지 않는다. native gate가 장기 block되면 journal 읽기도 기다릴 수 있으므로 현지 보호 경로를 이 publisher에 의존시키지 않는다.
+
+성공한 빈 원격 probe도 검증된 ACK cursor를 `Published`로 알린다. 이후 로컬 tick은 다시 Idle을 표시할 수 있다. 이 원격 probe는 daemon의 software guarded heartbeat와 별개이며, 어느 쪽도 P admission freshness나 물리 안전 증명이 아니다. 1초는 정상 유휴 상태의 probe 주기이며 통신 timeout·backoff·Host gate 대기까지 포함한 복구시간 보장은 아니다.
+
+현재 P는 빈 Publish에도 cursor revision과 감사 사건을 기록한다. Native evidence sequence는 증가하지 않지만, 1초 간격이면 유휴 Host당 하루 약86,400회 감사 기록이 가능하다. 장기 운영의 보존·용량·부하 검증 및 probe 전달 방식 최적화는 미완료이며, 이번 재연결 검증을 그 검증의 대체물로 사용하지 않는다.
 
 현재 P의 `platform_cursor`는 별도 control journal의 cut과 `site-cell-control-v1` 이름을 사용한다. H cursor key에도 view 식별을 포함하여 예전 audit/base 위치를 재사용하지 않는다. publisher의 영속 재전송 위치는 **producer journal+through_seq**이며, platform cursor로 공개 사건을 재생하는 consumer는 아직 없다. 공개 Journal/Snapshot 연결 전에 P의 전체 wire mapping과 snapshot/구독 정책을 완성해야 한다.
 
@@ -27,5 +33,6 @@ StatusView의 Idle은 전송할 증거가 없다는 뜻이다. 실제 장비 정
 `rx-host-sim-server`의 `test_seed_evidence`와 `publisher` 설정은 test-harness feature에만 존재한다. 새 test journal을 seed하고 loopback P에만 전송한다. seed는 native 효과가 실행됐다는 증명이 아니다. 기존 journal에 seed를 덧붙이는 것은 거부한다.
 
 - Host unit: 잘못된 destination/journal/range·ack 후퇴 거부, H restart 후 cursor 보존, 새 store generation의 별도 cursor.
+- Publisher unit: 100ms 로컬 tick과1초 원격 probe 분리, 실패 후 probe 계속 필요, 실제 loopback Publish에서 빈 batch/session/prefix 유지, Unauthenticated 연결 폐기 및 Unavailable/잘못된 ACK의 기존 cursor 보존. 이 시험은 이미 협상된 연결의 전송 경로를 격리하며 mTLS 재협상은 별도 실제 P–H 프로세스 시험에서 검증한다.
 - 별도 P–H 프로세스 시험:131개 source slot, 첫 ack 유실, 같은 ID 재전송, metadata 보존, TLS 등록 검사, H restart/session 무효화.
 - `PUBLISH` 자체의 device effect는0개이며, native gate 시험은 별도 범위다.
