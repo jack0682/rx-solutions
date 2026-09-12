@@ -26,10 +26,17 @@ pub trait Backend {
     fn forget_exited(&mut self, instance: &Id) -> Result<()>;
     fn exited(&mut self, instance: &Id) -> Result<Option<Option<i32>>>;
     fn ready(&mut self, launch: &Launch) -> Result<bool>;
+    fn guarded_status(&mut self, _launch: &Launch) -> Result<Option<GuardedObservation>> {
+        Err(Error::Invalid(
+            "backend has no guarded status reader".into(),
+        ))
+    }
     fn terminate(&mut self, instance: &Id, force: bool) -> Result<()>;
 }
 pub struct OsProcesses {
     children: BTreeMap<Id, Child>,
+    effects: BTreeMap<Id, Effect>,
+    observations: BTreeMap<Id, GuardedObservation>,
     logs: PathBuf,
 }
 impl OsProcesses {
@@ -40,6 +47,8 @@ impl OsProcesses {
         std::fs::create_dir_all(&logs)?;
         Ok(Self {
             children: BTreeMap::new(),
+            effects: BTreeMap::new(),
+            observations: BTreeMap::new(),
             logs,
         })
     }
@@ -85,6 +94,8 @@ impl Backend for OsProcesses {
             ));
         }
         self.children.remove(instance);
+        self.effects.remove(instance);
+        self.observations.remove(instance);
         Ok(())
     }
     fn exited(&mut self, instance: &Id) -> Result<Option<Option<i32>>> {
@@ -96,6 +107,32 @@ impl Backend for OsProcesses {
     }
     fn ready(&mut self, l: &Launch) -> Result<bool> {
         self.ready_local(l)
+    }
+    fn guarded_status(&mut self, l: &Launch) -> Result<Option<GuardedObservation>> {
+        let ReadyProbe::GuardedStatus(binding) = &l.ready else {
+            return Err(Error::Invalid("guarded status binding required".into()));
+        };
+        let child = self
+            .children
+            .get(&l.instance)
+            .ok_or_else(|| Error::Reconciliation("no owned child for status read".into()))?;
+        let observation = rx_service_status::read(binding, &l.instance, child.id())
+            .map_err(|e| Error::Reconciliation(e.to_string()))?;
+        if let Some(next) = &observation {
+            if let Some(previous) = self.observations.get(&l.instance)
+                && (next.sequence < previous.sequence
+                    || next.observed_at.clock_id != previous.observed_at.clock_id
+                    || next.observed_at.ticks_ns < previous.observed_at.ticks_ns
+                    || (next.sequence == previous.sequence
+                        && next.payload_digest != previous.payload_digest))
+            {
+                return Err(Error::Reconciliation(
+                    "guarded status cut regressed or changed".into(),
+                ));
+            }
+            self.observations.insert(l.instance.clone(), next.clone());
+        }
+        Ok(observation)
     }
     fn terminate(&mut self, instance: &Id, force: bool) -> Result<()> {
         self.terminate_local(instance, force)
@@ -129,6 +166,9 @@ impl OsProcesses {
             .stdin(Stdio::null())
             .stdout(stdout)
             .stderr(stderr);
+        if let ReadyProbe::GuardedStatus(binding) = &l.ready {
+            command.env("RX_PROCESS_STATUS_PATH", binding.path());
+        }
         #[cfg(unix)]
         {
             use std::os::unix::process::CommandExt;
@@ -142,14 +182,18 @@ impl OsProcesses {
         let child = command.spawn()?;
         let pid = child.id();
         self.children.insert(l.instance.clone(), child);
+        self.effects.insert(l.instance.clone(), l.effect);
         Ok(pid)
     }
     fn ready_local(&mut self, l: &Launch) -> Result<bool> {
         if !self.children.contains_key(&l.instance) {
             return Ok(false);
         }
-        match l.ready {
+        match &l.ready {
             ReadyProbe::AliveOnly => Ok(true),
+            ReadyProbe::GuardedStatus(_) => Ok(self
+                .guarded_status(l)?
+                .is_some_and(|o| o.state == GuardedState::Ready)),
             ReadyProbe::HttpStatus { .. } => {
                 let address = SocketAddrV4::new(
                     Ipv4Addr::LOCALHOST,
@@ -190,6 +234,12 @@ impl OsProcesses {
         }
     }
     fn terminate_local(&mut self, instance: &Id, force: bool) -> Result<()> {
+        let guarded = self.effects.get(instance) == Some(&Effect::ProtocolGuardedService);
+        if guarded && force {
+            return Err(Error::Invalid(
+                "protocol-guarded services cannot be force-killed".into(),
+            ));
+        }
         let child = self.children.get_mut(instance).ok_or_else(|| {
             Error::Reconciliation(
                 "cannot signal a recorded PID without its live child handle".into(),
@@ -201,17 +251,18 @@ impl OsProcesses {
         }
         #[cfg(unix)]
         {
+            let target = if guarded {
+                child.id().to_string()
+            } else {
+                format!("-{}", child.id())
+            };
             let status = Command::new("/bin/kill")
                 .env_clear()
-                .args([
-                    if force { "-KILL" } else { "-TERM" },
-                    "--",
-                    &format!("-{}", child.id()),
-                ])
+                .args([if force { "-KILL" } else { "-TERM" }, "--", &target])
                 .status()?;
             if !status.success() {
                 return Err(Error::Reconciliation(
-                    "process-group signal was not confirmed".into(),
+                    "owned process signal was not confirmed".into(),
                 ));
             }
         }

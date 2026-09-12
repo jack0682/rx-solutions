@@ -1,12 +1,15 @@
-//! Explicit managed mode. Only release-owned non-actuating recipes are enabled by this draft.
+//! Explicit management of release-owned diagnostics and protocol-guarded RX services.
 use rx_domain::canonical;
 use rx_package::PackagePath;
 use rx_solution_catalog::OwnPlatformCatalog;
 use rx_storage::SqliteRepository;
 use rx_supervisor::{
     Supervisor,
-    builtin::release_programs,
-    model::{Plan, SoftwareOnly},
+    builtin::{
+        ServiceConfigurations, add_guarded_services, release_programs, validate_service_plan,
+    },
+    initialization,
+    model::{GuardedServices, Plan},
     process::OsProcesses,
 };
 use serde::Deserialize;
@@ -23,6 +26,8 @@ struct Configuration {
     schema: String,
     state_subdirectory: PackagePath,
     plan: Plan,
+    #[serde(default)]
+    services: Option<ServiceConfigurations>,
 }
 fn read(path: &Path) -> Result<Configuration> {
     let metadata = fs::symlink_metadata(path)?;
@@ -65,24 +70,44 @@ fn state_directory(relative: &str) -> Result<PathBuf> {
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<()> {
     let args = std::env::args().skip(1).collect::<Vec<_>>();
-    if args.len() != 2 || !matches!(args[0].as_str(), "inspect" | "run" | "activate") {
-        return Err("usage: rx-solutionsd inspect|run|activate CONFIG".into());
+    if args.len() != 2 || !matches!(args[0].as_str(), "inspect" | "init" | "run" | "activate") {
+        return Err("usage: rx-solutionsd inspect|init|run|activate CONFIG".into());
     }
     let configuration = read(Path::new(&args[1]))?;
     let root = Path::new("/opt/rx");
-    let programs = release_programs(root)?;
+    let mut programs = release_programs(root)?;
+    let initializers = if let Some(services) = &configuration.services {
+        let initializers = add_guarded_services(root, services, &mut programs)?;
+        validate_service_plan(&configuration.plan, &initializers)?
+    } else {
+        Vec::new()
+    };
     let support =
         OwnPlatformCatalog::decode(&fs::read(root.join("catalogs/robotis-support.v1.json"))?)?;
     let plan_digest = configuration.plan.validate(&programs, &support)?;
     if args[0] == "inspect" {
         println!(
             "{}",
-            serde_json::json!({"schema":"rx.solutions-plan-inspection.v1","plan_digest":plan_digest,"selected_profiles":configuration.plan.profiles,"control_prepared":false,"physical_qualification":"NOT_PERFORMED"})
+            serde_json::json!({"schema":"rx.solutions-plan-inspection.v1","plan_digest":plan_digest,"selected_profiles":configuration.plan.profiles,"protocol_guarded_services":!initializers.is_empty(),"control_prepared":false,"physical_qualification":"NOT_PERFORMED"})
         );
         return Ok(());
     }
     let state = state_directory(configuration.state_subdirectory.as_str())?;
-    for filename in ["supervisor.db", "supervisor.writer.lock"] {
+    for initializer in &initializers {
+        for path in
+            std::iter::once(&initializer.data_directory).chain(initializer.runtime_directory.iter())
+        {
+            if path.starts_with(&state) || state.starts_with(path) {
+                return Err("supervisor and daemon data/runtime roots must not overlap".into());
+            }
+        }
+    }
+    for filename in [
+        "supervisor.db",
+        "supervisor.writer.lock",
+        "initialization.db",
+        "initialization.writer.lock",
+    ] {
         match fs::symlink_metadata(state.join(filename)) {
             Ok(m) if !m.is_file() || m.file_type().is_symlink() => {
                 return Err("invalid supervisor state file".into());
@@ -91,10 +116,55 @@ async fn main() -> Result<()> {
             _ => {}
         }
     }
+    if args[0] == "init" {
+        if initializers.is_empty() {
+            return Err("init requires named Host/Executor service configuration".into());
+        }
+        let expected = initialization::digest(plan_digest, &initializers)?;
+        let mut store = SqliteRepository::open(state.join("initialization.db"))?;
+        let initialized = initialization::run(
+            &mut store,
+            expected,
+            &initializers,
+            &state.join("init-logs"),
+        )
+        .await?;
+        println!("{}", serde_json::to_string(&initialized)?);
+        return Ok(());
+    }
+    if !initializers.is_empty() {
+        let path = state.join("initialization.db");
+        if !fs::symlink_metadata(&path)
+            .is_ok_and(|m| m.is_file() && !m.file_type().is_symlink() && m.len() > 0)
+        {
+            return Err("required composition initialization journal absent; run never initializes services".into());
+        }
+        let mut store = SqliteRepository::open(path)?;
+        store.check_integrity()?;
+        initialization::require_complete(
+            &mut store,
+            initialization::digest(plan_digest, &initializers)?,
+            &initializers,
+        )?;
+        for path in initializers
+            .iter()
+            .filter_map(|i| i.runtime_directory.as_ref())
+        {
+            fs::create_dir_all(path)?;
+            if !fs::symlink_metadata(path).is_ok_and(|m| m.is_dir() && !m.file_type().is_symlink())
+            {
+                return Err("daemon runtime directory must be a real directory".into());
+            }
+        }
+        let runtime = Path::new("/run/rx-solutions");
+        if !fs::symlink_metadata(runtime).is_ok_and(|m| m.is_dir() && !m.file_type().is_symlink()) {
+            return Err("owned /run/rx-solutions directory required for guarded status".into());
+        }
+    }
     let mut supervisor = Supervisor::open(
         SqliteRepository::open(state.join("supervisor.db"))?,
         OsProcesses::new(state.join("logs"))?,
-        SoftwareOnly,
+        GuardedServices,
         configuration.plan,
         programs,
         &support,
@@ -122,6 +192,9 @@ async fn main() -> Result<()> {
                     last_output = text;
                 }
                 if report.all_exited {
+                    if !report.guarded_shutdown_confirmed {
+                        return Err("managed daemons exited without confirmed cooperative-stop reports; reconciliation required".into());
+                    }
                     return Ok(());
                 }
             }

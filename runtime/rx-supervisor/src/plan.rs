@@ -36,7 +36,7 @@ impl Plan {
                 || !(100..=30_000).contains(&p.shutdown_timeout_ms.0)
                 || p.restart_limit.0 > 3
                 || !(100..=30_000).contains(&p.restart_backoff_ms.0)
-                || (program.effect == Effect::RequiresPlatformAuthority && p.restart_limit.0 != 0)
+                || (program.effect != Effect::NonActuating && p.restart_limit.0 != 0)
             {
                 return Err(Error::Invalid("dependency/timing/restart policy".into()));
             }
@@ -116,6 +116,37 @@ impl Process {
         {
             return Err(Error::Invalid("readiness port binding".into()));
         }
+        if (p.effect == Effect::ProtocolGuardedService)
+            != matches!(p.ready, ReadyProbe::GuardedStatus(_))
+        {
+            return Err(Error::Invalid(
+                "protocol-guarded effect requires its typed status binding".into(),
+            ));
+        }
+        let ready = if let ReadyProbe::GuardedStatus(binding) = &p.ready {
+            let path = binding.path();
+            if !path.is_absolute()
+                || path
+                    .components()
+                    .any(|c| matches!(c, std::path::Component::ParentDir))
+            {
+                return Err(Error::Invalid(
+                    "absolute release-owned status path required".into(),
+                ));
+            }
+            let parent = path
+                .parent()
+                .ok_or_else(|| Error::Invalid("status parent required".into()))?;
+            let stem = path
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .ok_or_else(|| Error::Invalid("status filename required".into()))?;
+            ReadyProbe::GuardedStatus(
+                binding.with_path(parent.join(format!("{stem}.{instance}.json"))),
+            )
+        } else {
+            p.ready.clone()
+        };
         Ok(Launch {
             instance,
             effect: p.effect,
@@ -123,7 +154,7 @@ impl Process {
             executable_sha256: p.executable_sha256,
             files: p.files.clone(),
             arguments,
-            ready: p.ready.clone(),
+            ready,
             port,
         })
     }

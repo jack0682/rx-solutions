@@ -1,5 +1,5 @@
 [workspace]
-members = ["runtime/rx-host", "runtime/rx-solution-catalog", "runtime/rx-process", "runtime/rx-executor", "runtime/rx-supervisor", "runtime/rx-process-package", "runtime/rx-device-package", "drivers/rx-melsec-mc"]
+members = ["runtime/rx-host", "runtime/rx-solution-catalog", "runtime/rx-process", "runtime/rx-executor", "runtime/rx-supervisor", "runtime/rx-service-status", "runtime/rx-process-package", "runtime/rx-device-package", "drivers/rx-melsec-mc"]
 exclude = ["sdk"]
 resolver = "3"
 

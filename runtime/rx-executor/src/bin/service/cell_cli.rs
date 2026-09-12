@@ -1,4 +1,6 @@
 //! Explicit cell-mode deployment entrypoint. Operator/P inputs cannot select files or programs.
+#[path = "cell_cli/guarded_status.rs"]
+mod guarded_status;
 use rx_domain::{canonical, types::*};
 use rx_executor::{
     Client, PeerPin, TlsEndpoint,
@@ -9,6 +11,7 @@ use rx_executor::{
     service::{CoordinationMode, Options, PinnedPlanner},
     service_owner::ServiceOwner,
 };
+use rx_service_status::{GuardedScope, GuardedState, Reporter};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest as _, Sha256};
 use std::{
@@ -227,17 +230,39 @@ pub(super) async fn run(path: &Path) -> Result<bool> {
         cell: scope.cell.clone(),
         definition: scope.definition,
     };
-    #[cfg(feature = "test-harness")]
-    super::linux::before_connect_probe()?;
-
     let (stop, mut shutdown) = tokio::sync::watch::channel(false);
     let mut term = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())?;
     let mut interrupt = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::interrupt())?;
+    // The optional protocol must be writable before registering a P peer or admitting work.
+    let reporter = Reporter::from_environment(GuardedScope::Executor {
+        installation: scope.installation.clone(),
+        cell: scope.cell.clone(),
+        service_journal: config.expected_service.journal.clone(),
+        configuration_digest: config.digest()?,
+    })?;
+    let mut guarded = if let Some(reporter) = reporter {
+        let stop = stop.clone();
+        Some(
+            guarded_status::Heartbeat::start(reporter, move || {
+                stop.send_replace(true);
+            })
+            .map_err(std::io::Error::other)?,
+        )
+    } else {
+        None
+    };
+    let signal_stop = stop.clone();
+    let signal_state = guarded.as_ref().map(|g| g.state.clone());
     let signals = tokio::spawn(async move {
         tokio::select! { _=term.recv()=>{}, _=interrupt.recv()=>{} };
-        let _ = stop.send(true);
+        if let Some(state) = signal_state {
+            state.send_replace(GuardedState::Stopping);
+        }
+        signal_stop.send_replace(true);
     });
     let outcome = async {
+        #[cfg(feature = "test-harness")]
+        super::linux::before_connect_probe()?;
         let client = tokio::select! {
             biased;
             _=shutdown.changed()=>return Err::<bool, Box<dyn std::error::Error>>("executor cell startup interrupted before connection completed".into()),
@@ -248,11 +273,22 @@ pub(super) async fn run(path: &Path) -> Result<bool> {
             PinnedPlanner(Executable { path: config.engine.path.clone(), sha256: config.engine.sha256 }),
             clock, config.options.validated()?,
         )?;
+        if let Some(guarded) = &mut guarded {
+            guarded.publish(GuardedState::Ready).await.map_err(std::io::Error::other)?;
+        }
         let (updates, mut states) = tokio::sync::watch::channel(service.initial_status());
         println!("{}", serde_json::to_string(&*states.borrow())?);
+        let guarded_states = guarded.as_ref().map(|g| g.state.clone());
+        let guarded_failures = guarded.as_ref().map(|g| g.failures());
+        let output_shutdown = shutdown.clone();
         let output = tokio::spawn(async move {
             while states.changed().await.is_ok() {
-                if let Ok(text) = serde_json::to_string(&*states.borrow_and_update()) {
+                let current = states.borrow_and_update().clone();
+                if let Some(states) = &guarded_states {
+                    let failed = guarded_failures.as_ref().is_some_and(|f| f.borrow().is_some());
+                    states.send_replace(guarded_live_state(&current, *output_shutdown.borrow(), failed));
+                }
+                if let Ok(text) = serde_json::to_string(&current) {
                     println!("{text}");
                 }
             }
@@ -260,11 +296,74 @@ pub(super) async fn run(path: &Path) -> Result<bool> {
         let report = service.run(shutdown, updates).await;
         output.await?;
         println!("{}", serde_json::to_string(&report)?);
+        if let Some(guarded) = &mut guarded {
+            let failure = guarded.failure();
+            let final_state = guarded_final_state(&report, failure.is_some());
+            guarded.finish(final_state).await.map_err(std::io::Error::other)?;
+            if let Some(error) = failure { return Err(error.into()); }
+        }
         Ok(report.status.phase == Phase::Stopped)
     }.await;
     signals.abort();
+    let _ = signals.await;
+    if outcome.is_err()
+        && let Some(guarded) = &mut guarded
+    {
+        let _ = guarded.finish(GuardedState::Attention).await;
+    }
     outcome
 }
+
+fn guarded_live_state(
+    status: &rx_executor::cell_service::Status,
+    stopping: bool,
+    failed: bool,
+) -> GuardedState {
+    if failed || status.phase == Phase::Attention {
+        GuardedState::Attention
+    } else if stopping || status.phase == Phase::Stopped {
+        GuardedState::Stopping
+    } else {
+        // A RunService also stops while retiring a completed run. The resident
+        // CellService still serves the protocol and will return to idle afterward.
+        GuardedState::Ready
+    }
+}
+fn guarded_final_state(report: &rx_executor::cell_service::Report, failed: bool) -> GuardedState {
+    // CellService exposes Stopped only after idle shutdown or checked cooperative cleanup.
+    // An attachment retained by a requested stop still needs explicit reconciliation/rebind.
+    let invalid_stop = report.last_run.as_ref().is_some_and(|r| {
+        r.durability_fault.is_some()
+            || r.phase != rx_executor::lifecycle::StopPhase::PauseObserved
+            || r.stop.phase != r.phase
+            || !matches!(
+                r.stop.reason,
+                rx_executor::lifecycle::StopReason::Requested
+                    | rx_executor::lifecycle::StopReason::Completed
+            )
+            || r.stop
+                .observation
+                .as_ref()
+                .is_none_or(|v| !rx_executor::lifecycle::restricted(v.state))
+    });
+    if failed
+        || report.status.phase != Phase::Stopped
+        || invalid_stop
+        || ((report.status.run.is_some() || report.status.attachment.is_some())
+            && report.last_run.is_none())
+    {
+        GuardedState::Attention
+    } else {
+        GuardedState::Stopped {
+            reconciliation_required: report.status.run.is_some()
+                || report.status.attachment.is_some(),
+        }
+    }
+}
+
+#[cfg(test)]
+#[path = "cell_cli/guarded_tests.rs"]
+mod guarded_tests;
 
 fn open_regular(path: &Path, limit: u64, secret: bool) -> Result<File> {
     if !path.is_absolute() {

@@ -1,4 +1,5 @@
 use rx_domain::types::*;
+pub use rx_service_status::{GuardedObservation, GuardedState, GuardedStatusBinding};
 use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, path::PathBuf};
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -33,6 +34,7 @@ pub struct Process {
 pub enum Effect {
     NonActuating,
     RequiresPlatformAuthority,
+    ProtocolGuardedService,
 }
 /// Supplied by the release/program catalog, never by the site process selection.
 #[derive(Clone, Debug, Serialize)]
@@ -55,6 +57,7 @@ pub enum Argument {
 pub enum ReadyProbe {
     AliveOnly,
     HttpStatus { port_parameter: Name },
+    GuardedStatus(GuardedStatusBinding),
 }
 #[derive(Clone, Debug)]
 pub struct Launch {
@@ -92,6 +95,25 @@ pub struct Record {
     pub pid: Option<u32>,
     pub exit_code: Option<i32>,
     pub error: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub guarded_exit: Option<GuardedExit>,
+}
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(
+    tag = "state",
+    rename_all = "SCREAMING_SNAKE_CASE",
+    deny_unknown_fields
+)]
+pub enum GuardedExit {
+    Confirmed {
+        reconciliation_required: bool,
+        sequence: Counter,
+        observed_at: TimePoint,
+        payload_digest: Digest,
+    },
+    Unconfirmed {
+        reason: String,
+    },
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -110,6 +132,8 @@ pub struct Status {
     pub all_exited: bool,
     pub control_prepared: bool,
     pub physical_shutdown_assessed: bool,
+    pub guarded_shutdown_confirmed: bool,
+    pub reconciliation_required: bool,
 }
 /// This port must validate existing platform lifecycle authority for control owners.
 /// No public CLI, process liveness or Boolean from a site file can implement that authority.
@@ -124,5 +148,21 @@ impl LifecycleAuthority for SoftwareOnly {
     }
     fn may_stop(&self, _: &Plan, _: &Process, l: &Launch) -> bool {
         l.effect == Effect::NonActuating
+    }
+}
+
+/// Release-catalog software boot/guarded-shutdown permission. Never authorizes a physical lifecycle.
+pub struct GuardedServices;
+impl LifecycleAuthority for GuardedServices {
+    fn may_start(&self, _: &Plan, _: &Process, launch: &Launch) -> bool {
+        launch.effect == Effect::NonActuating
+            || (launch.effect == Effect::ProtocolGuardedService
+                && matches!(launch.ready, ReadyProbe::GuardedStatus(_)))
+    }
+    fn may_stop(&self, _: &Plan, _: &Process, launch: &Launch) -> bool {
+        // Permission to request the daemon's cooperative stop, not permission to drop its adapter.
+        launch.effect == Effect::NonActuating
+            || (launch.effect == Effect::ProtocolGuardedService
+                && matches!(launch.ready, ReadyProbe::GuardedStatus(_)))
     }
 }

@@ -1,4 +1,5 @@
 pub mod builtin;
+pub mod initialization;
 pub mod model;
 mod plan;
 pub mod process;
