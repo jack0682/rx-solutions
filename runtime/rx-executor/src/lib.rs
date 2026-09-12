@@ -7,5 +7,6 @@ pub mod journal;
 pub mod lifecycle;
 pub mod pending;
 pub mod service;
+pub mod service_owner;
 pub mod worker;
 pub use client::{Client, Error, PeerPin, TlsEndpoint, ValidatedSnapshot};

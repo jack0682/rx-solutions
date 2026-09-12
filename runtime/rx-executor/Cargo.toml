@@ -21,8 +21,8 @@ thiserror = "2"
 [lints]
 workspace = true
 
-[target.'cfg(target_os="linux")'.dependencies]
-rustix = {version="1",features=["time"]}
+[target.'cfg(unix)'.dependencies]
+rustix = {version="1",features=["time","fs"]}
 
 [features]
 test-harness = []

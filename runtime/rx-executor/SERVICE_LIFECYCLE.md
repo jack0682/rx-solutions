@@ -35,6 +35,10 @@ BT graph 완료 자체는 part/run 완료가 아니다. SerialProduction은 [소
 
 Linux CLI는 JSON 설정 파일 한 개를 받는다. 설정은 P URI/server name, CA/client certificate/key 경로, PeerPin, run/visit, S journal 경로, immutable BT binary 경로/SHA-256, poll/grace/stop 옵션이다. endpoint는 TLS이고 clock_id는 실제 로컬 Linux boot clock과 일치해야 한다. peer_boot는 설정 값 대신 프로세스마다 한 번 새로 생성한다. SIGINT/SIGTERM을 shutdown 요청으로 연결하며, 지원하지 않는 OS에서 다른 시계로 대신 실행하지 않는다.
 
+CLI는 구성 해석 직후, P 연결/Session.Open 전에 설정된 journal의 부모 디렉터리에 `.rx-executor-service.lock` 소유권을 확보한다. 범위는 **설정된 service/journal root당 한 프로세스**이며, 서로 다른 root의 정상 서비스는 독립적으로 실행할 수 있다. 셀 전체의 Run 수를 제한하는 정책이 아니다. 같은 root의 서로 다른 run journal도 기존 P peer를 교체하는 중복 기동으로 취급하여 연결 전에 거부한다. 디렉터리 alias는 실제 root로 정규화하고 기존 잠금 경로의 symlink·특수파일을 거부한다.
+
+소유권은 연결·원장 열기·서비스 운전·중단 확인을 포함한 함수 전체에서 유지한다. 정상 반환·오류 반환·unwind에서는 소유자의 Drop이 명시적으로 unlock한 뒤 파일 handle을 닫는다. 따라서 동시 자식 기동의 fork→exec 사이에 잠시 상속된 descriptor가 남아도 정상 반납을 지연시키지 않는다. 강제 종료에서는 커널의 handle 정리에 따른 해제에 의존한다. 잠금 파일은 다른 프로세스가 같은 inode를 기다릴 수 있으므로 삭제하지 않는다. 이 잠금은 기존 run Scope 검사, 요청/stop 원장과 새 boot의 권한 철회를 대신하지 않는다. `test-harness` 빌드의 접속 직전 probe는 독립 CLI 프로세스의 접속 단계 진입 횟수만 기록하고 즉시 실패한다. 기본 제품 빌드에는 probe 환경변수 처리나 해당 경로가 포함되지 않는다.
+
 상태는 변경될 때만 JSON으로 출력한다. 중단 결과에 PENDING/ATTENTION 또는 durability_fault가 있으면 CLI는 비정상 종료한다. 연결/인증 전의 구성·기동 실패는 실행 허가가 아니다. journal 부모 디렉터리·계정/certificate·P 서비스·readonly release를 제공하는 배포 도구는 아직 별도 구현 범위다.
 
 기본 coordination은 SERIAL_PRODUCTION이다. MANUAL_VISIT은 개별 visit·setup용이다. 기본 poll은 50ms, 통신 grace는 5초, P pause 확인 window는 10초다. 조정 가능한 범위는 코드에서 검증한다. planner CLOSE에는 별도 최대 2초를 사용한다. 이 수치는 서비스 처리 정책이며 장비 정지 기한이나 현장 성능 보장이 아니다. 모델별 지지/정지 요구는 Host와 현장 인수 명세에서 별도로 충족해야 한다.
