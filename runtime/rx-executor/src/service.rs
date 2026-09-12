@@ -13,6 +13,7 @@ use rx_ports::Repository;
 use rx_process_contract::execution::RunState;
 use serde::{Deserialize, Serialize};
 use std::{
+    future::Future,
     sync::Arc,
     time::{Duration, Instant},
 };
@@ -109,6 +110,84 @@ pub struct Report {
     pub last_error: Option<String>,
     pub stop: crate::lifecycle::StopRecord,
 }
+/// Local planner process cleanup only; never Host stop or physical handover proof.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum PlannerCleanup {
+    /// This service never attempted to create a planner process.
+    NotStarted,
+    /// Every created planner completed the validated CLOSE/child-exit path.
+    Confirmed,
+    /// A spawn/cleanup failed or was cancelled while child ownership was uncertain.
+    Unconfirmed,
+}
+impl PlannerCleanup {
+    pub fn is_confirmed(self) -> bool {
+        matches!(self, Self::NotStarted | Self::Confirmed)
+    }
+}
+/// Ownership returned by a completed run loop. Reassignment requires checking cleanup
+/// in addition to the caller's current P state, session and durable assignment record.
+pub struct ServiceExit<R, F> {
+    pub report: Report,
+    pub worker: Worker<R>,
+    pub factory: F,
+    pub planner_cleanup: PlannerCleanup,
+}
+#[derive(Default)]
+struct PlannerLifecycle {
+    attempted: bool,
+    outstanding: bool,
+    failed: bool,
+}
+struct CleanupAttempt<'a> {
+    lifecycle: &'a mut PlannerLifecycle,
+    confirmed: bool,
+}
+impl Drop for CleanupAttempt<'_> {
+    fn drop(&mut self) {
+        if !self.confirmed {
+            self.lifecycle.failed = true;
+        }
+    }
+}
+impl PlannerLifecycle {
+    fn starting(&mut self) {
+        self.attempted = true;
+        // Record before awaiting spawn: cancellation can happen after a child exists
+        // but before EngineProcess is returned to the service.
+        self.outstanding = true;
+    }
+    fn spawn_failed(&mut self) {
+        self.failed = true;
+    }
+    async fn finish<T>(
+        &mut self,
+        cleanup: impl Future<Output = Result<T, engine_process::Error>>,
+    ) -> Result<T, engine_process::Error> {
+        let mut attempt = CleanupAttempt {
+            lifecycle: self,
+            confirmed: false,
+        };
+        let result = cleanup.await;
+        if result.is_ok() {
+            attempt.lifecycle.outstanding = false;
+            attempt.confirmed = true;
+        }
+        // Error or cancellation drops an unconfirmed attempt and latches failed.
+        // Empty engine slots and unrelated last_error changes cannot clear it.
+        result
+    }
+    fn result(&self) -> PlannerCleanup {
+        if self.outstanding || self.failed {
+            PlannerCleanup::Unconfirmed
+        } else if self.attempted {
+            PlannerCleanup::Confirmed
+        } else {
+            PlannerCleanup::NotStarted
+        }
+    }
+}
 #[cfg(feature = "test-harness")]
 type StopHook = Arc<dyn Fn(&StopController) + Send + Sync>;
 pub struct RunService<R, F> {
@@ -120,6 +199,7 @@ pub struct RunService<R, F> {
     context: Option<Identity>,
     last_context: Option<Identity>,
     engine: Option<EngineProcess>,
+    planner_lifecycle: PlannerLifecycle,
     pending: Option<PendingRequests>,
     status: Status,
     #[cfg(feature = "test-harness")]
@@ -154,6 +234,7 @@ impl<R: Repository, F: PlannerFactory> RunService<R, F> {
             context: None,
             last_context: None,
             engine: None,
+            planner_lifecycle: PlannerLifecycle::default(),
             pending: None,
             status,
             #[cfg(feature = "test-harness")]
@@ -186,10 +267,19 @@ impl<R: Repository, F: PlannerFactory> RunService<R, F> {
         control
     }
     pub async fn run(
+        self,
+        shutdown: watch::Receiver<bool>,
+        updates: watch::Sender<Status>,
+    ) -> Report {
+        self.run_owned(shutdown, updates).await.report
+    }
+    /// Finish the existing stop flow and return the unchanged Client/journal/factory
+    /// ownership for a resident caller. Cleanup confirmation is a separate result.
+    pub async fn run_owned(
         mut self,
         mut shutdown: watch::Receiver<bool>,
         updates: watch::Sender<Status>,
-    ) -> Report {
+    ) -> ServiceExit<R, F> {
         let mut stop = match self.worker.recovered_stop() {
             Ok(value) => value,
             Err(_) => Some(self.request_stop(StopReason::StoreFault)),
@@ -203,7 +293,7 @@ impl<R: Repository, F: PlannerFactory> RunService<R, F> {
                 publish(&updates, &self.status);
                 // Only the planner is closed. Host/controller lifetime is owned elsewhere.
                 if let Some(engine) = self.engine.take()
-                    && let Err(error) = engine.close().await
+                    && let Err(error) = self.planner_lifecycle.finish(engine.close()).await
                 {
                     last_error = Some(error.to_string());
                 }
@@ -230,12 +320,17 @@ impl<R: Repository, F: PlannerFactory> RunService<R, F> {
                     Phase::Attention
                 };
                 publish(&updates, &self.status);
-                return Report {
-                    phase: control.record.phase,
-                    stop_id: control.record.id.clone(),
-                    durability_fault: control.durability_fault,
-                    last_error,
-                    stop: control.record.clone(),
+                return ServiceExit {
+                    report: Report {
+                        phase: control.record.phase,
+                        stop_id: control.record.id.clone(),
+                        durability_fault: control.durability_fault,
+                        last_error,
+                        stop: control.record.clone(),
+                    },
+                    planner_cleanup: self.planner_lifecycle.result(),
+                    worker: self.worker,
+                    factory: self.factory,
                 };
             }
             if *shutdown.borrow() {
@@ -274,6 +369,11 @@ impl<R: Repository, F: PlannerFactory> RunService<R, F> {
         }
     }
     async fn cycle(&mut self) -> Result<Option<StopReason>, Error> {
+        if self.engine.is_none() && !self.planner_lifecycle.result().is_confirmed() {
+            // A cancelled spawn or serial retirement may already have consumed the
+            // local EngineProcess. Its absence cannot authorize another planner.
+            return Ok(Some(StopReason::PlannerFault));
+        }
         if self.options.coordination == CoordinationMode::SerialProduction {
             let view = self.worker.production_view().await?;
             if let Some(context) = self.context.as_ref().or(self.last_context.as_ref())
@@ -291,14 +391,7 @@ impl<R: Repository, F: PlannerFactory> RunService<R, F> {
                 .await?;
             match result {
                 crate::worker::Coordination::Waiting => {
-                    self.status.admission = view.data().admission_allowed;
-                    if self.context.is_some() && view.data().run.run.state != RunState::Executing {
-                        return Ok(Some(StopReason::ContextChanged));
-                    }
-                    if self.context.is_none() {
-                        self.status.phase = Phase::WaitingPart;
-                    }
-                    return Ok(None);
+                    return waiting_production(&mut self.status, self.context.is_some(), &view);
                 }
                 crate::worker::Coordination::Visit(visit) => {
                     self.visit = visit;
@@ -306,8 +399,8 @@ impl<R: Repository, F: PlannerFactory> RunService<R, F> {
                 }
                 crate::worker::Coordination::Retire(proof) => {
                     if let Some(engine) = self.engine.take() {
-                        engine
-                            .retire(proof)
+                        self.planner_lifecycle
+                            .finish(engine.retire(proof))
                             .await
                             .map_err(|e| Error::Invalid(e.to_string()))?;
                     }
@@ -364,11 +457,14 @@ impl<R: Repository, F: PlannerFactory> RunService<R, F> {
             }
         } else {
             self.worker.recover(&snapshot)?;
-            let engine = self
-                .factory
-                .spawn(&snapshot)
-                .await
-                .map_err(|e| Error::Invalid(e.to_string()))?;
+            self.planner_lifecycle.starting();
+            let engine = match self.factory.spawn(&snapshot).await {
+                Ok(engine) => engine,
+                Err(error) => {
+                    self.planner_lifecycle.spawn_failed();
+                    return Err(Error::Invalid(error.to_string()));
+                }
+            };
             self.context = Some(snapshot.context_identity());
             self.pending = Some(PendingRequests::new(
                 snapshot.context_identity(),
@@ -404,6 +500,26 @@ impl<R: Repository, F: PlannerFactory> RunService<R, F> {
         Ok((pending.stop_state() != StopState::Running).then_some(StopReason::WorkerFault))
     }
 }
+fn waiting_production(
+    status: &mut Status,
+    has_context: bool,
+    view: &crate::client::ValidatedProduction,
+) -> Result<Option<StopReason>, Error> {
+    // coordinate() records observations before constructing a CompletedVisit. If the read
+    // expires during that work, Waiting requests a fresh read, not a context-change stop.
+    if !view.is_current() {
+        status.admission = false;
+        return Err(Error::Expired);
+    }
+    status.admission = view.data().admission_allowed;
+    if has_context && view.data().run.run.state != RunState::Executing {
+        return Ok(Some(StopReason::ContextChanged));
+    }
+    if !has_context {
+        status.phase = Phase::WaitingPart;
+    }
+    Ok(None)
+}
 fn transient(error: &Error) -> bool {
     matches!(error, Error::Expired)
         || matches!(error,Error::Rpc(status) if matches!(status.code(),tonic::Code::Unavailable|tonic::Code::DeadlineExceeded|tonic::Code::Cancelled|tonic::Code::ResourceExhausted|tonic::Code::Internal|tonic::Code::Unknown))
@@ -419,3 +535,6 @@ fn publish(sender: &watch::Sender<Status>, next: &Status) {
         }
     });
 }
+
+#[cfg(test)]
+mod tests;

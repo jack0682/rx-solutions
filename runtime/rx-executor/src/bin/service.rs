@@ -1,5 +1,8 @@
 //! Linux run/visit service. Operator admission and part coordination remain P responsibilities.
 #[cfg(target_os = "linux")]
+#[path = "service/cell_cli.rs"]
+mod cell_cli;
+#[cfg(target_os = "linux")]
 mod linux {
     use rx_domain::{canonical, types::*};
     use rx_executor::{
@@ -14,7 +17,10 @@ mod linux {
     };
     use rx_storage::SqliteRepository;
     use serde::Deserialize;
-    use std::{path::PathBuf, sync::Arc};
+    use std::{
+        path::{Path, PathBuf},
+        sync::Arc,
+    };
     #[derive(Deserialize)]
     #[serde(deny_unknown_fields)]
     struct Config {
@@ -33,12 +39,22 @@ mod linux {
         options: Options,
     }
     pub async fn run() -> Result<bool, Box<dyn std::error::Error>> {
-        let path = std::env::args()
-            .nth(1)
-            .ok_or("configuration file required")?;
-        if std::env::args().len() != 2 {
-            return Err("exactly one configuration path required".into());
+        let arguments: Vec<_> = std::env::args_os().skip(1).collect();
+        match arguments.as_slice() {
+            [path] => run_legacy(Path::new(path)).await,
+            [mode, operation, path] if mode == "cell" && operation == "init" => {
+                super::cell_cli::initialize(Path::new(path))?;
+                Ok(true)
+            }
+            [mode, operation, path] if mode == "cell" && operation == "run" => {
+                super::cell_cli::run(Path::new(path)).await
+            }
+            _ => {
+                Err("usage: rx-executor-service CONFIG | cell init CONFIG | cell run CONFIG".into())
+            }
         }
+    }
+    async fn run_legacy(path: &Path) -> Result<bool, Box<dyn std::error::Error>> {
         let mut config: Config = canonical::decode_json(&std::fs::read(path)?)?;
         // A duplicate must fail before Session.Open can retire the current P peer.
         // Keep the root owner alive through every connection, run and shutdown path.
@@ -105,19 +121,21 @@ mod linux {
                 }
             }
         });
-        let report = service.run(shutdown, updates).await;
+        let exit = service.run_owned(shutdown, updates).await;
+        let report = &exit.report;
         signals.abort();
         output.await?;
-        println!("{}", serde_json::to_string(&report)?);
+        println!("{}", serde_json::to_string(report)?);
         Ok(matches!(
             report.phase,
             StopPhase::PauseObserved | StopPhase::Superseded
-        ) && report.durability_fault.is_none())
+        ) && report.durability_fault.is_none()
+            && exit.planner_cleanup.is_confirmed())
     }
 
     /// Test builds can count actual entrypoint admission without opening a network connection.
     #[cfg(feature = "test-harness")]
-    fn before_connect_probe() -> Result<(), Box<dyn std::error::Error>> {
+    pub(super) fn before_connect_probe() -> Result<(), Box<dyn std::error::Error>> {
         use std::io::Write;
         if let Some(path) = std::env::var_os("RX_EXECUTOR_BEFORE_CONNECT_PROBE") {
             let mut file = std::fs::OpenOptions::new()

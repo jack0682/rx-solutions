@@ -86,11 +86,14 @@ impl<R: Repository> Worker<R> {
         }) {
             return Ok(Coordination::Attention);
         }
-        if let Some(part) = data
-            .parts
-            .iter()
-            .find(|p| p.disposition == PartDisposition::InProgress)
-        {
+        // This worker coordinates serial production only. P may legitimately expose multiple
+        // active parts; selecting the first would silently choose which material to operate on.
+        // Preserve the completed-current-visit retirement and observation handling above.
+        let active = match serial_in_progress(&data.parts) {
+            Ok(part) => part,
+            Err(MultipleActiveParts) => return Ok(Coordination::Attention),
+        };
+        if let Some(part) = active {
             if current.is_some_and(|c| c != part.ordinal) {
                 return Ok(Coordination::Attention);
             }
@@ -157,6 +160,19 @@ impl<R: Repository> Worker<R> {
         }
     }
 }
+struct MultipleActiveParts;
+fn serial_in_progress(
+    parts: &[production::Part],
+) -> std::result::Result<Option<&production::Part>, MultipleActiveParts> {
+    let mut active = parts
+        .iter()
+        .filter(|p| p.disposition == PartDisposition::InProgress);
+    let first = active.next();
+    if active.next().is_some() {
+        return Err(MultipleActiveParts);
+    }
+    Ok(first)
+}
 fn logical(visit: Counter, stage: Stage) -> Logical {
     Logical {
         visit,
@@ -165,3 +181,6 @@ fn logical(visit: Counter, stage: Stage) -> Logical {
         control: None,
     }
 }
+
+#[cfg(test)]
+mod tests;

@@ -1,5 +1,6 @@
 //! Executor transport and validated P reads. BT and native execution do not own these facts.
 pub mod assignment_journal;
+pub mod cell_service;
 pub mod client;
 pub mod clock;
 pub mod engine_process;

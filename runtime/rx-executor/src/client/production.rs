@@ -164,3 +164,55 @@ pub(super) fn part_response(value: cell::PartAttempt) -> Result<production::Part
         disposition,
     })
 }
+
+#[cfg(test)]
+impl ValidatedProduction {
+    /// Unit-test construction only: no RPC/authority claim. Used to exercise the real local
+    /// coordinator with deterministic clock advancement during an observation transaction.
+    pub(crate) fn with_test_client(
+        raw: production::View,
+        clock: Arc<dyn crate::clock::Clock>,
+        principal: Name,
+        release: Digest,
+    ) -> (Client, Self) {
+        production::validate(&raw).expect("valid test production view");
+        let channel = Channel::from_static("http://127.0.0.1:1").connect_lazy();
+        let client = Client {
+            pin: PeerPin {
+                principal,
+                peer_boot: Id::new(uuid::Uuid::new_v4().to_string()).expect("UUID"),
+                installation: raw.installation.clone(),
+                store_generation: raw.store_generation.clone(),
+                release,
+                clock_id: raw.checked_at.clock_id.clone(),
+                cell: raw.run.run.cell.clone(),
+                definition: raw.definition.sha256,
+            },
+            clock: clock.clone(),
+            session: base::Session { session_id: raw.caller_session.to_string(), ..Default::default() },
+            read: wire::executor_read_service_client::ExecutorReadServiceClient::new(channel.clone()),
+            workflow: base::workflow_service_client::WorkflowServiceClient::new(channel.clone()),
+            plans: rx_protocol::executor_plan::executor_plan_service_client::ExecutorPlanServiceClient::new(channel.clone()),
+            cells: cell::cell_service_client::CellServiceClient::new(channel.clone()),
+            operations: base::operation_service_client::OperationServiceClient::new(channel.clone()),
+            production: rx_protocol::production::production_service_client::ProductionServiceClient::new(channel.clone()),
+            assignments: rx_protocol::assignment::executor_assignment_service_client::ExecutorAssignmentServiceClient::new(channel),
+            runtime_boot: Some(raw.runtime_boot.clone()),
+            last_sequence: raw.sequence,
+            last_checked: raw.checked_at.ticks_ns,
+            process: None,
+            max_payload: MAX_BYTES,
+        };
+        // Keep the production read's actual bounded lifetime; the test does not extend it.
+        let deadline = Instant::now()
+            + Duration::from_nanos(raw.valid_until.ticks_ns.0 - raw.checked_at.ticks_ns.0);
+        (
+            client,
+            Self {
+                raw,
+                clock,
+                deadline,
+            },
+        )
+    }
+}
