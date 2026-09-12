@@ -82,6 +82,11 @@ impl<R: Repository> Worker<R> {
     pub fn journal(&mut self) -> &mut Journal<R> {
         &mut self.journal
     }
+    /// Return the same authenticated Client and durable journal without reopening either.
+    /// The caller must separately check the service's planner cleanup and P authority.
+    pub fn into_parts(self) -> (Client, Journal<R>) {
+        (self.client, self.journal)
+    }
     pub async fn snapshot(&mut self, visit: Counter) -> Result<ValidatedSnapshot, Error> {
         let snapshot = self
             .client
