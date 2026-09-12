@@ -1,5 +1,7 @@
+mod assignment;
 mod preparation;
 mod production;
+pub use assignment::ValidatedAssignment;
 pub(crate) use preparation::Preparation;
 pub(crate) use production::ProductionBasis;
 pub use production::{CompletedVisit, ValidatedProduction};
@@ -82,6 +84,7 @@ pub struct Client {
     operations: base::operation_service_client::OperationServiceClient<Channel>,
     production:
         rx_protocol::production::production_service_client::ProductionServiceClient<Channel>,
+    assignments: rx_protocol::assignment::executor_assignment_service_client::ExecutorAssignmentServiceClient<Channel>,
     runtime_boot: Option<Id>,
     last_sequence: Counter,
     last_checked: Counter,
@@ -220,6 +223,7 @@ impl Client {
             .max_decoding_message_size(limit),
             plans: rx_protocol::executor_plan::executor_plan_service_client::ExecutorPlanServiceClient::new(channel.clone()).max_decoding_message_size(limit),
             production: rx_protocol::production::production_service_client::ProductionServiceClient::new(channel.clone()).max_decoding_message_size(limit),
+            assignments: rx_protocol::assignment::executor_assignment_service_client::ExecutorAssignmentServiceClient::new(channel.clone()).max_decoding_message_size(limit),
             workflow: base::workflow_service_client::WorkflowServiceClient::new(channel)
                 .max_decoding_message_size(limit),
             cells,

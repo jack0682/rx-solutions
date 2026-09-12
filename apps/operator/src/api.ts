@@ -67,6 +67,13 @@ const messages: Record<string, string> = {
   EXPIRED: '요청 확인 시간이 지났습니다. 최신 자료를 다시 확인해 주세요.',
   INVALID_INPUT: '입력 형식이나 구성 내용을 확인하세요.',
   BLOCKED_BY_CASE: '개입 사유를 해결해야 합니다.',
+  CONDITION_FAILED: '현재 시작 조건 중 충족되지 않은 항목이 있습니다.',
+  CONDITION_UNKNOWN: '현재 시작 조건을 확인할 수 없는 항목이 있습니다.',
+  HOST_NOT_PREPARED: '현재 Host 연결과 사용권을 확인해야 합니다.',
+  CONTINUITY_UNPROVEN: '현재 실행 연결의 연속성을 확인해야 합니다.',
+  MANDATE_REVOKED: '현재 실행 상태에서는 새 시작을 요청할 수 없습니다.',
+  STALE_EPOCH: '운전 세대가 변경되었습니다. 현재 상태를 다시 조회하세요.',
+  BUDGET_EXHAUSTED: '허용된 시도 예산을 모두 사용했습니다.',
 };
 export function explain(error: unknown) {
   if (error instanceof ApiFailure && error.code === 'CONNECTION_LOST' && error.unknownOutcome)
