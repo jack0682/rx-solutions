@@ -917,6 +917,12 @@ export function Packages({
                           <summary>컴파일 결과 전체 보기</summary>
                           <pre>{JSON.stringify(detail.resolved, null, 2)}</pre>
                         </details>
+                        {detail.job.device_context && (
+                          <p>
+                            장비 변경 후보를 검토 중입니다. 현재 셀 설정은 바뀌지 않았으며, 적용 전
+                            장비 연결과 운전 조건 검증이 필요합니다.
+                          </p>
+                        )}
                         <details>
                           <summary>셀 작업 연결과 검증 근거 전체 보기</summary>
                           <pre>
@@ -924,6 +930,7 @@ export function Packages({
                               {
                                 bindings: detail.job.request.binding_selections,
                                 configuration: detail.job.configuration,
+                                device_candidates: detail.job.device_context,
                                 verification: detail.verification,
                               },
                               null,

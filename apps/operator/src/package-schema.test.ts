@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { canApprove, reviewStamp, validatePackageReceipt } from './package-schema';
+import { canApprove, reviewStamp, validatePackageReceipt, reviewJobSchema } from './package-schema';
 import { pendingSchema } from './schema';
 const id = '00000000-0000-4000-8000-000000000001',
   hash = 'a'.repeat(64);
@@ -71,5 +71,43 @@ describe('software review presentation guards', () => {
         store_generation: id,
       }).command,
     ).toEqual(command);
+  });
+});
+
+describe('device-backed process review request', () => {
+  it('preserves the candidate context binding and rejects schema confusion', () => {
+    const value = {
+      request: {
+        schema: 'rx.process-review-request.v2',
+        id,
+        intake: id,
+        cell: 'cell/demo',
+        package_manifest: hash,
+        package_signature: hash,
+        configuration_digest: hash,
+        package_policy_fingerprint: hash,
+        package_policy_file_digest: hash,
+        verification_authority_digest: hash,
+        binding_selections: { load: 'robot/supply' },
+        device_context_digest: hash,
+      },
+      configuration: {},
+      device_context: { catalog_digest: hash, dependencies: [{ plan: { id } }] },
+      submitted_by: 'author',
+      requested_by: 'author',
+      created_at: { clock_id: 'test', ticks_ns: '1' },
+    };
+    expect(reviewJobSchema.parse(value).request.device_context_digest).toBe(hash);
+    expect(reviewJobSchema.parse(value).device_context).toEqual(value.device_context);
+    expect(reviewJobSchema.safeParse({ ...value, device_context: undefined }).success).toBe(false);
+    expect(
+      reviewJobSchema.safeParse({
+        ...value,
+        request: { ...value.request, schema: 'rx.process-review-request.v1' },
+      }).success,
+    ).toBe(false);
+    const { device_context_digest: omitted, ...request } = value.request;
+    expect(omitted).toBe(hash);
+    expect(reviewJobSchema.safeParse({ ...value, request }).success).toBe(false);
   });
 });

@@ -30,7 +30,8 @@ def exercise(browser,context,origin,fixture,out,info,intake):
  stale=dict(command,expected=decision['revision']);post(reviewer.request,'/api/v1/device-review/decisions',{'request_key':str(uuid.uuid4()),'command':stale},409)
  historical=get(reviewer.request,query+'&revision=1');assert not historical['is_latest'] and historical['version']['report_digest']==version['report_digest']
  authority=fixture/'installation/device-authority.json';saved=authority.read_bytes();value=json.loads(saved);value['keys'][0]['validators']=[];authority.write_text(json.dumps(value))
- current=dict(command,expected=decision['revision'],report_revision=latest['revision'],review_digest=latest['review_digest']);post(reviewer.request,'/api/v1/device-review/decisions',{'request_key':str(uuid.uuid4()),'command':current},409);authority.write_bytes(saved)
- assert get(reviewer.request,query)['decision']['revision']=='1'
+ expected_decision='2' if os.environ.get('RX_DEVICE_PROCESS_REVIEW_ENABLED')=='1' else decision['revision']
+ current=dict(command,expected=expected_decision,report_revision=latest['revision'],review_digest=latest['review_digest']);post(reviewer.request,'/api/v1/device-review/decisions',{'request_key':str(uuid.uuid4()),'command':current},409);authority.write_bytes(saved)
+ assert get(reviewer.request,query)['decision']['revision']==expected_decision
  denied=reviewer.request.get(origin+f'/api/v1/device-review?cell=cell%2Fother&id={review}');assert denied.status==403
  (out/'device-review-api.json').write_text(json.dumps({'status':'PASS','review':review,'scope':'DEVICE_PACKAGE_SOFTWARE','actual_s_decoder_report':True,'actual_platform_api':True,'checks':['separate device authority root','signed report registration','author approval denied','independent current-version approval','idempotent decision','new report invalidates old approval','stale target denied','history remains read-only','authority file change blocks fresh approval','wrong cell denied','no qualification/activation']},indent=2)+'\n');reviewer.close()
