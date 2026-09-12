@@ -66,26 +66,44 @@ export const intakePageSchema = z.object({
   packages: z.array(intakeView),
   next: id.nullable(),
 });
-const reviewRequest = z.object({
-  schema: z.literal('rx.process-review-request.v1'),
-  id,
-  intake: id,
-  cell: z.string(),
-  package_manifest: digest,
-  package_signature: digest,
-  configuration_digest: digest,
-  package_policy_fingerprint: digest,
-  package_policy_file_digest: digest,
-  verification_authority_digest: digest,
-  binding_selections: z.record(z.string(), z.string()),
-});
-export const reviewJobSchema = z.object({
-  request: reviewRequest,
-  configuration: z.record(z.string(), z.unknown()),
-  submitted_by: z.string(),
-  requested_by: z.string(),
-  created_at: time,
-});
+const reviewRequest = z
+  .object({
+    schema: z.enum(['rx.process-review-request.v1', 'rx.process-review-request.v2']),
+    device_context_digest: digest.optional(),
+    id,
+    intake: id,
+    cell: z.string(),
+    package_manifest: digest,
+    package_signature: digest,
+    configuration_digest: digest,
+    package_policy_fingerprint: digest,
+    package_policy_file_digest: digest,
+    verification_authority_digest: digest,
+    binding_selections: z.record(z.string(), z.string()),
+  })
+  .refine(
+    (v) =>
+      (v.schema === 'rx.process-review-request.v2') === (v.device_context_digest !== undefined),
+    'device context/schema mismatch',
+  );
+export const reviewJobSchema = z
+  .object({
+    device_context: z
+      .object({
+        catalog_digest: digest,
+        dependencies: z.array(z.record(z.string(), z.unknown())).min(1).max(16),
+      })
+      .optional(),
+    request: reviewRequest,
+    configuration: z.record(z.string(), z.unknown()),
+    submitted_by: z.string(),
+    requested_by: z.string(),
+    created_at: time,
+  })
+  .refine(
+    (v) => (v.request.device_context_digest !== undefined) === (v.device_context !== undefined),
+    'device review material missing or unexpected',
+  );
 const issue = z.object({ code: z.string(), location: z.string(), detail: z.string() });
 const report = z.object({
   schema: z.literal('rx.process-verification-report.v1'),

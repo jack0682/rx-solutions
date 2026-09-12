@@ -1,7 +1,7 @@
 """Actual approved plan -> P draft binding -> v2 bundle -> S compiler/package candidate."""
 import json,os,subprocess,uuid
 from pathlib import Path
-def exercise_candidates(client,origin,out,info,plan):
+def exercise_candidates(client,origin,out,info,plan,limited=None,verifier=None):
  headers={'Origin':origin,'Content-Type':'application/json','X-RX-Client':'browser-v1'}
  def post(path,body):
   r=client.post(origin+path,headers=headers,data=body);assert r.ok,(r.status,r.text());return r.json()
@@ -34,4 +34,7 @@ def exercise_candidates(client,origin,out,info,plan):
   detail=client.get(origin+f'/api/v1/device-binding-plan?cell=cell%2Fdemo&id={plan["id"]}').json();assert detail['device_approval_current'] and detail['context_current'] and not detail['configuration_changed']
   packages=client.get(origin+'/api/v1/package-intakes?cell=cell%2Fdemo').json();kinds={v['receipt']['manifest']['entry']['kind'] for v in packages['packages']};assert {'PROCESS','DEVICE_REFERENCE'}<=kinds
   (out/'mixed-package-policy.json').write_text(json.dumps({'status':'PASS','process_intake':receipt['id'],'registration_unchanged':True,'device_approval_still_current':True,'one_store_and_policy':True,'kinds':sorted(kinds),'checks':['actual signed JTC and v2-provenance process packages','explicit ABI allow-list and separate signer kinds','same registration/fingerprint across both intakes','device plan approval/context retained','no active configuration change']},indent=2)+'\n')
+  if os.environ.get('RX_DEVICE_PROCESS_REVIEW_ENABLED')=='1':
+   from device_process_review import exercise_process_review
+   exercise_process_review(client,limited,verifier,origin,out,info,plan,receipt,after,published)
  (out/'candidate-authoring.json').write_text(json.dumps({'status':'PASS','draft':command['draft'],'plan':plan['id'],'actual_p_draft_api':True,'actual_s_compiler':True,'checks':['clean current impact-reviewed plan','exact device binding selection','idempotent draft save','v2 bundle retains plan/step/action provenance','actual S resolved process and BT generation','unsigned process package preserves full input','no qualification or execution']},indent=2)+'\n')

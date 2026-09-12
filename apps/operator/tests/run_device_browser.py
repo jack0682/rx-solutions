@@ -1,7 +1,7 @@
 """Actual S JTC authoring -> P package store/API -> browser declaration preview. Test keys only."""
 import argparse, hashlib, json, os, shlex, socket, subprocess, sys, tempfile
 from pathlib import Path
-p=argparse.ArgumentParser();p.add_argument('--evidence-dir',type=Path,required=True);p.add_argument('--review-api',action='store_true');p.add_argument('--review-ui',action='store_true');p.add_argument('--binding-api',action='store_true');p.add_argument('--candidate-authoring',action='store_true');p.add_argument('--mixed-package-policy',action='store_true');a=p.parse_args()
+p=argparse.ArgumentParser();p.add_argument('--evidence-dir',type=Path,required=True);p.add_argument('--review-api',action='store_true');p.add_argument('--review-ui',action='store_true');p.add_argument('--binding-api',action='store_true');p.add_argument('--candidate-authoring',action='store_true');p.add_argument('--mixed-package-policy',action='store_true');p.add_argument('--device-process-review',action='store_true');a=p.parse_args()
 project=Path(__file__).resolve().parents[1];ws=project.parents[2];platform=ws/'rx-platform';solutions=ws/'rx-solutions'
 for port in (8080,5173):
  with socket.socket() as sock:
@@ -10,6 +10,7 @@ a.evidence_dir.mkdir(parents=True,exist_ok=False)
 def run(cmd,cwd,env):return subprocess.run(cmd,cwd=cwd,env=env,check=True,capture_output=True,text=True)
 def write(path,value):path.write_text(json.dumps(value,separators=(',',':'),sort_keys=True))
 env=dict(os.environ,CARGO_INCREMENTAL='0')
+if a.device_process_review:a.mixed_package_policy=True;env['RX_DEVICE_PROCESS_REVIEW_ENABLED']='1'
 if a.mixed_package_policy:a.candidate_authoring=True;env['RX_MIXED_POLICY_ENABLED']='1'
 if a.candidate_authoring:a.binding_api=True;env['RX_DEVICE_CANDIDATES_ENABLED']='1'
 if a.binding_api:env['RX_DEVICE_BINDING_ENABLED']='1'
@@ -46,6 +47,10 @@ with tempfile.TemporaryDirectory(prefix='rx-device-browser-') as temp:
   run([str(solutions/'tools/cargo'),'test','-p','rx-device-package','--test','jtc_authoring','export_device_review_authority','--locked','--offline','--','--ignored','--exact'],solutions,env)
   service['device_review_authority']={'path':str(authority),'sha256':hashlib.sha256(authority.read_bytes()).hexdigest()}
   env.update(RX_DEVICE_REVIEW_ENABLED='1' if a.review_api or a.binding_api else '0',RX_DEVICE_REVIEW_UI_ENABLED='1' if a.review_ui else '0',RX_DEVICE_REVIEW_SOLUTIONS=str(solutions),RX_DEVICE_REVIEW_TOOL=tool)
+ if a.device_process_review:
+  process_authority=fixture/'installation/device-process-authority.json';env['RX_PROCESS_DEVICE_AUTHORITY']=str(process_authority)
+  run([str(solutions/'tools/cargo'),'test','-p','rx-process-package','--test','package','export_device_process_review_authority','--locked','--offline','--','--ignored','--exact'],solutions,env)
+  service['review_authority']={'path':str(process_authority),'sha256':hashlib.sha256(process_authority.read_bytes()).hexdigest()}
  write(fixture/'installation/package-service.json',service)
  info={'object':{'manifest':hashlib.sha256((package/'manifest.json').read_bytes()).hexdigest(),'signature':hashlib.sha256((package/'manifest.sig.json').read_bytes()).hexdigest()},'catalog':json.loads((package/'device-catalog.json').read_text()),'package':str(package),'policy':str(native/'policy.json')}
  write(fixture/'device-info.json',info)

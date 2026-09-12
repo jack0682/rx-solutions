@@ -323,6 +323,7 @@ fn review_request(
     policy: &VerificationPolicy,
 ) -> rx_process_contract::package_review::Request {
     rx_process_contract::package_review::Request {
+        device_context_digest: None,
         schema: name("rx.process-review-request.v1"),
         id: Id::new("00000000-0000-4000-8000-000000000046").unwrap(),
         intake: Id::new("00000000-0000-4000-8000-000000000045").unwrap(),
@@ -536,4 +537,51 @@ fn sign_mixed_process_request() {
             .collect(),
     };
     std::fs::write(out, canonical::bytes(&sig).unwrap()).unwrap();
+}
+
+#[test]
+#[ignore]
+fn export_device_process_review_authority() {
+    let path = std::env::var("RX_PROCESS_DEVICE_AUTHORITY").unwrap();
+    let key = SigningKey::from_bytes(&[93; 32]);
+    let authority = serde_json::json!({"schema":"rx.process-verification-authority.v1","keys":[{"id":"test/process-review","public_key":Digest::from_bytes(key.verifying_key().to_bytes()),"validators":[rx_process_package::review::validator_digest()]}]});
+    use std::io::Write;
+    std::fs::OpenOptions::new()
+        .create_new(true)
+        .write(true)
+        .open(path)
+        .unwrap()
+        .write_all(&canonical::bytes(&authority).unwrap())
+        .unwrap();
+}
+#[test]
+#[ignore]
+fn sign_device_process_review() {
+    let path = std::env::var("RX_PROCESS_DEVICE_REPORT").unwrap();
+    let output = std::env::var("RX_PROCESS_DEVICE_SIGNATURE").unwrap();
+    let report: rx_process_contract::package_review::Report =
+        canonical::decode_json(&std::fs::read(path).unwrap()).unwrap();
+    report.validate().unwrap();
+    let key = SigningKey::from_bytes(&[93; 32]);
+    let signature = SignatureEnvelope {
+        key: name("test/process-review"),
+        signature: key
+            .sign(
+                &report
+                    .signing_message(&name("test/process-review"))
+                    .unwrap(),
+            )
+            .to_bytes()
+            .iter()
+            .map(|b| format!("{b:02x}"))
+            .collect(),
+    };
+    use std::io::Write;
+    std::fs::OpenOptions::new()
+        .create_new(true)
+        .write(true)
+        .open(output)
+        .unwrap()
+        .write_all(&canonical::bytes(&signature).unwrap())
+        .unwrap();
 }
