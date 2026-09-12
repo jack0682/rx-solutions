@@ -9,6 +9,7 @@ mod linux {
         journal::{Journal, Scope},
         lifecycle::StopPhase,
         service::{Options, PinnedPlanner, RunService},
+        service_owner::ServiceOwner,
         worker::Worker,
     };
     use rx_storage::SqliteRepository;
@@ -39,12 +40,17 @@ mod linux {
             return Err("exactly one configuration path required".into());
         }
         let mut config: Config = canonical::decode_json(&std::fs::read(path)?)?;
+        // A duplicate must fail before Session.Open can retire the current P peer.
+        // Keep the root owner alive through every connection, run and shutdown path.
+        let _service_owner = ServiceOwner::acquire(&config.journal)?;
         let clock = Arc::new(LinuxBoottime::new()?);
         if config.pin.clock_id != clock.now()?.clock_id {
             return Err("configured clock must match the local Linux boot".into());
         }
         // Boot identity is generated once for this process, never replayed from a saved job file.
         config.pin.peer_boot = Id::new(uuid::Uuid::new_v4().to_string())?;
+        #[cfg(feature = "test-harness")]
+        before_connect_probe()?;
         let mut client = Client::connect(
             TlsEndpoint {
                 uri: config.uri,
@@ -107,6 +113,21 @@ mod linux {
             report.phase,
             StopPhase::PauseObserved | StopPhase::Superseded
         ) && report.durability_fault.is_none())
+    }
+
+    /// Test builds can count actual entrypoint admission without opening a network connection.
+    #[cfg(feature = "test-harness")]
+    fn before_connect_probe() -> Result<(), Box<dyn std::error::Error>> {
+        use std::io::Write;
+        if let Some(path) = std::env::var_os("RX_EXECUTOR_BEFORE_CONNECT_PROBE") {
+            let mut file = std::fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(path)?;
+            file.write_all(b"before-connect\n")?;
+            return Err("TEST_ONLY_EXECUTOR_BEFORE_CONNECT".into());
+        }
+        Ok(())
     }
 }
 #[cfg(target_os = "linux")]
