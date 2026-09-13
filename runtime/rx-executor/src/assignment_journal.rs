@@ -1,5 +1,6 @@
 //! S-owned run attachments. Persistence never supplies P admission or planner/physical proof.
 mod files;
+pub mod recovery;
 mod run_store;
 
 use crate::journal::{Basis, Journal, Scope};

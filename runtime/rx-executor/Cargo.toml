@@ -11,6 +11,8 @@ rx-storage = {path="../../sdk/crates/rx-storage"}
 rx-domain = {path="../../sdk/crates/rx-domain"}
 rx-process-contract = {path="../../sdk/crates/rx-process-contract"}
 rx-protocol = {path="../../sdk/crates/rx-protocol"}
+rusqlite = {version="0.40.2",features=["bundled","backup"]}
+tempfile = "3"
 serde = {version="1",features=["derive"]}
 serde_json = "1"
 sha2 = "0.10"

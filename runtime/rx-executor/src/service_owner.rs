@@ -16,6 +16,17 @@ pub struct ServiceOwner {
 impl ServiceOwner {
     #[cfg(unix)]
     pub fn acquire(journal: &Path) -> io::Result<Self> {
+        Self::acquire_inner(journal, true)
+    }
+
+    /// Offline inspection requires the existing owner file and never creates a root or lock.
+    #[cfg(unix)]
+    pub fn acquire_existing(journal: &Path) -> io::Result<Self> {
+        Self::acquire_inner(journal, false)
+    }
+
+    #[cfg(unix)]
+    fn acquire_inner(journal: &Path, create: bool) -> io::Result<Self> {
         use std::os::unix::fs::OpenOptionsExt;
         let filename = journal.file_name().ok_or_else(|| {
             io::Error::new(
@@ -33,7 +44,9 @@ impl ServiceOwner {
             .parent()
             .filter(|p| !p.as_os_str().is_empty())
             .unwrap_or_else(|| Path::new("."));
-        fs::create_dir_all(parent)?;
+        if create {
+            fs::create_dir_all(parent)?;
+        }
         // Resolve directory aliases before opening the one stable ownership file.
         let root = fs::canonicalize(parent)?;
         let path = root.join(LOCK_FILE);
@@ -45,11 +58,11 @@ impl ServiceOwner {
                 ));
             }
             Ok(_) => {}
-            Err(error) if error.kind() == io::ErrorKind::NotFound => {}
+            Err(error) if create && error.kind() == io::ErrorKind::NotFound => {}
             Err(error) => return Err(error),
         }
         let lock = OpenOptions::new()
-            .create(true)
+            .create(create)
             .truncate(false)
             .read(true)
             .write(true)
@@ -82,6 +95,11 @@ impl ServiceOwner {
             io::ErrorKind::Unsupported,
             "executor service ownership requires Unix file semantics",
         ))
+    }
+
+    #[cfg(not(unix))]
+    pub fn acquire_existing(journal: &Path) -> io::Result<Self> {
+        Self::acquire(journal)
     }
 }
 

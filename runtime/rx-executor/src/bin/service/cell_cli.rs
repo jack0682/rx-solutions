@@ -1,6 +1,8 @@
 //! Explicit cell-mode deployment entrypoint. Operator/P inputs cannot select files or programs.
 #[path = "cell_cli/guarded_status.rs"]
 mod guarded_status;
+#[path = "recovery_cli.rs"]
+mod recovery_cli;
 use rx_domain::{canonical, types::*};
 use rx_executor::{
     Client, PeerPin, TlsEndpoint,
@@ -28,6 +30,10 @@ const TLS_LIMIT: u64 = 1_048_576;
 const ENGINE_LIMIT: u64 = 134_217_728;
 const JOURNAL_FILE: &str = "assignment.sqlite3";
 const INSTALLATION_FILE: &str = "cell-installation.json";
+
+pub(super) fn recovery_inspect(path: &Path) -> Result<()> {
+    recovery_cli::inspect(path)
+}
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]

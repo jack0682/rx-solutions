@@ -69,7 +69,7 @@ impl<R: Repository> Journal<R> {
         })
     }
 }
-fn validate(scope: &Scope, record: &StopRecord) -> Result<()> {
+pub(super) fn validate(scope: &Scope, record: &StopRecord) -> Result<()> {
     if record.run != scope.run
         || record.attempts.len() > 64
         || record.origin_context.as_ref().is_some_and(|c| {
@@ -135,7 +135,7 @@ fn validate_view(scope: &Scope, view: &RunResponse) -> Result<()> {
     }
     Ok(())
 }
-fn validate_transition(old: &StopRecord, next: &StopRecord) -> Result<()> {
+pub(super) fn validate_transition(old: &StopRecord, next: &StopRecord) -> Result<()> {
     if bytes(&(
         old.id.clone(),
         old.run.clone(),

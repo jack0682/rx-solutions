@@ -126,6 +126,19 @@ fn verify(tx: &mut dyn Transaction, binding: &Binding) -> Result<()> {
     }
     Ok(())
 }
+pub(super) fn verify_recovery(
+    tx: &mut dyn Transaction,
+    service: &Identity,
+    preparation: &Preparation,
+) -> Result<()> {
+    verify(
+        tx,
+        &Binding {
+            service: service.clone(),
+            preparation: preparation.clone(),
+        },
+    )
+}
 pub(super) fn matches(
     service: &Identity,
     preparation: &Preparation,

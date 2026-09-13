@@ -1,5 +1,6 @@
 //! S-owned request journal. A saved request is never a P admission or native result.
 mod lifecycle;
+pub mod recovery;
 use crate::frame::Identity;
 use rx_domain::{canonical, intent::Intent, types::*};
 use rx_ports::*;
