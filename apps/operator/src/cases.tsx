@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api, explain } from './api';
 import { caseListSchema, type CaseSnapshot } from './schema';
-import { text, short } from './labels';
+import { count, text, short } from './labels';
 
 export function Cases({
   cell,
@@ -39,11 +39,11 @@ export function Cases({
     return () => controller.abort();
   }, [cell, refreshToken]);
   return (
-    <section className="panel case-panel" aria-label="개입 사건">
+    <section className="panel case-panel" aria-label="Intervention cases">
       <div className="section-heading">
         <div>
           <p className="eyebrow">INTERVENTION RECORDS</p>
-          <h3>개입 사건</h3>
+          <h3>Intervention cases</h3>
         </div>
         <span className="count">
           {items.length}
@@ -51,20 +51,20 @@ export function Cases({
         </span>
       </div>
       <div className="inset">
-        <b>알림 확인과 작업 허가는 별도입니다</b>
+        <b>Acknowledgment and task permission are separate</b>
         <p>
-          확인 기록은 알림을 읽었다는 뜻입니다. 접근·격리·작업 종료를 확인하거나 재시작을 허가하지
-          않습니다.
+          An acknowledgment records that the notification was read. It does not confirm access,
+          containment, or task completion, or authorize a restart.
         </p>
       </div>
       {error && (
         <p role="alert" className="error">
-          {error} 확인 기록을 새로 남길 수 없습니다.
+          {error} Cannot record a new acknowledgment.
         </p>
       )}
       {!items.length && (
         <p className="case-empty">
-          {loading ? '사건 기록을 읽고 있습니다.' : '등록된 개입 사건이 없습니다.'}
+          {loading ? 'Loading case records.' : 'No intervention cases are registered.'}
         </p>
       )}
       <div className="case-list">
@@ -72,49 +72,51 @@ export function Cases({
           <article className="case-item" key={item.case.id}>
             <div>
               <p className="eyebrow">
-                {text(item.case.kind)} · 사건 {short(item.case.id)}
+                {text(item.case.kind)} · case {short(item.case.id)}
               </p>
               <h3>{text(item.case.state)}</h3>
               <p className="muted">
-                조정 책임자 {item.case.lead} · 기록 r{item.revision}
+                Coordination lead {item.case.lead} · record r{item.revision}
               </p>
             </div>
             <dl>
               <div>
-                <dt>생산 제한</dt>
-                <dd>{item.case.block_ids.length}개 연결</dd>
+                <dt>Production blocks</dt>
+                <dd>{item.case.block_ids.length} linked</dd>
               </div>
               <div>
-                <dt>알림 확인 기록</dt>
-                <dd>{item.acknowledgment_count}건</dd>
+                <dt>Notification acknowledgment</dt>
+                <dd>{count(item.acknowledgment_count, 'record')}</dd>
               </div>
               <div>
-                <dt>참여 기록</dt>
+                <dt>Participation records</dt>
                 <dd>
                   {item.case.participants.length
-                    ? `${item.case.participants.length}개 계정`
-                    : '아직 등록되지 않음'}
+                    ? count(item.case.participants.length, 'account')
+                    : 'Not registered yet'}
                 </dd>
               </div>
             </dl>
             {item.case.scope_uncertain && (
-              <p className="muted">영향 범위가 미확정되어 연결된 셀 범위로 보류했습니다.</p>
+              <p className="muted">
+                The affected scope is unresolved, so the hold covers the connected cell scope.
+              </p>
             )}
             <div className="case-actions">
-              <small>이 동작으로 사건 상태나 생산 제한이 해제되지 않습니다.</small>
+              <small>This action does not clear the case state or production blocks.</small>
               <button
                 disabled={!canAcknowledge || loading || !!error}
                 onClick={() => onAcknowledge(item)}
               >
-                알림 확인 기록
+                Notification acknowledgment
               </button>
             </div>
           </article>
         ))}
       </div>
       <p className="muted case-footnote">
-        이 화면에서는 접근·재시작을 허가하지 않습니다. 참여 기록이 없다는 표시를 ‘현장에 사람이
-        없음’으로 해석하지 않습니다.
+        This screen does not authorize access or restart. A lack of participation records does not
+        mean that no people are on site.
       </p>
     </section>
   );

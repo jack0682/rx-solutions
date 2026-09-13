@@ -1,7 +1,7 @@
 """Run the browser contract checks against owned, disposable local-development processes.
 
-The --server-runner argument accepts the webapp-testing skill's with_server.py helper.
-Without it, start the servers separately and invoke browser_smoke.py directly.
+The bundled runner manages temporary servers. --server-runner may override it.
+To manage servers separately, invoke browser_smoke.py directly.
 """
 import argparse
 import os
@@ -14,7 +14,7 @@ from pathlib import Path
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--platform-executable",type=Path,required=True)
-parser.add_argument("--server-runner",type=Path,required=True)
+parser.add_argument("--server-runner",type=Path,default=Path(__file__).with_name("with_servers.py"))
 parser.add_argument("--evidence-dir",type=Path,required=True)
 args=parser.parse_args()
 project=Path(__file__).resolve().parents[1]

@@ -237,7 +237,7 @@ export function freezeStartRequest(
     request_key: requestKey,
     route: '/api/v1/runs/start',
     command: context.request,
-    label: `${context.cell} 실행 ${context.run.id.slice(0, 8)} · 소재 시도 ${context.request.budget_limit} 시작`,
+    label: `${context.cell} Run ${context.run.id.slice(0, 8)} · material attempts ${context.request.budget_limit} Start`,
     principal: data.user.principal,
     installation: data.installation.id,
     store_generation: data.installation.store_generation,

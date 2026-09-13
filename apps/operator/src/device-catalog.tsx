@@ -87,7 +87,7 @@ export function correlateDeviceCatalog(value: unknown, intake: Intake): DeviceCa
     throw Error('device intake correlation');
   return d;
 }
-const meanings = { SUCCEEDED: '성공', FAILED: '실패', CANCELED: '취소 완료' };
+const meanings = { SUCCEEDED: 'Success', FAILED: 'Failure', CANCELED: 'Cancellation completed' };
 export function DeviceCatalogPanel({
   detail,
   intake,
@@ -100,38 +100,43 @@ export function DeviceCatalogPanel({
   if (!detail || detail.intake !== intake.id)
     return (
       <section className="panel">
-        <h3>장비 작업 선언</h3>
-        <p>반입된 선언 내용을 확인하고 있습니다.</p>
+        <h3>Device operation declarations</h3>
+        <p>Checking the imported declarations.</p>
       </section>
     );
   const c = detail.catalog;
   return (
-    <section className="panel device-catalog" aria-label="장비 작업 선언">
+    <section className="panel device-catalog" aria-label="Device operation declarations">
       <div className="section-heading">
-        <h3>장비 작업 선언</h3>
-        <span className="pill">장비 검증 필요</span>
+        <h3>Device operation declarations</h3>
+        <span className="pill">Device verification required</span>
       </div>
-      <p>패키지가 선언한 작업입니다. 실제 장비 검증과 셀 구성 적용은 별도로 진행합니다.</p>
+      <p>
+        These operations are declared by the package. Physical device verification and application
+        to cell configuration are separate steps.
+      </p>
       {(!fresh || !detail.review_context_current) && (
         <p role="status" className="notice">
-          현재 셀·반입 정책과 다시 대조해야 하는 보관 자료입니다.
+          This archived evidence must be checked again against the current cell and intake policy.
         </p>
       )}
       {!c ? (
-        <p>이 패키지에는 공통 작업 선언 자료가 없습니다.</p>
+        <p>This package contains no common operation declarations.</p>
       ) : (
         <>
           <dl className="facts">
             <div>
-              <dt>대상 장비</dt>
+              <dt>Target device</dt>
               <dd>{c.target}</dd>
             </div>
             <div>
-              <dt>선언 환경</dt>
-              <dd>{c.environment === 'SIMULATION' ? '모의 환경' : '실물 환경 선언'}</dd>
+              <dt>Declared environment</dt>
+              <dd>
+                {c.environment === 'SIMULATION' ? 'Simulation' : 'Physical environment declared'}
+              </dd>
             </div>
             <div>
-              <dt>필요 조건</dt>
+              <dt>Required conditions</dt>
               <dd>{c.condition_ids.join(', ')}</dd>
             </div>
           </dl>
@@ -139,10 +144,10 @@ export function DeviceCatalogPanel({
             <table>
               <thead>
                 <tr>
-                  <th>작업</th>
-                  <th>작업 종류</th>
-                  <th>사용 자원</th>
-                  <th>시간 제한</th>
+                  <th>Operation</th>
+                  <th>Operation kind</th>
+                  <th>Resources used</th>
+                  <th>Time limit</th>
                 </tr>
               </thead>
               <tbody>
@@ -151,9 +156,9 @@ export function DeviceCatalogPanel({
                     <td>{id}</td>
                     <td>
                       {i.kind === 'FINITE_ACTION'
-                        ? '유한 작업'
+                        ? 'Finite operation'
                         : i.kind === 'ENSURE_STATE'
-                          ? '상태 도달'
+                          ? 'State reached'
                           : i.kind}
                     </td>
                     <td>{i.resource_set.join(', ')}</td>
@@ -163,31 +168,31 @@ export function DeviceCatalogPanel({
               </tbody>
             </table>
           </div>
-          <h4>결과 해석 선언</h4>
+          <h4>Outcome interpretation declarations</h4>
           {c.outcomes ? (
             <ul>
               {c.outcomes.cases.map((row, index) => (
                 <li key={index}>
-                  <code>{row.status_schema}</code> · 코드 {row.statuses.join(', ')} →{' '}
+                  <code>{row.status_schema}</code> · code {row.statuses.join(', ')} →{' '}
                   {meanings[row.conclusion]}
                 </li>
               ))}
             </ul>
           ) : (
-            <p>공통 native 결과 대응표가 없습니다.</p>
+            <p>No common native outcome mapping is provided.</p>
           )}
           <p className="muted">
-            알 수 없는 결과를 완료로 간주하지 않습니다. 완료 기록만으로 소재 지지나 자원 인계가
-            확인되지는 않습니다.
+            Unknown outcomes are not treated as completion. A completion record alone does not
+            confirm material support or resource handover.
           </p>
           <details>
-            <summary>원본 연결과 선언 전체 보기</summary>
+            <summary>View source references and full declarations</summary>
             <pre>{JSON.stringify(detail, null, 2)}</pre>
           </details>
           <button
             onClick={() => downloadJson(detail, `rx-device-declaration-${detail.intake}.json`)}
           >
-            장비 선언 자료 내려받기
+            Download device declarations
           </button>
         </>
       )}

@@ -1,59 +1,59 @@
-# RX 공정 원본과 결정적 컴파일
+# RX process sources and deterministic compilation
 
-S가 소유하는 ProcessSource·resolved tree·다음 작업 후보 계산이다. 장비 I/O와 P의 운전 권한/결과 원장을 포함하지 않는다. P가 검증한 결과와 checkpoint를 바탕으로 다음 요청을 제안하는 계층이다.
+This is S-owned ProcessSource, resolved-tree and next-work-candidate computation. It contains neither device I/O nor P's operating authority/outcome ledger. It proposes subsequent requests based on P-validated results and checkpoints.
 
-## 원본 표현
+## Source representation
 
-`ProcessSource`는 process ID, entry flow, 조건 정의와 flow별 고유 node graph다. 각 flow는 tree 형태이며 재사용은 고유한 Call node로 표현한다.
+`ProcessSource` consists of a process ID, entry flow, condition definitions and a unique node graph per flow. Each flow is a tree; reuse is represented through distinct Call nodes.
 
-| 노드 | 의미 |
+| Node | Meaning |
 |---|---|
-| Sequence | 앞 단계가 완료되고 필요한 자원 인계가 확인된 뒤 다음 단계 |
-| ParallelAll | 분리된 실제 resource set을 사용하는 병렬 경로. 모두 완료되어야 성공 |
-| Branch | P에 영속된 조건 결정으로 선택된 한 경로 |
-| Repeat | 명시한 유한 횟수만큼 서로 다른 실행 위치로 펼침 |
-| Call | 하위 flow를 호출 위치별로 별도 인스턴스화 |
-| Operation | 현장 resolver가 제공한 Host/Intent binding 참조 |
-| Wait | 조건과 명시적 deadline. P의 기다림 결정으로 진행 |
-| Intervention | 절차 참조와 개입 대기. 허용된 P continuation이 있어야 진행 |
+| Sequence | Proceed to the next step after the previous step completes and required resource handover is confirmed |
+| ParallelAll | Parallel paths with separate actual resource sets. All must complete for success |
+| Branch | One path selected by a condition decision persisted in P |
+| Repeat | Expand into distinct execution positions for an explicit finite count |
+| Call | Instantiate a subflow separately at each call location |
+| Operation | Reference a Host/Intent binding provided by the site resolver |
+| Wait | Condition with explicit deadline. Proceeds by P's wait decision |
+| Intervention | Procedure reference and intervention wait. Requires an authorized P continuation to proceed |
 
-source/flow/node 중복, 누락·도달 불가·cycle·공유 node, recursive call, 빈 control node, 반복/깊이/확장 한도 초과를 거부한다. 조건 grammar도 크기·빈 그룹·범위 역전을 검사한다.
+Duplicate sources/flows/nodes, missing/unreachable/cyclic/shared nodes, recursive calls, empty control nodes and exceeded repetition/depth/expansion limits are rejected. Condition grammar also checks size, empty groups and inverted ranges.
 
-## 컴파일 identity
+## Compilation identity
 
-반복/호출은 인스턴스 경로를 포함한 고유 node ID와 SourceLocation으로 펼친다. 원본 node ID·call/반복 경로가 같으면 tree 정의를 직렬화하는 순서가 바뀌어도 identity가 유지된다. flow/node 목록은 source digest에서 정규화하며, Sequence child 순서는 의미 있는 실행 순서로 보존한다.
+Repetitions/calls expand into unique node IDs and SourceLocations containing instance paths. Identical original node IDs and call/repetition paths retain identity even if tree-definition serialization order changes. Flow/node lists are normalized in the source digest; Sequence child order is preserved as meaningful execution order.
 
-resolved digest는 원본 identity와 실제 normalized Host/Intent binding에 결합한다. 병렬 경로의 resource union이 겹치면 거부한다. 이는 이름이 다른 두 논리 기능이 같은 controller를 공유할 때도 해당 resolved resource 이름을 기준으로 한다. 현장 resolver가 alias를 제대로 통합했는지는 별도 검증 대상이다.
+The resolved digest binds original identity to actual normalized Host/Intent bindings. Overlapping resource unions across parallel paths are rejected. This uses resolved resource names even when two differently named logical functions share the same controller. Correct consolidation of aliases by the site resolver requires separate validation.
 
-`compile_package`는 VerifiedPackage의 immutable Process entry만 읽고, 사용한 binding의 OperationSubmit 요청이 package permission에 선언되어 있는지 확인한다. 서명이 맞아도 잘못된 process source는 통과하지 못한다. 이 permission 검사는 site/Host의 native grant를 부여하지 않는다.
+`compile_package` reads only immutable Process entries from VerifiedPackage and checks that OperationSubmit requests used by bindings are declared in package permissions. An invalid process source does not pass even with a valid signature. This permission check grants no site/Host native grant.
 
-## Frontier 계산
+## Frontier computation
 
-입력 ProgressView는 **인증·검증한 P의 완전한 run view**여야 한다. 로컬 UI/BT가 임의로 만든 evidence ID나 bool을 이 입력으로 신뢰하면 안 된다. 현재는 pure planning API이며 그 P wire/checkpoint adapter는 후속이다.
+Input ProgressView must be **an authenticated, validated complete P run view**. Evidence IDs or booleans arbitrarily created by local UI/BT must not be trusted as this input. This is currently a pure planning API; its P wire/checkpoint adapter remains future work.
 
-- UNKNOWN/DISPUTED/UNRESOLVED는 BLOCKED로 유지한다. FAILURE로 바꾸어 자동 fallback/retry하지 않는다.
-- SUCCEEDED만으로 다음 sequence를 시작하지 않고 필요한 resource release를 기다린다.
-- branch decision이 없으면 decision 요청 후보만 만든다. 현재 센서값을 읽었다는 이유로 지역 메모리에서 분기를 확정하지 않는다.
-- 선택하지 않은 branch 이력, 앞 단계가 빠진 뒤 단계 이력, 다른 resolved digest, partial view, 잘못된 node/operation 상관관계는 거부한다.
-- parallel의 실패/불명에서는 새 admission 후보를 억제하고 이미 진행한 작업은 남긴다. native cancel 성공을 추론하지 않는다.
-- wait timeout은 명시적인 P 결정이며 물리 완료가 아니다. intervention clearance도 실제 P authorization과 결합해야 한다.
+- UNKNOWN/DISPUTED/UNRESOLVED remain BLOCKED. They are not converted to FAILURE for automatic fallback/retry.
+- SUCCEEDED alone does not start the next sequence step; required resource release is awaited.
+- Without a branch decision, only a decision-request candidate is produced. Reading current sensor values does not commit a branch in local memory.
+- History in an unselected branch, later-step history missing earlier steps, different resolved digests, partial views and incorrect node/operation correlations are rejected.
+- Parallel failure/uncertainty suppresses new admission candidates while preserving work already in progress. Native cancel success is not inferred.
+- Wait timeout is an explicit P decision, not physical completion. Intervention clearance must also bind to actual P authorization.
 
-Frontier의 COMPLETED는 이 계획 view의 구조상 완료다. part의 CONFIRMED_COMPLETED/양품/운전 재개를 직접 기록하지 않는다.
+Frontier COMPLETED means structural completion in this planning view. It does not directly record part CONFIRMED_COMPLETED, conforming output or operating resumption.
 
-## BT XML과 현재 제한
+## BT XML and current limitations
 
-BT.CPP format4 XML을 생성한다. [공식 XML 형식](https://behaviortree.dev/docs/tutorial-basics/tutorial_07_multiple_xml/)을 사용하되 RXSequence/RXParallelAll/RXBranch/RXOperation/RXWait/RXIntervention **전용 노드 등록이 필요하다**. 임의 Script/include, generic RetryUntilSuccessful, UNKNOWN을 FAILURE로 낮추는 변환은 출력하지 않는다.
+Generates BT.CPP format4 XML. It uses the [official XML format](https://behaviortree.dev/docs/tutorial-basics/tutorial_07_multiple_xml/), but **requires dedicated registration of RXSequence/RXParallelAll/RXBranch/RXOperation/RXWait/RXIntervention nodes**. It emits no arbitrary Script/include, generic RetryUntilSuccessful or transformation downgrading UNKNOWN to FAILURE.
 
-여섯 RX C++ 노드의 실제 BT.CPP factory 등록과 합성 P view 실행 시험은 [native executor](../../native/executor/README.md)에 구현했다. 실제 P client·영속 요청/분기/checkpoint 복원은 아직 연결하지 않았다. XML과 단위 실행만으로 제품 운전 경로가 완성됐다고 주장하지 않는다.
+Actual BT.CPP factory registration of the six RX C++ nodes and execution tests with synthetic P views are implemented in the [native executor](../../native/executor/README.md). Actual P client, durable requests/branches/checkpoint recovery are not yet connected. XML and unit execution alone are not claimed to complete the product operating path.
 
-공통 model/frontier는 P 소유의 rx-process-contract SDK를 사용한다. P는 graph 설정에서 branch/wait/checkpoint와 activation/Submit eligibility를 실제 transaction으로 검증한다. 외부 RPC/checkpoint artifact·C++ client와 전체 intervention/restart 연결은 아직 미완료다. 기존 process=None finite 설정에 graph를 임의로 평평하게 넣어 운전하지 않는다.
+The common model/frontier uses P-owned rx-process-contract SDK. P validates branch/wait/checkpoint and activation/Submit eligibility in graph configurations through actual transactions. External RPC/checkpoint artifacts, C++ client and full intervention/restart integration remain incomplete. A graph must not be arbitrarily flattened into existing process=None finite configuration for operation.
 
-## CLI와 예제
+## CLI and examples
 
 ```text
 rx-process-compile SOURCE.json BINDINGS.json NEW_OUTPUT_DIRECTORY
 ```
 
-새 디렉토리에 resolved.json, process.bt.xml, compile-report.json을 만든다. 기존 산출물은 덮어쓰지 않는다. 결과는 COMPILED_NOT_QUALIFIED이며 device/process를 실행하지 않는다.
+Creates resolved.json, process.bt.xml and compile-report.json in a new directory. Existing outputs are not overwritten. The result is COMPILED_NOT_QUALIFIED and executes no device/process.
 
-`examples/process`는 소재 공급의 다섯 단계를 표현한 **미검증 예제**다. 실제 로봇/PLC 신호·program·교정·그리퍼·지그 binding이 아니다. placeholder artifact는 실제 배포 자료로 대체하고 검증해야 한다.
+`examples/process` is an **unverified example** representing five material-supply steps. It is not actual robot/PLC signal, program, calibration, gripper or fixture binding. Placeholder artifacts must be replaced with actual deployment material and validated.
