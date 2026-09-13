@@ -14,11 +14,11 @@ export function previewRows(source: EditableSource, flowIndex: number, limit = 2
     if (rows.length >= limit) return;
     const i = index.get(id);
     if (i === undefined) {
-      rows.push({ nodeIndex: -1, nodeId: id, depth, problem: '미연결' });
+      rows.push({ nodeIndex: -1, nodeId: id, depth, problem: 'Unbound' });
       return;
     }
     if (depth > 32 || path.has(id)) {
-      rows.push({ nodeIndex: i, nodeId: id, depth, problem: '순환 또는 표시 깊이 초과' });
+      rows.push({ nodeIndex: i, nodeId: id, depth, problem: 'Cycle or display depth exceeded' });
       return;
     }
     rows.push({ nodeIndex: i, nodeId: id, depth, problem: null });
@@ -47,7 +47,7 @@ export function previewRows(source: EditableSource, flowIndex: number, limit = 2
       nodeIndex: -1,
       nodeId: '',
       depth: 0,
-      problem: '표시 한도에 도달했습니다. 저장 시 전체 구조를 검사합니다.',
+      problem: 'The display limit has been reached. Saving validates the full structure.',
     });
   return rows;
 }

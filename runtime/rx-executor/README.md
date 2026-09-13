@@ -1,24 +1,24 @@
-# RX 실행기 client와 Frame 경계
+# RX executor client and Frame boundary
 
-현재 구현은 P의 인증된 복원/현재 상태 읽기, C++ BT Frame, [영속 요청과 유한 작업 worker](JOURNAL_AND_WORKER.md)다. [분기·대기와 checkpoint commit·관측 복원](DECISIONS_AND_RECOVERY.md)도 연결했다. 전체 daemon/part coordinator와 개입·재시작 조정은 후속이다.
+The current implementation provides authenticated restoration/current-state reads from P, C++ BT Frames and a [durable request journal and finite-operation worker](JOURNAL_AND_WORKER.md). [Branch/wait, checkpoint commit and observation recovery](DECISIONS_AND_RECOVERY.md) are also connected. The complete daemon/part coordinator and intervention/restart coordination remain future work.
 
-- Client.connect는 deployment가 지정한 TLS endpoint/CA·서비스 credential, 설치/저장 세대/release/shared clock/cell definition을 사용한다. 브라우저 session을 쓰지 않는다. 실제 프로세스 시작마다 새로운 peer_boot를 발급하고, 같은 프로세스의 transport reconnect에서만 같은 boot를 유지해야 한다.
-- Client.restore는 frozen GetRun과 run-scoped artifact 조회를 결합해 원래 activation/slot/intent를 회수한다. 역사적인 EXECUTING을 현재 권한으로 쓰지 않는다.
-- Client.snapshot은 선택적 executor-read binding hash, canonical payload hash/size/schema, P 신원/순서/시계, 실제 resolved process와 shared validation을 확인한다. P의 내부 DB나 rx-application을 import하지 않는다.
-- ValidatedSnapshot은 client만 만들 수 있고 내부 데이터는 읽기용이다. Frame은 명시적으로 선택한 Context identity와 대조한다. 새로운 epoch/session/digest를 자동 채택하지 않는다.
-- Clock은 신뢰된 동일 호스트 adapter다. LinuxBoottime은 kernel boot ID와 CLOCK_BOOTTIME을 사용한다. 요청 전후 시계 범위와 P absolute expiry, local request-send deadline을 함께 검사한다.
-- Frame은 RPC request 제안용 data다. native permit가 아니며 P/H gate를 대체하지 않는다. C++에 SourceDeadline을 함께 전달해 suspend/clock 변화 후에도 오래된 Frame을 쓰지 않게 한다.
+- Client.connect uses the deployment-specified TLS endpoint/CA, service credentials, installation/store generation/release/shared clock/cell definition. It does not use browser sessions. Each actual process start must issue a new peer_boot; the same boot may be retained only for transport reconnects within the same process.
+- Client.restore combines frozen GetRun with run-scoped artifact queries to recover original activation/slot/intent. Historical EXECUTING is not used as current authority.
+- Client.snapshot validates the optional executor-read binding hash, canonical payload hash/size/schema, P identity/order/clock, actual resolved process and shared validation. It does not import P's internal DB or rx-application.
+- Only the client can construct ValidatedSnapshot, whose internal data is read-only. Frame is compared with an explicitly selected Context identity. New epochs/sessions/digests are not automatically adopted.
+- Clock is a trusted same-host adapter. LinuxBoottime uses the kernel boot ID and CLOCK_BOOTTIME. The clock interval before/after the request, P absolute expiry and local request-send deadline are checked together.
+- Frame is data for proposing RPC requests. It is not a native permit and does not replace P/H gates. SourceDeadline is also passed to C++ to prevent stale Frame use after suspend/clock changes.
 
-`rx-executor-read-fixture`는 test-harness 전용이다. 명시적인 loopback simulation clock에서만 동작하고 native/작업 제출을 하지 않는다. 새 peer 접속은 P의 이전 세션/권한을 철회할 수 있다. fixture 결과에는 checkpoint/snapshot/resolved/Frame/XML이 있고 실제 P와 TLS로 연결해 만든 자료다.
+`rx-executor-read-fixture` is test-harness-only. It operates only with an explicit loopback simulation clock and performs no native/work submission. A new peer connection may revoke previous sessions/authority in P. Fixture results contain checkpoint/snapshot/resolved/Frame/XML generated through an actual TLS connection to P.
 
-현재 S client의 복원 자료는 shared DTO이며 실행 허가 writer가 아니다. payload bytes는 서명이 아니며 신뢰는 고정 endpoint·현재 인증/셀 권한·구조 검사에서 온다. 일반 URL fetch나 임의 파일 접근을 artifact API로 제공하지 않는다.
+The current S client's restoration material is a shared DTO, not a writer granting execution permission. Payload bytes are not signatures; trust comes from the pinned endpoint, current authentication/cell authority and structural validation. The artifact API offers neither generic URL fetching nor arbitrary file access.
 
-C++ decoder/Context와 SourceDeadline 의무는 [native executor](../../native/executor/FRAME_BOUNDARY.md)를 따른다. Linux 검사와 mock clock 시험을 물리 로봇 성능/현장 qualification으로 확대하지 않는다.
+C++ decoder/Context and SourceDeadline requirements follow the [native executor](../../native/executor/FRAME_BOUNDARY.md). Linux checks and mock-clock tests must not be broadened into physical robot performance or site qualification claims.
 
-[지속 BT 엔진과 Rust private-pipe/요청 큐](../../native/executor/PERSISTENT_ENGINE.md)를 연결했다. 준비된 tree는 한 프로세스에서 반복 처리하고, 대기 요청을 결과까지 유지한다. 전체 daemon/supervision·part coordinator·durable shutdown intent는 후속이다. P gRPC 채널은 connect/RPC에 각각 2초 제한을 두며 transport timeout을 미적용 증거로 사용하지 않는다.
+The [persistent BT engine and Rust private-pipe/request queue](../../native/executor/PERSISTENT_ENGINE.md) are connected. A prepared tree is repeatedly processed in one process, and pending requests are retained through their results. The complete daemon/supervision, part coordinator and durable shutdown intent remain future work. P gRPC channels have separate 2-second connect and RPC limits; transport timeout is not used as evidence of non-application.
 
-[Run/visit 실행 서비스와 중단 의도 보존](SERVICE_LIFECYCLE.md)을 연결했다. Linux CLI, 배정 대기·지속 처리·통신 grace, 별도 stop journal과 restart 시 재개 차단을 제공한다. 전체 배포 supervisor·part coordinator·같은 run의 명시적 restart/rebind는 후속이다.
+The [Run/visit execution service and retained stop intent](SERVICE_LIFECYCLE.md) are connected. They provide a Linux CLI, assignment waiting, continuous processing, communication grace, a separate stop journal and resume blocking after restart. Full deployment supervision, part coordination and explicit restart/rebind of the same run remain future work.
 
-[직렬 소재 조정](PRODUCTION_COORDINATOR.md)을 서비스의 기본 모드로 연결했다. 소재 admission/완료는 P에서 검증하고, 응답 유실에서도 기존 ID와 budget 소비를 보존한다. ManualVisit은 별도 설정으로 유지한다.
+[Serial material coordination](PRODUCTION_COORDINATOR.md) is connected as the service's default mode. P validates material admission/completion, and original IDs and budget consumption are preserved through response loss. ManualVisit remains available through separate configuration.
 
-기존 서비스 원장을 생성·변경하거나 네트워크에 연결하지 않는 [오프라인 복구 점검](RECOVERY_INSPECT.md)은 `cell recovery-inspect CONFIG` 경로로 제공한다. 원 PENDING/ATTENTION·attachment·요청 기록을 보존하며 현재 P 조회나 운전 재개를 수행하지 않는다.
+[Offline recovery inspection](RECOVERY_INSPECT.md), which neither creates/changes existing service journals nor connects to the network, is available through `cell recovery-inspect CONFIG`. It preserves original PENDING/ATTENTION, attachment and request records without current P queries or operating resumption.

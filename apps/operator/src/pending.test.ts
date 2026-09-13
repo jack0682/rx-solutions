@@ -5,7 +5,7 @@ const pending: Pending = {
   request_key: 'c39d227e-2f3b-439f-b90f-12e3e987985a',
   route: '/api/v1/runs',
   command: { cell: 'cell/demo', expected_cell: '9007199254740993' },
-  label: '새 실행 준비',
+  label: 'Prepare new run',
   principal: 'admin',
   installation: '6a59a0c0-1e86-4274-87e5-79d086bb328d',
   store_generation: '825492b5-dae2-40b1-a778-656e06ca200d',

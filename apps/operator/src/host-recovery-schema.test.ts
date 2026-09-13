@@ -430,8 +430,8 @@ describe('Host recovery reads and immutable request identity', () => {
     const b = view.view.binding;
     b.proposal_read.cells['cell/a'].snapshot.sources_available = false;
     const missing = renderToStaticMarkup(createElement(RecoveryEvidence, { binding: b }));
-    expect(missing).toContain('관측 소스 조회 불가');
-    expect(missing).not.toContain('저장된 품질 필드 확인');
+    expect(missing).toContain('Observation source unavailable');
+    expect(missing).not.toContain('Review stored quality fields');
     b.proposal_read.cells['cell/a'].snapshot.sources_available = true;
     b.proposal_read.cells['cell/a'].snapshot.observations.push({
       source: 'source/a',
@@ -447,7 +447,7 @@ describe('Host recovery reads and immutable request identity', () => {
       evidence_id: uuid('b'),
     });
     const uncertain = renderToStaticMarkup(createElement(RecoveryEvidence, { binding: b }));
-    expect(uncertain).toContain('품질·시각·상충 확인 필요');
+    expect(uncertain).toContain('Quality, time, and conflicts need verification');
     expect(uncertain).not.toContain('class="success"');
   });
 
@@ -461,7 +461,7 @@ describe('Host recovery reads and immutable request identity', () => {
     const html = renderToStaticMarkup(
       createElement(RecoveryEvidence, { binding: value.view.binding }),
     );
-    expect(html).toContain('현재 연결의 근거로 사용하지 않습니다.');
+    expect(html).toContain('It is not evidence for the current binding.');
     expect(value.view.current).toBe(false);
   });
 });

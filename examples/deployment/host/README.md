@@ -1,15 +1,15 @@
-# Host 배포 입력 템플릿
+# Host deployment input template
 
-`rx-hostd`는 `rx-solutions` 이미지에 포함되는 Host 실행파일이다. 이 예제는 같은 이미지의 명시적인 Host mode를 선택한다. 기본 진단 mode나 모든 장비 ROS launch를 자동으로 시작하는 설정이 아니다.
+`rx-hostd` is the Host executable included in the `rx-solutions` image. This example selects explicit Host mode in that same image. It does not automatically start default diagnostic mode or all device ROS launches.
 
-`startup.template.json`의 ID/경로/pin을 실제 검토된 값으로 채워 `config/startup.json`을 만든다. 0으로 된 hash는 유효한 설치 근거가 아니다. Binding 배열의 host/platform/cell·definition/envelope·자격·허용 intent/조건/scope는 P의 설치와 일치해야 한다. 서버 SAN은 P에서 사용하는 Host 이름과 맞아야 하고, client certificate fingerprint는 등록한 P 인증서의 DER SHA-256이다. 개인키는 owner-only 권한으로 제공한다.
+Fill in the IDs, paths, and pins in `startup.template.json` with values that have actually been reviewed to create `config/startup.json`. Hashes consisting of 0s are not valid installation evidence. The binding array's host/platform/cell, definition/envelope, qualification, and allowed intents/conditions/scopes must match the P installation. The server SAN must match the Host name used by P, and the client certificate fingerprint is the DER SHA-256 of the registered P certificate. Supply private keys with owner-only permissions.
 
-현재 release의 builtin backend는 FILE_SIMULATION이다. 로봇/PLC용 VALIDATED_DRIVER 선택은 등록된 구현이 없어 거부한다. 패키지에 SDK/ROS 라이브러리가 포함돼 있다는 사실로 그 driver의 시작/종료를 검증했다고 처리하지 않는다.
+The current release's builtin backend is FILE_SIMULATION. Selecting VALIDATED_DRIVER for a robot or PLC is rejected because no implementation is registered. Bundling SDK/ROS libraries does not establish that the driver's startup/shutdown has been validated.
 
-먼저 같은 config/data mount와 non-root 권한으로 `host inspect /config/startup.json`, 이어 **한 번만** `host init /config/startup.json`을 수행한다. init은 장비를 열지 않고 새 Host 원장과 설치 identity를 만든다. 기존 데이터에 init을 반복하거나 유실된 원장을 자동 재생성하지 않는다. 이후 compose의 `host run`을 사용한다. 데이터 root는 UID10001이 쓸 수 있도록 설치 단계에서 준비한다. P의 authority DB를 이 volume에 공유하지 않는다.
+First run `host inspect /config/startup.json` using the same config/data mounts and non-root permissions, then run `host init /config/startup.json` **exactly once**. Init creates a new Host ledger and installation identity without opening a device. Do not repeat init against existing data or automatically recreate a lost ledger. Then use compose's `host run`. Prepare the data root during installation so that UID10001 can write to it. Do not share P's authority DB in this volume.
 
-Host는 설치 identity/원장 generation과 runtime lock을 확인하고 실제 Linux boottime clock, mTLS service를 시작한다. `/run/rx-host/host-status.json`의 instance/Host boot/phase/admission 상태로 해당 프로세스의 준비를 확인한다. `SOFTWARE_READY_UNARMED`는 장비 운전 준비나 qualification이 아니다. 원격 P Host endpoint와 publisher를 구성할 때 같은 Linux PC의 clock/네트워크·서버 이름·인증서 및 계약 조건을 맞춘다.
+The Host checks the installation identity, ledger generation, and runtime lock, and starts the actual Linux boottime clock and mTLS service. Check this process's readiness through the instance, Host boot, phase, and admission state in `/run/rx-host/host-status.json`. `SOFTWARE_READY_UNARMED` does not establish device operating readiness or qualification. When configuring the remote P Host endpoint and publisher, align the clock/network, server name, certificates, and contract conditions on the same Linux PC.
 
-SIGTERM은 새 admission을 먼저 막고 어댑터의 명시적 safe-to-drop를 확인한다. 근거가 없으면 정상 종료를 보류한다. 임의 timeout 후 kill을 physical shutdown 절차로 쓰지 않는다. 템플릿의 자동 restart는 꺼져 있다. 실행 중인 제어 프로세스의 강제 종료/교체는 별도 검증된 절차가 필요하다.
+SIGTERM first blocks new admission and checks the adapter's explicit safe-to-drop evidence. Without that evidence, normal shutdown is deferred. Do not use a kill after an arbitrary timeout as a physical shutdown procedure. Automatic restart is disabled in the template. Forcefully terminating or replacing a running control process requires a separately validated procedure.
 
-현재 supervisor의 SoftwareOnly recipe는 Host control process를 자동 관리하지 않는다. 직접 Host mode와 그 원장/프로세스 수명 경계가 이번 배포 범위다. 다중 Host supervisor의 권한 연계, 실제 driver backend·장치/fieldbus 권한, update/restore 절차는 후속이다.
+The current supervisor's SoftwareOnly recipe does not automatically manage a Host control process. This deployment scope covers direct Host mode and its ledger/process lifecycle boundary. Authority coordination for a multi-Host supervisor, real driver backends, device/fieldbus permissions, and update/restore procedures remain future work.
