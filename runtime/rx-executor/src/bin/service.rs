@@ -49,8 +49,12 @@ mod linux {
             [mode, operation, path] if mode == "cell" && operation == "run" => {
                 super::cell_cli::run(Path::new(path)).await
             }
+            [mode, operation, path] if mode == "cell" && operation == "recovery-inspect" => {
+                super::cell_cli::recovery_inspect(Path::new(path))?;
+                Ok(true)
+            }
             _ => {
-                Err("usage: rx-executor-service CONFIG | cell init CONFIG | cell run CONFIG".into())
+                Err("usage: rx-executor-service CONFIG | cell init CONFIG | cell run CONFIG | cell recovery-inspect CONFIG".into())
             }
         }
     }

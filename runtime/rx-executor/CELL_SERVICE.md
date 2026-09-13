@@ -49,3 +49,5 @@ SQLite preservation across A closure and B preparation. Integration acceptance m
 also exercise real authenticated reads and planner execution through the product CLI.
 This module adds no scheduler, StartRun mutation, P database access, hardware control,
 or physical safety proof.
+
+기존 서비스 원장을 생성·변경하거나 네트워크에 연결하지 않는 [오프라인 복구 점검](RECOVERY_INSPECT.md)은 `cell recovery-inspect CONFIG` 경로로 제공한다. 원 PENDING/ATTENTION·attachment·요청 기록을 보존하며 현재 P 조회나 운전 재개를 수행하지 않는다.

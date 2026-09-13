@@ -1365,6 +1365,7 @@ dependencies = [
 name = "rx-executor"
 version = "0.1.0"
 dependencies = [
+ "rusqlite",
  "rustix",
  "rx-domain",
  "rx-ports",

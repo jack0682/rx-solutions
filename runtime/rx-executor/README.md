@@ -20,3 +20,5 @@ C++ decoder/Context와 SourceDeadline 의무는 [native executor](../../native/e
 [Run/visit 실행 서비스와 중단 의도 보존](SERVICE_LIFECYCLE.md)을 연결했다. Linux CLI, 배정 대기·지속 처리·통신 grace, 별도 stop journal과 restart 시 재개 차단을 제공한다. 전체 배포 supervisor·part coordinator·같은 run의 명시적 restart/rebind는 후속이다.
 
 [직렬 소재 조정](PRODUCTION_COORDINATOR.md)을 서비스의 기본 모드로 연결했다. 소재 admission/완료는 P에서 검증하고, 응답 유실에서도 기존 ID와 budget 소비를 보존한다. ManualVisit은 별도 설정으로 유지한다.
+
+기존 서비스 원장을 생성·변경하거나 네트워크에 연결하지 않는 [오프라인 복구 점검](RECOVERY_INSPECT.md)은 `cell recovery-inspect CONFIG` 경로로 제공한다. 원 PENDING/ATTENTION·attachment·요청 기록을 보존하며 현재 P 조회나 운전 재개를 수행하지 않는다.

@@ -450,3 +450,156 @@ fn deployment_file_symlinks_and_private_key_permissions_are_rejected() {
         assert!(!fixture.root.join("cell-installation.json").exists());
     }
 }
+
+type RecoverySourceInventory = std::collections::BTreeMap<PathBuf, (u64, u32, i64, i64, Vec<u8>)>;
+fn recovery_source_inventory(root: &Path) -> RecoverySourceInventory {
+    use std::os::unix::fs::MetadataExt;
+    fn visit(root: &Path, path: &Path, out: &mut RecoverySourceInventory) {
+        let metadata = fs::symlink_metadata(path).unwrap();
+        assert!(!metadata.file_type().is_symlink());
+        let bytes = if metadata.is_file() {
+            Sha256::digest(fs::read(path).unwrap()).to_vec()
+        } else {
+            vec![]
+        };
+        out.insert(
+            path.strip_prefix(root).unwrap().to_path_buf(),
+            (
+                metadata.len(),
+                metadata.mode(),
+                metadata.mtime(),
+                metadata.mtime_nsec(),
+                bytes,
+            ),
+        );
+        if metadata.is_dir() {
+            for entry in fs::read_dir(path).unwrap() {
+                visit(root, &entry.unwrap().path(), out);
+            }
+        }
+    }
+    let mut out = std::collections::BTreeMap::new();
+    visit(root, root, &mut out);
+    out
+}
+
+#[test]
+fn recovery_inspect_initialized_idle_store_is_deterministic_and_does_not_connect_or_modify_files() {
+    let _serial = serial();
+    let fixture = fixture();
+    fixture.init();
+    let before = recovery_source_inventory(&fixture.root);
+    let first = fixture.invoke("recovery-inspect", false);
+    assert!(first.status.success(), "{first:?}");
+    let report: serde_json::Value = serde_json::from_slice(&first.stdout).unwrap();
+    assert_eq!(report["schema"], "rx.executor-recovery-inspection.v1");
+    assert_eq!(report["attachment"], serde_json::Value::Null);
+    assert_eq!(report["run_journal"], serde_json::Value::Null);
+    for field in [
+        "execution_authorized",
+        "network_accessed",
+        "session_opened",
+        "planner_started",
+        "current_p_state_observed",
+        "original_records_modified",
+    ] {
+        assert_eq!(report[field], false, "{field}");
+    }
+    assert_eq!(recovery_source_inventory(&fixture.root), before);
+    let second = fixture.invoke("recovery-inspect", false);
+    assert!(second.status.success(), "{second:?}");
+    assert_eq!(second.stdout, first.stdout);
+    assert_eq!(recovery_source_inventory(&fixture.root), before);
+    assert_eq!(probe_count(&fixture.probe), 0);
+}
+
+#[test]
+fn recovery_inspect_missing_root_does_not_initialize_a_service_or_connect() {
+    let _serial = serial();
+    let fixture = fixture();
+    let output = fixture.invoke("recovery-inspect", false);
+    assert!(!output.status.success());
+    assert!(output.stdout.is_empty());
+    assert!(!fixture.root.exists());
+    assert_eq!(probe_count(&fixture.probe), 0);
+}
+
+#[test]
+fn recovery_inspect_missing_or_corrupt_required_files_never_repairs_them() {
+    let _serial = serial();
+    for damage in 0..5 {
+        let fixture = fixture();
+        fixture.init();
+        match damage {
+            0 => fs::remove_file(fixture.root.join("cell-installation.json")).unwrap(),
+            1 => fs::remove_file(fixture.root.join("assignment.sqlite3")).unwrap(),
+            2 => fs::write(fixture.root.join("assignment.sqlite3"), []).unwrap(),
+            3 => fs::remove_file(fixture.root.join(".rx-executor-service.lock")).unwrap(),
+            _ => {
+                let mut repository =
+                    SqliteRepository::open(fixture.root.join("assignment.sqlite3")).unwrap();
+                repository
+                    .transact(|tx| {
+                        let key = Name::new("attachment/header").unwrap();
+                        let mut row = tx.get(&key)?.unwrap();
+                        row.document.value["journal"] = serde_json::json!(id(999));
+                        tx.put(&key, Some(row.revision), &row.document)?;
+                        Ok(())
+                    })
+                    .unwrap();
+            }
+        }
+        let before = recovery_source_inventory(&fixture.root);
+        let output = fixture.invoke("recovery-inspect", false);
+        assert!(!output.status.success(), "damage={damage}: {output:?}");
+        assert!(output.stdout.is_empty());
+        assert_eq!(recovery_source_inventory(&fixture.root), before);
+        assert_eq!(probe_count(&fixture.probe), 0);
+    }
+}
+
+#[test]
+fn recovery_inspect_does_not_compete_with_service_or_store_owner() {
+    let _serial = serial();
+    let fixture = fixture();
+    fixture.init();
+    let owner = ServiceOwner::acquire(&fixture.root.join("assignment.sqlite3")).unwrap();
+    let before = recovery_source_inventory(&fixture.root);
+    let output = fixture.invoke("recovery-inspect", false);
+    assert!(!output.status.success());
+    assert!(output.stdout.is_empty());
+    assert_eq!(recovery_source_inventory(&fixture.root), before);
+    drop(owner);
+    let repository = SqliteRepository::open(fixture.root.join("assignment.sqlite3")).unwrap();
+    let before = recovery_source_inventory(&fixture.root);
+    let output = fixture.invoke("recovery-inspect", false);
+    assert!(!output.status.success());
+    assert!(output.stdout.is_empty());
+    assert_eq!(recovery_source_inventory(&fixture.root), before);
+    drop(repository);
+    assert_eq!(probe_count(&fixture.probe), 0);
+}
+
+#[test]
+fn recovery_inspect_rejects_alias_root_and_changed_deployment_scope() {
+    let _serial = serial();
+    for alias in [false, true] {
+        let fixture = fixture();
+        fixture.init();
+        let before = recovery_source_inventory(&fixture.root);
+        let mut value = fixture.value.clone();
+        if alias {
+            let path = fixture.directory.path().join("recovery-alias");
+            std::os::unix::fs::symlink(&fixture.root, &path).unwrap();
+            value["service_root"] = serde_json::json!(path);
+        } else {
+            value["expected_service"]["journal"] = serde_json::json!(id(999));
+        }
+        fixture.write(&value);
+        let output = fixture.invoke("recovery-inspect", false);
+        assert!(!output.status.success());
+        assert!(output.stdout.is_empty());
+        assert_eq!(recovery_source_inventory(&fixture.root), before);
+        assert_eq!(probe_count(&fixture.probe), 0);
+    }
+}
