@@ -8,7 +8,7 @@ async function fixture(fn) {
   const root = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), 'rx-ui-bundle-')));
   try {
     await fs.mkdir(path.join(root, 'assets'));
-    await fs.writeFile(path.join(root, 'index.html'), '<html lang="ko"><body>RX</body></html>');
+    await fs.writeFile(path.join(root, 'index.html'), '<html lang="en"><body>RX</body></html>');
     await fs.writeFile(path.join(root, 'assets/app.js'), 'console.log("RX");');
     await fn(root);
   } finally { await fs.rm(root, { recursive: true, force: true }); }

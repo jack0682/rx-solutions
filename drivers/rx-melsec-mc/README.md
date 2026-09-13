@@ -1,37 +1,37 @@
-# MELSEC MC 3E 통신 계층 — 구현 초안
+# MELSEC MC 3E communication layer — implementation draft
 
-작성 2026-09-12. 상태: **통신 라이브러리 구현, 로컬 모의 TCP 시험 완료; 서명된 장비 패키지로 Host backend 선택 가능, 실제 현장 qualification은 미완료**.
+Written 2026-09-12. Status: **communication library implemented and local simulated TCP tests completed; selectable as a Host backend through a signed device package; actual site qualification remains incomplete**.
 
-이 라이브러리는 `rx-solutions` 안에서 미쓰비시 PLC에 제한된 MC 요청을 보내고 응답을 해석한다. ROS와 Platform domain을 의존하지 않는다. 장비 제어의 허가·원장·완료 판정은 상위 Host 어댑터의 책임이다. 제한 상태 보장 어댑터의 현재 구현은 [MELSEC Host 명세](../../runtime/rx-host/MELSEC_ADAPTER.md)에 둔다. 설치·연결·물리 운전 승인을 이 라이브러리가 제공하지 않는다.
+This library sends restricted MC requests to Mitsubishi PLCs and interprets responses within `rx-solutions`. It does not depend on ROS or the Platform domain. Device-control authorization, ledger records, and completion decisions are the responsibility of the higher-level Host adapter. The current implementation of the restricted state-assurance adapter is documented in the [MELSEC Host specification](../../runtime/rx-host/MELSEC_ADAPTER.md). This library provides no installation, connection, or physical operating approval.
 
-## 1. 대상과 근거
+## 1. Target and evidence
 
-첫 레이저 PLC는 사용자가 제공한 사진의 **Q03UDVCPU**다. 해당 모델은 제조사의 내장 Ethernet 매뉴얼 대상이며, MC 0401 읽기와 1401 쓰기 명령이 기재되어 있다. 실제 포트 설정·RUN 중 쓰기 허용·주소 할당은 현장 확인이 필요하다. [QnUCPU 내장 Ethernet 매뉴얼, §5](https://dl.mitsubishielectric.com/dl/fa/document/manual/plc/sh080811eng/sh080811engy.pdf).
+The first laser PLC is the **Q03UDVCPU** in the photographs supplied by the user. That model is covered by the manufacturer's built-in Ethernet manual, which lists MC 0401 read and 1401 write commands. Actual port configuration, permission to write during RUN, and address assignment require site confirmation. [QnUCPU built-in Ethernet manual, §5](https://dl.mitsubishielectric.com/dl/fa/document/manual/plc/sh080811eng/sh080811engy.pdf).
 
-코덱은 3E binary frame, little-endian 길이/word, M=0x90, D=0xA8, bit당 4비트와 홀수 개수의 하위 zero padding을 따른다. 근거: [MC Protocol Reference, 인쇄 p43–44, p72–74, p90–96, Appendix 7](https://dl.mitsubishielectric.com/dl/fa/document/manual/plc/sh080008/sh080008ab.pdf).
+The codec follows 3E binary frames, little-endian lengths/words, M=0x90, D=0xA8, 4 bits per bit value, and low-nibble zero padding for odd counts. Sources: [MC Protocol Reference, printed p43–44, p72–74, p90–96, Appendix 7](https://dl.mitsubishielectric.com/dl/fa/document/manual/plc/sh080008/sh080008ab.pdf).
 
-사진의 CC-Link 모듈·원격 I/O가 있다는 사실로 MC용 주소나 제어 권한을 추정하지 않는다. MC 접근은 CPU와의 상위 통신 후보이고 기존 CC-Link I/O 회로를 자동으로 대체하지 않는다. 이 라이브러리는 FANUC·Siemens 호환 드라이버가 아니다.
+The presence of a CC-Link module or remote I/O in a photograph does not establish MC addresses or control authority. MC access is a candidate for higher-level communication with the CPU and does not automatically replace existing CC-Link I/O circuits. This library is not a FANUC- or Siemens-compatible driver.
 
-## 2. 구현 API와 제한
+## 2. Implemented APIs and limits
 
-| API | 실제 처리 | 응답의 의미 |
+| API | Actual handling | Response meaning |
 |---|---|---|
-| `Configuration::validate` | 명시적 주소/route/timeout/access 검사 | 문법·로컬 정책 적합. 현장 검증이 아님 |
-| `Client::connect` | 지정 IPv4에 TCP 연결 | 프로토콜 요청·자동 probe 없음 |
-| `read_m(first,count)` | 허용 범위 내 M bit 1–64개 읽기 | 현재 응답의 raw bool. 시각·신선도·안전 판정 없음 |
-| `read_d(first,count)` | 허용 범위 내 D word 1–32개 읽기 | raw u16. 순서/세대 의미는 상위 프로파일에 필요 |
-| `write_m(address,value)` | 열거한 M request bit 한 개 쓰기 | 정확한 end-code-zero 응답의 `WriteAcknowledgement` |
-| `is_faulted` | 연결의 영구 오류 상태 조회 | 이전 작업의 성공/실패 판정이 아님 |
+| `Configuration::validate` | Check explicit addresses/routes/timeouts/access | Syntactic/local policy compliance, not site validation |
+| `Client::connect` | Connect by TCP to the specified IPv4 address | No protocol request or automatic probe |
+| `read_m(first,count)` | Read 1–64 M bits within an allowed range | Raw bool values from the current response; no time, freshness, or safety decision |
+| `read_d(first,count)` | Read 1–32 D words within an allowed range | Raw u16 values; ordering/generation semantics are needed in the higher-level profile |
+| `write_m(address,value)` | Write one explicitly listed M request bit | `WriteAcknowledgement` from an exact end-code-zero response |
+| `is_faulted` | Query the connection's permanent fault state | Not a success/failure decision for an earlier operation |
 
-`Configuration::write_m_frame`은 허용된 단일 M 요청의 송신 예정 bytes만 순수하게 반환해 native journal에 고정한다. 임의 bytes를 보내는 API는 없다.
+`Configuration::write_m_frame` purely returns the bytes intended for one allowed M request so that they can be pinned in the native journal. There is no API for sending arbitrary bytes.
 
-다른 device code, word 쓰기, 임의 frame 송신, remote RUN/STOP, 프로그램·파라미터 변경, 자동 reset/heartbeat는 공개 API에 없다. 메모리 M도 PLC 프로그램에 의해 동작을 유발할 수 있으므로 쓰기는 일반적인 변수 수정으로 취급하지 않는다.
+Other device codes, word writes, arbitrary frame transmission, remote RUN/STOP, program/parameter changes, and automatic resets/heartbeats are not exposed by the public API. Even M memory can trigger behavior through the PLC program, so a write is not treated as an ordinary variable edit.
 
-`Configuration`은 endpoint, 5개 route byte, monitoring timer, 접속/교환 timeout, CPU 설정에 따른 M/D 마지막 주소, 읽기 범위, 쓰기 주소 목록을 모두 명시한다. 주소 숫자는 **10진 device 번호**다. CPU device 설정의 실제 한도와 wire의 24비트 한도를 구분한다. 범위는 정렬·비중복이며 한 read는 단일 허용 범위 안에 있어야 한다. 읽기 범위와 쓰기 주소의 겹침 자체는 허용한다. 그 주소를 완료 근거로 사용할 수 있는지는 별도 semantic profile의 검사 대상이다.
+`Configuration` explicitly specifies the endpoint, 5 route bytes, monitoring timer, connection/exchange timeouts, final M/D addresses under the CPU configuration, read ranges, and write-address list. Address numbers are **base-10 device numbers**. Actual CPU device-configuration limits are distinct from the wire's 24-bit limit. Ranges are sorted and nonoverlapping, and each read must fit inside a single allowed range. Read ranges and write addresses may overlap. Whether such an address can serve as completion evidence is checked separately by the semantic profile.
 
-SIMULATION 설정은 loopback endpoint만 허용한다. PHYSICAL 설정은 문법상 외부 주소를 표현할 수 있다. 이번 시험은 모두 loopback이며 PHYSICAL 예시는 문법 검사만 한다. 이 enum만으로 OS 네트워크 격리나 연결 권한이 생기는 것은 아니다. IPv4 unicast 기본 검사를 하며 subnet별 broadcast 판별·방화벽·현장 route 허용목록은 배포 계층의 책임이다.
+SIMULATION configuration permits only loopback endpoints. PHYSICAL configuration can syntactically express external addresses. All tests in this phase use loopback; PHYSICAL examples receive syntax checks only. This enum alone provides neither OS network isolation nor connection authority. Basic IPv4 unicast checks are performed; subnet-specific broadcast detection, firewalls, and site route allowlists belong to deployment.
 
-## 3. 응답 유실과 연결 상태
+## 3. Lost responses and connection state
 
 ```mermaid
 stateDiagram-v2
@@ -44,29 +44,29 @@ stateDiagram-v2
     Faulted --> Closed: drop TCP only
 ```
 
-3E 연결에는 요청 하나만 진행한다. `&mut Client`가 동시 교환을 직렬화한다. 자동 reconnect/retry는 없으며 한 번 오류가 난 객체는 계속 거부한다. 새로운 Client를 만들더라도 이전 작업을 다시 보내도 된다는 의미가 아니다. 운영 어댑터는 이보다 강한 영속 작업 동일성과 재진입 금지를 제공해야 한다.
+Only one request is in flight on a 3E connection. `&mut Client` serializes concurrent exchanges. There is no automatic reconnect/retry; an object that faults continues rejecting requests. Creating a new Client still does not authorize resending an earlier operation. The operational adapter must provide stronger durable operation identity and prohibit re-entry.
 
-실패는 `BeforeSend`와 `ExchangeEntered`를 나눈다. 후자는 송신 경계에 들어갔다는 보수적인 분류이며 실제 PLC 수신을 증명하지 않는다. 쓰기 교환 중 응답 유실·형식 오류·PLC 오류 코드는 `write_outcome_unknown=true`로 보존한다. 명확한 PLC 오류도 이 계층만으로 물리 무효과를 추정하지 않는다. 이후 faulted 객체의 새 호출이 `BeforeSend`로 거부되어도 **이전 쓰기의 UNKNOWN은 그대로 남는다**.
+Failures distinguish `BeforeSend` from `ExchangeEntered`. The latter conservatively indicates entry into the send boundary; it does not prove actual PLC receipt. Lost responses, format errors, and PLC error codes during a write exchange preserve `write_outcome_unknown=true`. Even an explicit PLC error does not let this layer infer absence of physical effects. A later call rejected as `BeforeSend` by the faulted object **does not change the earlier write's UNKNOWN state**.
 
-쓰기 ACK에는 address/requested_value만 있다. 완료·성공·센서 상태·operation ID를 담지 않는다. ACK를 NativeCapture 성공으로 바로 변환하면 안 된다. reads도 단순 raw 응답이므로 `origin_age_bounded=true`나 안전 interlock PASS로 자동 승격하지 않는다.
+A write ACK contains only address/requested_value. It does not contain completion, success, sensor state, or an operation ID. An ACK must not be converted directly into a successful NativeCapture. Reads are also raw responses and must not be automatically promoted to `origin_age_bounded=true` or a safety interlock PASS.
 
-## 4. 통신과 자원 경계
+## 4. Communication and resource boundaries
 
-각 요청의 전체 송신과 전체 응답에 하나의 deadline을 사용한다. 부분 응답마다 남은 시간을 다시 계산하므로 바이트를 조금씩 보내 timeout을 무한 연장할 수 없다. 접속과 교환은 각각 최대 5초의 소프트웨어 한도이고 OS scheduling에 대한 hard realtime 보장은 아니다. monitoring timer는 1–20의 250ms 단위이며 Host 교환 timeout보다 길 수 있다. 그 경우 Host timeout 뒤에도 PLC 처리 가능성이 남으므로 UNKNOWN을 보존한다.
+Each request uses one deadline for the entire send and complete response. Remaining time is recalculated after partial responses, preventing a sender from extending the timeout indefinitely by trickling bytes. Connection and exchange each have a software limit of at most 5 seconds, not a hard real-time guarantee over OS scheduling. The monitoring timer is 1–20 units of 250ms and may exceed the Host exchange timeout. In that case the PLC may still process the request after the Host times out, so UNKNOWN is preserved.
 
-응답 subheader·route·길이·end code·정확한 payload 크기·bit 값·padding을 검사한다. 본문은 최대 258바이트만 할당하며 과대 길이는 본문을 기다리지 않고 거부한다. PLC 오류의 코드와 bounded diagnostic을 반환한다. 오류 뒤에는 TCP shutdown을 시도하되 shutdown 성공을 물리 동작 중단으로 해석하지 않는다.
+Responses are checked for subheader, route, length, end code, exact payload size, bit values, and padding. At most 258 bytes are allocated for the body; oversized lengths are rejected without waiting for the body. PLC error codes and bounded diagnostics are returned. TCP shutdown is attempted after an error, but successful shutdown is not interpreted as stopping physical behavior.
 
-MC 연결 자체에 RX mTLS/사용자 인증·메시지 서명이 추가되는 것은 아니다. 이 구현은 지정 PLC가 하나의 요청에 하나의 응답을 순서대로 준다는 신뢰를 전제로 한다. 가짜 peer·중복/비요청 응답에 대한 암호학적 상관관계를 제공하지 않는다. 현장 전용 통신 경계, 검토된 endpoint와 접근 제어가 필요하다.
+An MC connection does not acquire RX mTLS/user authentication or message signatures. This implementation assumes that the designated PLC returns one response per request in order. It provides no cryptographic correlation against fake peers or duplicate/unsolicited responses. A dedicated site communication boundary, reviewed endpoints, and access control are required.
 
-drop은 TCP 핸들을 닫는다. 척 해제·문 열기·서보 off·reset을 전송하지 않는다. TCP close 뒤에도 PLC의 제어·소재 지지가 유지되는지를 이 라이브러리는 알 수 없다. Host의 `shutdown_snapshot` 구현과 검증은 [후속 어댑터 설계](HOST_ADAPTER_PLAN.md)를 따른다.
+Drop closes the TCP handle. It sends no chuck release, door open, servo off, or reset. The library cannot know whether PLC control and material support remain intact after TCP close. Host `shutdown_snapshot` implementation and validation follow the [subsequent adapter design](HOST_ADAPTER_PLAN.md).
 
-## 5. 시험과 배포 상태
+## 5. Test and deployment status
 
-`tests/transport.rs`는 실제 loopback TCP server에 독립적인 고정 frame을 대조한다. 공식 예시를 이용한 M/D 해석, 쓰기 ACK, 응답 유실 후 effects 1개 유지, 접근 거부 시 0 byte, PLC 오류 보존, 잘못된 길이/route/bit/padding, 지연 조각 응답의 전체 deadline, passive connect/drop을 시험한다. 서버의 effects는 **모의 memory write 계수**이며 실장비 동작 수가 아니다.
+`tests/transport.rs` compares independently fixed frames against an actual loopback TCP server. Tests cover M/D decoding using official examples, write ACKs, preserving 1 effect after response loss, 0 bytes sent on access rejection, preserving PLC errors, invalid length/route/bit/padding, a total deadline for delayed fragmented responses, and passive connect/drop. Server effects count **simulated memory writes**, not physical device actions.
 
 ```sh
 CARGO_INCREMENTAL=0 ./tools/cargo test -p rx-melsec-mc --locked --offline
 CARGO_INCREMENTAL=0 ./tools/cargo clippy -p rx-melsec-mc --all-targets --locked --offline -- -D warnings
 ```
 
-명령은 `rx-solutions`에서 실행한다. 패키지는 workspace library이며 CLI가 없다. Host crate가 이 라이브러리를 사용하며 [MELSEC_PACKAGE](../../runtime/rx-host/DEVICE_PACKAGE_STARTUP.md)로 제품에서 선택한다. 서명/설정 검증과 실제 물리 운전 자격은 별개다. 기존 FILE_SIMULATION도 유지하고 첫 물리 셀은 **NOT_COMMISSIONED**다.
+Run the commands from `rx-solutions`. The package is a workspace library without a CLI. The Host crate uses this library, and the product selects it through [MELSEC_PACKAGE](../../runtime/rx-host/DEVICE_PACKAGE_STARTUP.md). Signature/configuration validation is separate from actual physical operating qualification. Existing FILE_SIMULATION support is retained, and the first physical cell is **NOT_COMMISSIONED**.

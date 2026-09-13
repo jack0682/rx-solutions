@@ -1,7 +1,7 @@
 """Actual S JTC authoring -> P package store/API -> browser declaration preview. Test keys only."""
 import argparse, hashlib, json, os, shlex, socket, subprocess, sys, tempfile
 from pathlib import Path
-p=argparse.ArgumentParser();p.add_argument('--evidence-dir',type=Path,required=True);p.add_argument('--review-api',action='store_true');p.add_argument('--review-ui',action='store_true');p.add_argument('--binding-api',action='store_true');p.add_argument('--candidate-authoring',action='store_true');p.add_argument('--mixed-package-policy',action='store_true');p.add_argument('--device-process-review',action='store_true');p.add_argument('--host-binding-plan',action='store_true');a=p.parse_args()
+p=argparse.ArgumentParser();p.add_argument('--server-runner',type=Path,default=Path(__file__).with_name('with_servers.py'));p.add_argument('--evidence-dir',type=Path,required=True);p.add_argument('--review-api',action='store_true');p.add_argument('--review-ui',action='store_true');p.add_argument('--binding-api',action='store_true');p.add_argument('--candidate-authoring',action='store_true');p.add_argument('--mixed-package-policy',action='store_true');p.add_argument('--device-process-review',action='store_true');p.add_argument('--host-binding-plan',action='store_true');a=p.parse_args()
 project=Path(__file__).resolve().parents[1];ws=project.parents[2];platform=ws/'rx-platform';solutions=ws/'rx-solutions'
 for port in (8080,5173):
  with socket.socket() as sock:
@@ -55,7 +55,7 @@ with tempfile.TemporaryDirectory(prefix='rx-device-browser-') as temp:
  write(fixture/'installation/package-service.json',service)
  info={'object':{'manifest':hashlib.sha256((package/'manifest.json').read_bytes()).hexdigest(),'signature':hashlib.sha256((package/'manifest.sig.json').read_bytes()).hexdigest()},'catalog':json.loads((package/'device-catalog.json').read_text()),'package':str(package),'policy':str(native/'policy.json')}
  write(fixture/'device-info.json',info)
- helper='/Users/ojaehong/.codex/skills/webapp-testing/scripts/with_server.py'
+ helper=str(a.server_runner.resolve())
  command=[sys.executable,helper,'--server',shlex.join([str(platform/'target/debug/rx-platform-local'),'serve',str(fixture/'installation'),'127.0.0.1:8080','http://127.0.0.1:5173']),'--port','8080','--server',shlex.join(['npm','--prefix',str(project),'run','dev']),'--port','5173','--',sys.executable,str(project/'tests/browser_device.py')]
  env.update(RX_DEVICE_BROWSER_FIXTURE=str(fixture),RX_DEVICE_BROWSER_EVIDENCE=str(a.evidence_dir.resolve()))
  result=subprocess.run(command,env=env,capture_output=True,text=True)

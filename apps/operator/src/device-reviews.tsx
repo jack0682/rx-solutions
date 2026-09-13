@@ -32,11 +32,11 @@ type Target = {
   digest: string;
 };
 const checks = {
-  CONTENT_SIGNATURE: '서명과 패키지 내용',
-  DEVICE_SOURCE_CONSISTENCY: '장비 정의와 원본 일관성',
-  CATALOG_REQUEST_BINDING: '검토 요청과 작업 선언 연결',
+  CONTENT_SIGNATURE: 'Signature and package content',
+  DEVICE_SOURCE_CONSISTENCY: 'Device definition and source consistency',
+  CATALOG_REQUEST_BINDING: 'Review request and operation declaration binding',
 };
-const states = { PASSED: '통과', FAILED: '실패', NOT_PERFORMED: '미수행' };
+const states = { PASSED: 'Passed', FAILED: 'Failure', NOT_PERFORMED: 'Not performed' };
 export function DeviceReviews({
   intake,
   declaration,
@@ -143,7 +143,7 @@ export function DeviceReviews({
       const stamp = value ? deviceReviewStamp(value, ctxStamp) : ctxStamp;
       if (previous.current && previous.current !== stamp) {
         invalidate();
-        setNotice('장비 검토 자료가 변경되었습니다. 이 버전을 다시 확인해 주세요.');
+        setNotice('The device review evidence has changed. Review this version again.');
       }
       previous.current = stamp;
       setPage((old) =>
@@ -262,7 +262,7 @@ export function DeviceReviews({
         configuration_digest: context.configuration_digest,
         policy_generation: context.registration?.generation,
       },
-      `${intake.title} 장비 검토 요청`,
+      `${intake.title} Device review request`,
     );
   }
   function decide(choice: 'APPROVE' | 'REJECT') {
@@ -305,19 +305,21 @@ export function DeviceReviews({
     await onSubmit(
       '/api/v1/device-review/decisions',
       exact.command,
-      `${intake.title} 장비 소프트웨어 ${exact.choice === 'APPROVE' ? '승인' : '반려'}`,
+      `${intake.title} Device software ${exact.choice === 'APPROVE' ? 'Approve' : 'Reject'}`,
     );
   }
   return (
-    <section className="device-review-workspace" aria-label="장비 소프트웨어 검토">
+    <section className="device-review-workspace" aria-label="Device software review">
       <div className="panel">
         <div className="section-heading">
-          <h3>장비 소프트웨어 검토</h3>
-          <span className="pill">실물 검증·운전 자격 별도</span>
+          <h3>Device software review</h3>
+          <span className="pill">
+            Physical verification and operating qualification are separate
+          </span>
         </div>
         <p>
-          패키지의 서명·원본 일관성·작업 선언 연결을 검토합니다. 실제 로봇 동작이나 교정 적합성을
-          승인하는 절차는 아닙니다.
+          Review the package signature, source consistency, and operation declaration bindings. This
+          procedure does not approve physical robot operation or calibration suitability.
         </p>
         <div className="package-actions">
           <button
@@ -331,18 +333,18 @@ export function DeviceReviews({
               intake.configuration_digest !== context.configuration_digest
             }
           >
-            장비 검토 요청 만들기
+            Create device review request
           </button>
           <button onClick={() => void load()} disabled={loading}>
-            장비 검토 새로고침
+            Refresh device reviews
           </button>
         </div>
         {!context?.device_review_authority_digest && (
-          <p className="muted">장비 검증 서명자 설정이 필요합니다.</p>
+          <p className="muted">Configure a device verification signer first.</p>
         )}
         {(error || !fresh) && (
           <p role="alert" className="notice error">
-            {error || '최신 장비 검토 자료를 확인해야 조작할 수 있습니다.'}
+            {error || 'Check the latest device review evidence before making changes.'}
           </p>
         )}
         {notice && (
@@ -363,16 +365,16 @@ export function DeviceReviews({
                 patch({ selectedReview: r.id, reportPath: '', reportDigest: '', note: '' });
               }}
             >
-              <b>장비 검토 {short(r.id)}</b>
+              <b>Device review {short(r.id)}</b>
               <span>
-                {r.report_revision ? `보고서 r${r.report_revision}` : '보고서 대기'} ·{' '}
+                {r.report_revision ? `Report r${r.report_revision}` : 'Awaiting report'} ·{' '}
                 {r.requested_by}
-                {r.approval_matches_current_review ? ' · 소프트웨어 승인 기록' : ''}
+                {r.approval_matches_current_review ? ' · software approval recorded' : ''}
               </span>
             </button>
           ))}
         </div>
-        {!page?.reviews.length && <p className="muted">아직 장비 검토 요청이 없습니다.</p>}
+        {!page?.reviews.length && <p className="muted">No device review requests yet.</p>}
         {page?.next && (
           <button
             onClick={async () => {
@@ -401,7 +403,7 @@ export function DeviceReviews({
               }
             }}
           >
-            장비 검토 더 보기
+            Load more device reviews
           </button>
         )}
       </div>
@@ -410,11 +412,11 @@ export function DeviceReviews({
           <div className="section-heading">
             <h3>
               {detail.version
-                ? `장비 검증 보고서 r${detail.version.revision}`
-                : '장비 검증 보고서 대기'}
+                ? `Device verification report r${detail.version.revision}`
+                : 'Awaiting device verification report'}
             </h3>
             <span className="pill">
-              {detail.is_latest ? '최신 검토 버전' : '과거 장비 검토 · 읽기 전용'}
+              {detail.is_latest ? 'Latest review version' : 'Historical device review · read only'}
             </span>
           </div>
           <div className="package-actions">
@@ -423,33 +425,34 @@ export function DeviceReviews({
                 downloadJson(detail.job.request, `rx-device-review-${detail.job.request.id}.json`)
               }
             >
-              장비 검증 요청 내려받기
+              Download device verification request
             </button>
             <button
               onClick={() =>
                 downloadJson(detail, `rx-device-review-material-${detail.job.request.id}.json`)
               }
             >
-              장비 검토 자료 내려받기
+              Download device review evidence
             </button>
           </div>
           <p className="muted">
-            검증 도구가 만든 보고서와 별도 서명을 서버 반입 폴더에 준비한 뒤 등록하세요.
+            Place the report from the verification tool and its detached signature in the server
+            intake directory, then register them.
           </p>
           <details>
-            <summary>장비 검증 보고서 등록</summary>
+            <summary>Register device verification report</summary>
             <fieldset
               disabled={!canAct || !detail.is_latest || !detail.context_current || !matches}
             >
               <label>
-                장비 보고서 상대 경로
+                Device report relative path
                 <input
                   value={buffer.reportPath}
                   onChange={(e) => patch({ reportPath: e.target.value })}
                 />
               </label>
               <label>
-                장비 보고서 식별자
+                Device report identifier
                 <input
                   className="mono"
                   value={buffer.reportDigest}
@@ -471,11 +474,11 @@ export function DeviceReviews({
                       directory: buffer.reportPath.trim(),
                       report_digest: buffer.reportDigest.trim(),
                     },
-                    `${intake.title} 장비 보고서 등록`,
+                    `${intake.title} Register device report`,
                   )
                 }
               >
-                장비 보고서 등록 요청
+                Request device report registration
               </button>
             </fieldset>
           </details>
@@ -485,8 +488,8 @@ export function DeviceReviews({
                 <table>
                   <thead>
                     <tr>
-                      <th>검사 항목</th>
-                      <th>결과</th>
+                      <th>Check</th>
+                      <th>Outcome</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -506,26 +509,27 @@ export function DeviceReviews({
               ))}
               <p>
                 {detail.version.ready_for_software_approval
-                  ? '장비 패키지 소프트웨어 검사 통과'
-                  : '소프트웨어 승인 조건을 충족하지 못했습니다.'}
+                  ? 'Device package software checks passed'
+                  : 'Software approval requirements are not met.'}
               </p>
               {detail.approval_matches_current_review && (
                 <p className="notice" role="status">
-                  이 장비 검토 버전에 소프트웨어 승인 기록이 있습니다.
+                  Software approval is recorded for this device review version.
                 </p>
               )}
               {(!detail.context_current || !matches) && (
                 <p className="notice error">
-                  셀 구성 또는 검증 정책이 변경되어 이 자료로 승인할 수 없습니다.
+                  The cell configuration or verification policy has changed. This evidence cannot be
+                  approved.
                 </p>
               )}
               <details>
-                <summary>장비 검토 원문·서명·결정 보기</summary>
+                <summary>View device review source, signatures, and decisions</summary>
                 <pre>{JSON.stringify(detail, null, 2)}</pre>
               </details>
               <div className="package-history">
                 <label>
-                  확인할 장비 보고서 버전
+                  Device report version to view
                   <input
                     value={historyInput}
                     onChange={(e) => setHistoryInput(e.target.value)}
@@ -542,7 +546,7 @@ export function DeviceReviews({
                     setHistory(historyInput);
                   }}
                 >
-                  과거 장비 버전 보기
+                  View historical device version
                 </button>
                 {history && (
                   <button
@@ -552,13 +556,13 @@ export function DeviceReviews({
                       setHistoryInput('');
                     }}
                   >
-                    최신 장비 검토 보기
+                    View latest device review
                   </button>
                 )}
               </div>
               <fieldset disabled={!canAct || !detail.is_latest || !roles.includes('VERIFIER')}>
                 <label>
-                  장비 검토 의견
+                  Device review note
                   <textarea
                     value={buffer.note}
                     maxLength={1000}
@@ -574,7 +578,8 @@ export function DeviceReviews({
                     checked={!!stamp && checked === stamp}
                     onChange={(e) => setChecked(e.target.checked ? stamp : '')}
                   />
-                  장비 원본·서명·검사 범위와 이 보고서 버전을 확인했습니다.
+                  I have reviewed the device source, signatures, check scope, and this report
+                  version.
                 </label>
                 <div className="package-actions">
                   <button
@@ -582,18 +587,20 @@ export function DeviceReviews({
                     disabled={!approve || checked !== stamp || !buffer.note.trim()}
                     onClick={() => decide('APPROVE')}
                   >
-                    장비 소프트웨어 승인
+                    Approve device software
                   </button>
                   <button
                     disabled={!reject || checked !== stamp || !buffer.note.trim()}
                     onClick={() => decide('REJECT')}
                   >
-                    장비 소프트웨어 반려
+                    Reject device software
                   </button>
                 </div>
               </fieldset>
               {principal === detail.job.submitted_by && (
-                <p className="muted">패키지 제출자와 다른 검토자가 승인해야 합니다.</p>
+                <p className="muted">
+                  Approval requires a verifier other than the package submitter.
+                </p>
               )}
             </>
           )}
@@ -610,15 +617,21 @@ export function DeviceReviews({
         {target && (
           <>
             <p className="eyebrow">DEVICE PACKAGE SOFTWARE</p>
-            <h3>이 장비 검토 버전을 {target.choice === 'APPROVE' ? '승인' : '반려'}합니다</h3>
+            <h3>
+              Record a decision for this device review version:{' '}
+              {target.choice === 'APPROVE' ? 'Approve' : 'Reject'}
+            </h3>
             <p>
-              {intake.title} · 보고서 r{target.revision}
+              {intake.title} · report r{target.revision}
             </p>
             <p className="mono">{target.digest}</p>
-            <p>소프트웨어 패키지 검토 결정입니다. 실물 검증이나 운전 자격을 생성하지 않습니다.</p>
+            <p>
+              This is a software package review decision. It does not establish physical
+              verification or operating qualification.
+            </p>
             <p>{String(target.command.note)}</p>
             <div className="package-actions">
-              <button onClick={() => setTarget(null)}>돌아가기</button>
+              <button onClick={() => setTarget(null)}>Back</button>
               <button
                 className="primary"
                 disabled={
@@ -626,7 +639,9 @@ export function DeviceReviews({
                 }
                 onClick={() => void confirm()}
               >
-                {target.choice === 'APPROVE' ? '이 장비 버전 승인 기록' : '이 장비 버전 반려 기록'}
+                {target.choice === 'APPROVE'
+                  ? 'Record approval for this device version'
+                  : 'Record rejection for this device version'}
               </button>
             </div>
           </>

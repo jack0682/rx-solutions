@@ -1,71 +1,71 @@
-# ROS JTC 장비 패키지·Host 등록
+# ROS JTC device packages and Host registration
 
-phase63. position JointTrajectoryController를 사용하는 장비 catalog 구성의 Template/Site를 DEVICE_REFERENCE v2 패키지로 작성·검증하고 Host 초기화에 연결한다. 현재 제품 factory의 JTC 실행 제공자는 미연결이다. 검사와 원장 준비는 가능하지만 `run`은 ROS client를 만들기 전에 `JTC_CONTROL_PROVIDER_NOT_CONFIGURED`로 실패한다.
+phase63. Authors and validates Template/Site inputs for device catalog configurations using a position JointTrajectoryController as DEVICE_REFERENCE v2 packages, and connects them to Host initialization. The JTC execution provider in the current product factory is not connected. Inspection and journal preparation are available, but `run` fails with `JTC_CONTROL_PROVIDER_NOT_CONFIGURED` before creating a ROS client.
 
-## 작성 입력과 산출물
+## Authoring inputs and outputs
 
-| 입력 | 내용 |
+| Input | Contents |
 |---|---|
-| Template | catalog SHA·support ID·controller, 논리 자원/조건 역할, 작업 slot·joint group·tool role, 실행/prepare timeout·Authority 관측 유효기간 |
-| Site | Template digest, 설치/셀/target/site 구성, 실제 자원/조건 이름, 교정/도구 artifact, ROS namespace/manager/domain·통신 한도, slot별 Goal |
-| Recipe | package 이름/version/publisher·Linux/Jazzy target |
+| Template | Catalog SHA, support ID, controller, logical resource/condition roles, operation slots, joint groups, tool roles, execution/prepare timeouts and Authority observation validity period |
+| Site | Template digest, installation/cell/target/site configuration, actual resource/condition names, calibration/tool artifacts, ROS namespace/manager/domain, communication limits and per-slot Goals |
+| Recipe | Package name/version/publisher and Linux/Jazzy target |
 
-Template은 현장 좌표·namespace·실제 자원 이름을 갖지 않는다. Site는 Template의 작업·역할 목록에 정확히 대응해야 한다. 누락/추가 slot, 중복 실제 자원/조건 alias, 잘못된 관절 순서, goal 시간보다 짧은 실행 timeout을 거부한다. Template action 순서와 calibration 목록처럼 의미 없는 순서는 정규화하지만 trajectory의 관절/point 순서는 보존한다.
+Template has no site coordinates, namespace or actual resource names. Site must correspond exactly to Template's operation and role lists. Missing/extra slots, duplicate actual resource/condition aliases, incorrect joint ordering and execution timeouts shorter than goal duration are rejected. Semantically irrelevant ordering, such as Template action order and calibration lists, is normalized, while trajectory joint/point ordering is preserved.
 
-현재 교정 자료는1–16개 `rx.robot-calibration.v1`, 각 tool role은 `rx.tool-definition.v1` ArtifactRef를 요구한다. 자료당1MiB, 전체32개 고유 asset 이내다. 동일 digest에 서로 다른 schema/size를 붙이는 모순은 거부한다. 파일 bytes/digest/크기 일치는 내용의 물리적 적합성이나 교정 완료를 증명하지 않는다. 첫 현장의 실제 자료가 없으면 commissioning은 완료되지 않는다.
+Current calibration material requires 1–16 `rx.robot-calibration.v1` artifacts, and each tool role requires a `rx.tool-definition.v1` ArtifactRef. Each artifact is limited to 1 MiB, with at most 32 unique assets overall. Contradictory schemas/sizes for an identical digest are rejected. File bytes/digest/size agreement does not establish physical suitability of the content or completed calibration. Commissioning is incomplete without actual material from the first site.
 
-slot별 Goal 원본으로 trajectory ArtifactRef를 계산한다. 현재 조립은 다음7개 payload를 만든다. 전부 데이터이며 실행파일·ROS launch 파일·환경 변수·임의 DLL 경로를 포함하지 않는다.
+Trajectory ArtifactRefs are calculated from original per-slot Goals. Current assembly produces the following 7 payloads. All are data; they contain no executables, ROS launch files, environment variables or arbitrary DLL paths.
 
-| 파일 | 역할 |
+| File | Role |
 |---|---|
-| family.json | catalog에서 확인한 model/support ID·환경 |
-| profile.json | Host가 검사할 실제 JTC Profile |
-| adapter.json | release의 JTC 구현 이름·소스 digest |
-| authoring/assembly.json | Template/Site 원본 |
-| operations.json | slot별 정확한 Intent·시간 제한·profile/site/tool/calibration/resource 참조 |
-| outcomes.json | 같은 profile digest에 결합한 native 결과 대응표 |
-| device-catalog.json | phase64 공통 작업 선언과 signed source 문서 참조; P 반입·조회용 |
+| family.json | Model/support ID and environment verified in the catalog |
+| profile.json | Actual JTC Profile checked by the Host |
+| adapter.json | Release JTC implementation name and source digest |
+| authoring/assembly.json | Original Template/Site inputs |
+| operations.json | Exact per-slot Intent, time limits and profile/site/tool/calibration/resource references |
+| outcomes.json | Native outcome mapping bound to the same profile digest |
+| device-catalog.json | phase64 common operation declarations and signed source document references; for import/query by P |
 
-manifest/signature를 더한 게시물은9파일이며 payload 합계는 현재2MiB 이내다. phase63의6-payload 패키지도 decoder에서 계속 읽지만 공통 선언 조회 자료는 없다. Profile의 개별 Goal 한도보다 패키지 전체 한도가 먼저 제한할 수 있다. 한도를 넘으면 분할이나 범위 재설계를 요청할 오류를 반환하며 일부 goal을 누락해 조립하지 않는다.
+The publication has 9 files including manifest/signature, and total payload size is currently limited to 2 MiB. The decoder still reads phase63 packages with 6 payloads, but they contain no common declaration query data. The total package limit may constrain content before the Profile's individual Goal limit does. Exceeding the limit returns an error requiring splitting or scope redesign; assembly does not omit some goals.
 
-## 작성·검사 흐름
+## Authoring and inspection flow
 
-기존 `rx-device-package` 명령을 재사용한다. Template/assembly의 schema로 MELSEC와 JTC를 구별하며 미지 schema는 거부한다. 기존 MELSEC API와 `driver-identity` 출력도 유지한다.
+Existing `rx-device-package` commands are reused. Template/assembly schemas distinguish MELSEC from JTC; unknown schemas are rejected. Existing MELSEC APIs and `driver-identity` output are preserved.
 
 ```text
 rx-device-package driver-identity jtc
 rx-device-package template-digest TEMPLATE
 rx-device-package assemble TEMPLATE SITE RECIPE CANDIDATE
 rx-device-package request CANDIDATE KEY_ID REQUEST_FILE
-# 외부 signer가 request의 원래 메시지 bytes에 서명
+# An external signer signs the request's original message bytes
 rx-device-package seal CANDIDATE SIGNATURE POLICY PACKAGE
 rx-device-package inspect PACKAGE POLICY
 ```
 
-개인키·외부 전송은 제품 CLI에 없다. 외부 서명 규칙은 [작성 도구](../rx-device-package/README.md)를 따른다. candidate 재읽기도 원본 조립과 manifest/payload를 대조하므로 중간 파일을 수정한 뒤 그대로 봉인할 수 없다.
+The product CLI has no private-key handling or external transmission. External signing rules follow the [authoring tool](../rx-device-package/README.md). Rereading a candidate also compares the original assembly with the manifest/payloads, so edited intermediate files cannot simply be sealed unchanged.
 
-검사기는 공통 서명·publisher·권한·내용 해시 검사 뒤 검증기가 소유한 불변 bytes를 해석한다. assembly를 재조립하여 family/profile/operations/outcomes를 다시 비교한다. 유효한 signer가 잘못된 model·timeout·결과표 또는 다른 release descriptor에 서명했어도 거부한다. 외부 calibration/tool asset 목록은 조립 원본과 정확히 같아야 한다.
+After common signature, publisher, permission and content hash checks, the inspector interprets immutable bytes owned by the verifier. It reassembles the assembly and compares family/profile/operations/outcomes again. Even a valid signer's signature is rejected if it covers an incorrect model, timeout, outcome table or different release descriptor. The external calibration/tool asset list must match the assembly originals exactly.
 
-JTC target은 Linux/Jazzy다. Host는 현재 CPU architecture와 base/cell/package ABI, pinned policy 및 선택한 manifest digest를 추가 검사한다. source descriptor는 Host/MC 소스, 공유 SDK lock, JTC C++ 연결 계층·catalog·native source lock 등을 포함한 빌드 소스 기준이다. 실제 binary·동적 library의 서명 또는 물리 controller identity와 동일하지 않으며 release 검증을 대체하지 않는다.
+The JTC target is Linux/Jazzy. The Host additionally checks the current CPU architecture, base/cell/package ABI, pinned policy and selected manifest digest. The source descriptor is based on build sources including Host/MC sources, shared SDK lock, JTC C++ bridge layer, catalog and native source lock. It is not the same as an actual binary/dynamic library signature or physical controller identity, and does not replace release verification.
 
-## Host 설정·초기화와 실행 경계
+## Host configuration, initialization and execution boundary
 
-Host backend에는 `JTC_PACKAGE`와 package directory/manifest_digest/pinned policy를 지정한다. 같은 설치·셀·환경·조건 목록만 허용하며 Host의 각 allowed Intent는 operations.json의 정확한 Intent digest와 일치해야 한다. 패키지의 일부 작업만 선택할 수 있으나 timeout 등 의미를 바꾼 작업을 끼워 넣을 수 없다.
+Specify `JTC_PACKAGE` with package directory/manifest_digest/pinned policy as the Host backend. Only the same installation/cell/environment/condition list is allowed, and each allowed Intent in the Host must match the exact Intent digest in operations.json. A subset of package operations may be selected, but operations with changed semantics such as altered timeouts cannot be inserted.
 
-`rx-hostd drivers jtc`는 제품 executable이 기대하는 descriptor를 출력한다. `inspect`는 콘텐츠와 bindings를 검사하고 `control_provider=NOT_CONFIGURED`, activation=false, native_processes_started=0을 보여준다. `init`은 비공개 staging 디렉토리 안에 Host 원장과 native-jtc/native.sqlite3 및 원장 identity/manifest를 만든 뒤 원자 공개한다. 기존 설치를 덮어쓰지 않는다.
+`rx-hostd drivers jtc` outputs the descriptor expected by the product executable. `inspect` checks content and bindings and shows `control_provider=NOT_CONFIGURED`, activation=false and native_processes_started=0. `init` creates Host journals, native-jtc/native.sqlite3 and journal identity/manifest in a private staging directory, then publishes them atomically. It does not overwrite existing installations.
 
-현재 Builtin은 JTC provider를 갖지 않는다. `run`은 제품용 Authority/lifecycle/fencing 제공자가 없다는 오류로 실패하며 READY/Arm/새 ROS client를 만들지 않는다. Site에 `safe=true`나 임의 실행 경로를 추가해 이 경계를 우회할 수 없다. 이는 provider 구현을 완료했다는 의미가 아니다.
+Builtin currently has no JTC provider. `run` fails because no product Authority/lifecycle/fencing provider exists; it does not create READY, Arm or a new ROS client. Adding `safe=true` or an arbitrary execution path to Site cannot bypass this boundary. This does not mean provider implementation is complete.
 
-다음에는 release 소유 provider를 연결해야 한다. 그 제공자는 실제 controller 세대·독점 제어권과 독립 보호/소재 지지, 세대별 endpoint 및 lifecycle을 확인해야 한다. 프로세스 재시작이나 bridge READY만으로 같은 controller가 유지된다고 추정하지 않는다. P의 패키지 반입/검토를 거쳐 operations/outcomes를 실제 셀 구성으로 연결하는 자동화도 후속이다.
+A release-owned provider must be connected next. It must verify the actual controller generation, exclusive control authority, independent protection/material support, generation-specific endpoints and lifecycle. It must not infer that the same controller persists from process restart or bridge READY alone. Automation that connects operations/outcomes to actual cell configuration through P package import/review also remains future work.
 
-phase64에서는 [P의 공통 작업 선언 반입·보관·조회](https://github.com/jack0682/rx-platform/blob/codex/initial-draft/crates/rx-application/DEVICE_CATALOG.md)를 연결했다. 원본 source 상관과 현재 설치/셀/환경을 검사하지만 제조사 검증·검토 승인이나 실제 구성 적용은 수행하지 않는다. 이전 이미지의 exact source descriptor와 새 패키지를 호환한다고 추정하지 않는다.
+phase64 connected [P's common operation declaration import, retention and query](https://github.com/jack0682/rx-platform/blob/codex/initial-draft/crates/rx-application/DEVICE_CATALOG.md). It checks original-source correlation and the current installation/cell/environment, but does not perform manufacturer validation, review approval or actual configuration application. Compatibility between an old image's exact source descriptor and a new package is not inferred.
 
-## 검증과 제한
+## Verification and limitations
 
-시험은 Template 재사용·정규화, 원본→candidate→외부 test 서명→검사, signed-but-inconsistent payload 거부, asset 변조·정확한 Intent와 Host metadata 초기화·provider 없는 run 거부를 다룬다. 컨테이너 검증은 같은 image의 실제 작성 executable을 사용하며 test signer는 호스트의 별도 시험 코드다. 정확한 수행 결과는 [phase63 기록](https://github.com/jack0682/rx_docs/blob/6111a7d1dcf33052f38c3e67c6585aec2b44df3c/references/implementation/phase63_checks.json)을 따른다.
+Tests cover Template reuse/normalization, original→candidate→external test signature→inspection, rejection of signed-but-inconsistent payloads, asset tampering, exact Intent matching, Host metadata initialization and rejection of run without a provider. Container verification uses the actual authoring executable in the same image; the test signer is separate test code on the host. Exact execution results follow the [phase63 record](https://github.com/jack0682/rx_docs/blob/6111a7d1dcf33052f38c3e67c6585aec2b44df3c/references/implementation/phase63_checks.json).
 
-이 단계는 실제 장비·그리퍼·leader/base/policy 경로의 지원 인수가 아니다. 자료 선언을 실행 권한으로 바꾸지 않는다. [JTC 어댑터](ROS_JTC_ADAPTER.md), [결과 대응표](https://github.com/jack0682/rx-platform/blob/codex/initial-draft/crates/rx-application/NATIVE_OUTCOMES.md), 두 이미지 경계와 제조사 중립 지원 선언과 첫 물리 셀 NOT_COMMISSIONED를 유지한다.
+This stage does not constitute support acceptance for actual devices, grippers or leader/base/policy paths. Data declarations are not converted into execution authority. The [JTC adapter](ROS_JTC_ADAPTER.md), [outcome mapping](https://github.com/jack0682/rx-platform/blob/codex/initial-draft/crates/rx-application/NATIVE_OUTCOMES.md), two-image boundary, vendor-neutral support declarations and first physical cell NOT_COMMISSIONED remain in force.
 
-## 중립 카탈로그 전환
+## Transition to a neutral catalog
 
-2026-09-14부터 JTC schema·family·driver 식별자와 digest domain은 `rx.ros-jtc.*`와 `RX-ROS-JTC-*`를 사용한다. 새 카탈로그는 명시적 모의 fixture다. 이전 식별자로 서명한 패키지를 자동 호환하거나 다시 해석하지 않는다. Template/Site digest를 다시 계산하고 패키지 조립·서명·검증을 다시 수행해야 한다. 현재 fixture는 SIMULATION 환경만 허용하며 실제 장비를 추가할 때 source 근거와 commissioning을 별도 확인한다.
+From 2026-09-14, JTC schema/family/driver identifiers and digest domains use `rx.ros-jtc.*` and `RX-ROS-JTC-*`. The new catalog is an explicit simulation fixture. Packages signed with earlier identifiers are not automatically compatible or reinterpreted. Template/Site digests must be recalculated and package assembly, signing and verification repeated. The current fixture permits only the SIMULATION environment; source evidence and commissioning must be checked separately when adding actual devices.

@@ -1,18 +1,18 @@
-# ROS JTC ROS 연결 계층
+# ROS JTC ROS integration layer
 
-2026-09-12. `rx-ros-jtc-bridge`는 ROS 지원표의 position JointTrajectoryController를 선택하여 ROS 2 action의 목표 전송·결과 조회·정확한 목표 취소를 수행한다. C++/ROS 의존성은 `rx-solutions`에 둔다. Platform core에 ROS를 추가하지 않는다.
+2026-09-12. `rx-ros-jtc-bridge` selects a position JointTrajectoryController from the ROS support table and sends ROS 2 action goals, queries results, and cancels exact goals. C++/ROS dependencies belong in `rx-solutions`. ROS is not added to the Platform core.
 
-**현재는 통신 bridge다.** 제품 image에 executable을 포함하며 phase61에서 [Rust NativeAdapter와 영속 원장](../../runtime/rx-host/ROS_JTC_ADAPTER.md)을 library 수준으로 연결했다. 제품 startup factory와 실제 Authority 제공자는 아직 연결하지 않았다. 기본 기동으로 실행되지 않으며, 현재 Host의 영속 native journal·qualification·grant/permit·handover·정상 종료 권위가 이 bridge까지 이어졌다고 주장하지 않는다. 실제 ROS 장비·장비 드라이버·controller_manager를 시작하거나 종료하는 코드도 없다.
+**This is currently a communication bridge.** Its executable is included in the product image, and phase61 connected the [Rust NativeAdapter and durable ledger](../../runtime/rx-host/ROS_JTC_ADAPTER.md) at library level. The product startup factory and actual Authority provider are not yet connected. It does not run at default startup, and this does not claim that the Host's durable native journal, qualification, grant/permit, handover, or normal shutdown authority currently extend to this bridge. It also has no code that starts or stops physical ROS devices, device drivers, or controller_manager.
 
-## 1. 기본 모델과 controller 선택
+## 1. Default model and controller selection
 
-빌드할 때 [기본 지원표](../../catalogs/device-support.v1.json)를 포함하고, 설정의 원본 SHA-256을 대조한다. support ID/model/controller 종류·관절 순서를 여기서 선택한다. 설정에서 관절 목록이나 plugin 종류를 임의로 덮어쓸 수 없다.
+The [default support table](../../catalogs/device-support.v1.json) is included at build time, and its source SHA-256 is checked against configuration. The support ID/model/controller type and joint order are selected from that table. Configuration cannot arbitrarily override the joint list or plugin type.
 
-현재 기본 카탈로그는 새로 작성한 모의 선언이다. `SIM-JTC-6DOF`와 `SIM-JTC-7DOF`의 두 position JTC를 허용하며, leader·impedance와 gripper 전용 action은 거부 시험용이다. 실제 제조사 모델의 관측·검증 자료를 승계하지 않는다.
+The current default catalog contains newly written simulation declarations. It permits the two position JTC profiles `SIM-JTC-6DOF` and `SIM-JTC-7DOF`; leader, impedance, and gripper-only actions are rejection-test cases. It inherits no observation or validation evidence for actual vendor models.
 
-MANIPULATOR/FOLLOWER/MOBILE_BASE 역할 중 plugin이 `joint_trajectory_controller/JointTrajectoryController`이고 command interface가 position인 경우만 받는다. controller 선언의 선택은 실행 권한이 아니며, Host는 SIMULATION_FIXTURE를 실제 장비 환경으로 사용하는 것을 거부한다.
+Among MANIPULATOR/FOLLOWER/MOBILE_BASE roles, only plugin `joint_trajectory_controller/JointTrajectoryController` with a position command interface is accepted. Selecting a controller declaration does not grant execution authority, and the Host rejects using SIMULATION_FIXTURE for a physical device environment.
 
-## 2. 기동 설정
+## 2. Startup configuration
 
 ```json
 {
@@ -28,57 +28,57 @@ MANIPULATOR/FOLLOWER/MOBILE_BASE 역할 중 plugin이 `joint_trajectory_controll
 }
 ```
 
-실제 site 값이 아닌 형식 예시다. catalog hash의 꺾쇠 값은 교체해야 한다. ROS domain은 명시하고, namespace/manager는 절대 ROS 이름이다. action 이름은 namespace + 선택한 controller + `/follow_joint_trajectory`로 생성한다. topic remapping·임의 service 이름이나 ROS global arguments를 명령마다 받지 않는다. parameter service/event publisher도 열지 않는다.
+This is a format example, not actual site values. Replace the angle-bracketed catalog hash. The ROS domain is explicit, and namespace/manager are absolute ROS names. The action name is generated as namespace + selected controller + `/follow_joint_trajectory`. Commands do not accept topic remapping, arbitrary service names, or ROS global arguments. No parameter service/event publisher is opened.
 
-기동은 ROS clients만 만든다. hardware plugin, driver configure/activate, controller switch, init_position, torque enable/disable은 호출하지 않는다. ROS discovery/network 설정 자체가 권한 검증은 아니며, field 배포의 ROS peer/네트워크 접근 제어는 후속이다. 테스트는 명시적 Fast DDS/localhost와 network-none container에서 진행한다.
+Startup only creates ROS clients. It does not invoke hardware plugins, driver configure/activate, controller switches, init_position, or torque enable/disable. ROS discovery/network configuration is not itself authority validation; ROS peer/network access control for field deployment remains future work. Tests use explicit Fast DDS/localhost settings and a network-none container.
 
-## 3. 부모와의 IPC
+## 3. IPC with the parent
 
-표준입출력의 JSON 한 줄 단위 private pipe다. 입력은 최대1MiB·depth32이며 중복 key·추가/누락 field·잘못된 UUID/counter를 거부한다. stdout은 reply JSON, stderr는 진단이다. 부모는 READY에서 bridge instance UUID와 Linux boot 기반 clock ID/ticks를 얻는다. UUID는 bridge 프로세스마다 바뀐다.
+IPC uses private stdin/stdout pipes with one JSON object per line. Input is limited to 1MiB and depth 32; duplicate keys, extra/missing fields, and invalid UUIDs/counters are rejected. Stdout contains reply JSON; stderr contains diagnostics. At READY, the parent receives the bridge instance UUID and Linux boot-based clock ID/ticks. The UUID changes for each bridge process.
 
-각 요청은 schema, bridge_instance, 증가하는 sequence(십진 문자열), expires_at_ns(같은 CLOCK_BOOTTIME의 절대값), command, body를 가진다. 최대 admission window는1초다. ROS 대기 시간은 설정된 timeout(최대1초)과 남은 요청 시간 중 작은 값으로 제한한다. 이는 소프트웨어 시간 경계이며 hard realtime이나 실제 모터 정지 시간을 보장하지 않는다.
+Each request contains schema, bridge_instance, an increasing sequence (decimal string), expires_at_ns (an absolute value on the same CLOCK_BOOTTIME), command, and body. The maximum admission window is 1 second. ROS waits are limited to the smaller of the configured timeout (at most 1 second) and the remaining request time. This is a software timing boundary, not a guarantee of hard real-time behavior or actual motor stop time.
 
-| command | body | 의미 |
+| command | body | Meaning |
 |---|---|---|
-| inspect | 빈 object | controller 상태·정확한 claimed interfaces·service availability 관측 |
-| send | operation UUID, invocation UUID, goal | catalog에 맞는 새 유한 trajectory 목표 전송 |
-| result | invocation UUID | 해당 ROS goal UUID의 결과만 조회 |
-| cancel | invocation UUID | 이 bridge가 알고 있는 해당 UUID 하나만 취소 요청 |
+| inspect | Empty object | Observe controller state, exact claimed interfaces, and service availability |
+| send | operation UUID, invocation UUID, goal | Send a new finite trajectory goal consistent with the catalog |
+| result | invocation UUID | Query only the result for that ROS goal UUID |
+| cancel | invocation UUID | Request cancellation only of that single UUID known to this bridge |
 
-결과에는 bridge_instance, sequence, clock_id/ticks_ns, state, value, fault가 있다. `REJECTED`는 IPC 요청 거부이지 과거 native 작업이 미실행됐다는 증거가 아니다. read RPC가 응답을 주지 않으면 `RPC_UNKNOWN`이며 native 실패/완료로 바꾸지 않는다.
+Results contain bridge_instance, sequence, clock_id/ticks_ns, state, value, and fault. `REJECTED` means rejection of the IPC request, not evidence that an earlier native operation did not execute. If a read RPC provides no response, the result is `RPC_UNKNOWN`; it is not converted into native failure/completion.
 
-## 4. trajectory 표현과 preflight
+## 4. Trajectory representation and preflight
 
-goal은 joints, points, path_tolerance, goal_tolerance, goal_time_ns를 정확히 담는다. points에는 positions/velocities/accelerations/time_ns가 있다. 관절 목록·순서는 catalog 전체와 같아야 하며 partial goal을 받지 않는다. position 배열은 전체 관절 수, velocity/acceleration은 전체 또는 빈 배열이다. 값은 유한 수이고 절댓값1e6 이내이며, 이 수치 한도는 기계 joint limit가 아니다.
+A goal contains exactly joints, points, path_tolerance, goal_tolerance, and goal_time_ns. Points contain positions/velocities/accelerations/time_ns. The joint list and order must match the complete catalog declaration; partial goals are not accepted. The position array covers every joint; velocity/acceleration arrays are either complete or empty. Values must be finite with absolute magnitude at most 1e6; this numerical bound is not a mechanical joint limit.
 
-최대1024 point, 0보다 큰 strictly increasing time_from_start, 마지막 시간1시간 이내를 요구한다. joint별 path/goal tolerance는 이름·position/velocity/acceleration을 모두 명시하며 양수만 받는다. 이 단계에서는 ROS의 0(default)이나 -1(disabled) 허용오차를 사용하지 않는다. goal_time_tolerance는 0보다 크고60초 이하다. 모든 단위·joint limits·속도/가속도·충돌/기구/교정 검사는 실제 Profile/Envelope에서 추가해야 한다.
+There may be at most 1024 points; time_from_start must be greater than 0 and strictly increasing, with the final time no greater than 1 hour. Per-joint path/goal tolerances explicitly include name and position/velocity/acceleration and accept only positive values. ROS tolerances of 0 (default) or -1 (disabled) are not used at this stage. goal_time_tolerance must be greater than 0 and at most 60 seconds. All units, joint limits, velocity/acceleration, collision, mechanical, and calibration checks must be added in the actual Profile/Envelope.
 
-송신 직전 ListControllers로 선택한 controller가 active이고 type·position claimed-interface 집합이 정확히 일치하는지 확인한다. 더 많은 joint를 가진 controller에도 일부만 일치한다고 통과시키지 않는다. chained controller는 거부한다.
+Immediately before sending, ListControllers verifies that the selected controller is active and that its type and set of position claimed interfaces match exactly. A controller with more joints does not pass on the basis of a partial match. Chained controllers are rejected.
 
-이 조회는 controller server의 boot identity나 같은 action server라는 암호학적 증거가 아니다. 다른 ROS client의 goal이나 실제 소재 지지 상태도 증명하지 않는다. 응답에는 `controller_generation_known=false`, `physical_readiness_proven=false`를 명시한다.
+This query is not evidence of the controller server's boot identity or cryptographic proof that it is the same action server. It also does not prove anything about goals from other ROS clients or actual material support. The response explicitly states `controller_generation_known=false` and `physical_readiness_proven=false`.
 
-## 5. 접수·결과·취소
+## 5. Admission, results, and cancellation
 
-ROS action은 client가 정한 UUID를 goal에 사용하며, 접수와 terminal result는 별도 응답이다. result cache는 server의 설정/수명에 영향을 받는다. cancel 응답 역시 terminal canceled 상태와 구분된다. [ROS 2 action 설계](https://design.ros2.org/articles/actions.html).
+ROS actions use a client-selected UUID for each goal, and acceptance and terminal results are separate responses. The result cache depends on server configuration/lifetime. A cancellation response is also distinct from terminal canceled state. [ROS 2 action design](https://design.ros2.org/articles/actions.html).
 
-bridge는 호출자의 invocation UUID를 SendGoal에 그대로 넣는다. action client가 임의로 다른 UUID를 만들어 나중에 알려주는 형태가 아니다. 송신 경계 전에 프로세스 메모리에 operation/invocation/body를 기록하고 같은 invocation/body의 반복은 원래 receipt를 반환한다. 다른 body·같은 operation의 다른 invocation을 거부한다.
+The bridge passes the caller's invocation UUID unchanged into SendGoal. It does not let the action client generate another arbitrary UUID and report it afterward. Before the send boundary, operation/invocation/body are recorded in process memory; repeating the same invocation/body returns the original receipt. A different body or another invocation for the same operation is rejected.
 
-이 bridge가 아는 미해결 goal이 있으면 새 goal로 preempt하지 않는다. 저장 goal 수는 설정 capacity(최대512), 본문 합계16MiB를 넘지 않는다. **이 기록은 비영속적이다.** 외부 Host가 SEND_ENTERED와 원래 UUID를 먼저 영속 저장해야 하며, bridge 재시작 뒤 새 READY를 받아 과거 작업을 다시 보내는 것이 허용되지 않는다. 영속 Host 연결의 현재 범위는 위 NativeAdapter 명세를 따른다. production controller authority와 factory는 후속이다.
+If this bridge knows an unresolved goal, it does not preempt it with a new goal. Stored goals cannot exceed the configured capacity (at most 512), and total body storage cannot exceed 16MiB. **These records are not durable.** The external Host must first durably store SEND_ENTERED and the original UUID. After a bridge restart, receiving a new READY does not permit resending an earlier operation. The current durable Host integration scope follows the NativeAdapter specification above. Production controller authority and factory integration remain future work.
 
-SendGoal 응답 유실/시간 초과는 SEND_UNKNOWN으로 보존하고 자동 재전송하지 않는다. 이후 같은 UUID의 result를 조회할 수 있지만 admission fault latch를 자동 해제하지 않는다. 현재 명시적 latch 해제/복귀 명령은 없다. bridge를 재시작해서 차단을 우회하면 안 되며, 후속 Host의 영속 원장·복구/재검증 절차에 따라 새 시작을 결정해야 한다. 일반 결과에는 ROS goal status와 controller error_code/error_string을 함께 남긴다. status UNKNOWN과 error_code0을 성공으로 해석하지 않고, SUCCEEDED와 오류 code가 함께 온 경우도 둘 다 보존한다. 전역 Outcome 결정은 이 bridge의 역할이 아니다. ACK/result/cancel의 실제 수신 시각은 value의 captured_at_ns로 보관하며, cache 응답도 원래 시각을 유지한다. reply의 바깥 ticks_ns는 응답 전송 시각이므로 새 장비 관측 시각으로 사용하지 않는다.
+A lost/timed-out SendGoal response remains SEND_UNKNOWN and is not automatically resent. A result for the same UUID may be queried later, but the admission fault latch is not automatically cleared. There is currently no explicit latch-clear/recovery command. Restarting the bridge must not bypass the block; a new start must be decided through the future Host's durable ledger and recovery/revalidation procedure. Ordinary results retain both the ROS goal status and controller error_code/error_string. Status UNKNOWN with error_code0 is not interpreted as success; SUCCEEDED accompanied by an error code also preserves both facts. Deciding the global Outcome is not this bridge's role. The actual receipt time of ACK/result/cancel is stored as captured_at_ns in value; cached responses retain the original timestamp. The outer reply ticks_ns is the response transmission time and must not be used as the time of a new device observation.
 
-cancel은 known nonzero UUID와 timestamp0만 전송한다. cancel-all/이전 시각까지 일괄 취소는 표현할 수 없다. 응답에 다른 goal UUID가 섞여도 거부한다. 동일 goal의 취소 기록은 메모리에 보존하며 반복 취소를 재송신하지 않는다. CANCEL_UNKNOWN도 보존하고 새 send를 latch한다. 취소 접수 응답의 `terminal_stop_proven`은 false이며 별도 result가 필요하다. terminal action result도 물리 정지·소재 인계 증거는 아니다.
+Cancellation sends only a known nonzero UUID with timestamp0. Cancel-all and bulk cancellation up to an earlier timestamp cannot be expressed. Responses containing another goal UUID are also rejected. Cancellation records for the same goal remain in memory; repeated cancellations are not resent. CANCEL_UNKNOWN is also preserved and latches new sends. `terminal_stop_proven` in a cancellation acceptance response is false, and a separate result is required. A terminal action result is still not evidence of physical stopping or material handover.
 
-시간 초과한 rclcpp pending request는 제거해 반복 result 조회가 미완료 future를 계속 누적하지 않도록 한다. 이미 실행 중인 장비 효과를 이 제거가 취소하는 것은 아니다.
+Timed-out rclcpp pending requests are removed so that repeated result queries do not keep accumulating unfinished futures. This removal does not cancel device effects already in progress.
 
-## 6. 종료와 후속 통합
+## 6. Shutdown and subsequent integration
 
-stdin EOF는 clients/context를 닫는다. goal cancel, controller stop, torque off를 자동 실행하지 않는다. 이 프로세스는 장비 드라이버/로봇 driver의 소유자가 아니므로 그 소멸자를 호출하지 않는다. 이미 실행 중인 goal은 controller에서 계속 실행될 수 있다. parent 소실·SIGTERM·강제 종료를 기계 정지나 정상 인계로 해석하지 않는다.
+Stdin EOF closes clients/context. It does not automatically cancel goals, stop controllers, or turn off torque. This process does not own device/robot drivers and therefore does not invoke their destructors. Goals already in progress may continue in the controller. Parent loss, SIGTERM, and forced termination must not be interpreted as machine stopping or normal handover.
 
-현재 Rust NativeAdapter는 영속 journal과 artifact/dispatch context를 연결했다. 다음에는 production controller generation·제어권 제공자, package/factory와 qualification/permit 구성을, 실제 관측/최종 오차와 handover/drop proof, 정상 종료/부모 소실 처리가 필요하다. gripper·leader·base·policy 경로와 실제 장비별 물리 검증도 남아 있다.
+The current Rust NativeAdapter connects the durable journal and artifact/dispatch context. Remaining work includes production controller generation and authority providers, package/factory and qualification/permit configuration, actual observations/final error and handover/drop proof, and normal shutdown/parent-loss handling. Gripper, leader, base, and policy paths and physical validation for each actual device also remain outstanding.
 
-## 7. 검증
+## 7. Validation
 
-모의 rclpy ActionServer와 실제 C++ ROS service/action clients를 사용한다. 관절/시간/허용오차/추가 field 거부, 비활성·잘못된 claim 집합, 지정 UUID·중복/경합, result UNKNOWN/abort/모순, exact cancel·cancel response와 terminal 분리, preflight deadline, IPC 세대/sequence/중복 key, 응답 유실과 후기 사실을 검사한다. 현재 두 모의 JTC 선언의 startup 선택과 joint set을 대조하며 이 단계에서는 goal을 보내지 않는다.
+Tests use a simulated rclpy ActionServer and actual C++ ROS service/action clients. They check rejection of joints/timing/tolerances/extra fields, inactive or incorrect claim sets, specified UUIDs and duplicates/races, result UNKNOWN/abort/contradictions, exact cancellation and separation of cancellation responses from terminal state, preflight deadlines, IPC generations/sequences/duplicate keys, lost responses, and late facts. Startup selection and joint sets for the two current simulation JTC declarations are compared without sending goals at this stage.
 
-이 시험은 실제 ROS driver·실장비를 구동하지 않는다. C++ bridge는 제품 S image에 포함하되 기본 process 관리 모드가 자동으로 실행하지 않는다. 과거 검증 원문은 Git 이력에 보존한다. 새 중립 fixture와 이미지의 시험은 별도 실행 결과로 확인한다.
+These tests do not operate actual ROS drivers or physical devices. The C++ bridge is included in the product S image, but default process management mode does not start it automatically. Original earlier validation records remain in Git history. Tests of the new neutral fixture and image are confirmed through separate execution results.

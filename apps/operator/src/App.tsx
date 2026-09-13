@@ -16,7 +16,7 @@ import {
   type DraftDetail,
 } from './draft-schema';
 import { Conditions } from './conditions';
-import { text, short, time } from './labels';
+import { count, text, short, time } from './labels';
 import { Runs, Work, Configuration } from './views';
 import { RunStart } from './run-start';
 import { HostRecovery } from './host-recovery';
@@ -65,7 +65,7 @@ export function App() {
   const [now, setNow] = useState(performance.now());
   const [error, setError] = useState('');
   const [toast, setToast] = useState('');
-  const [tab, setTab] = useState('운영');
+  const [tab, setTab] = useState('Operations');
   const [selected, setSelected] = useState('');
   const [dialog, setDialog] = useState<{ kind: 'run' | 'hold'; cell: CellOverview } | null>(null);
   const [pending, setPending] = useState<Pending | null>(null);
@@ -156,7 +156,7 @@ export function App() {
       () => {
         if (document.visibilityState === 'visible') void refresh();
       },
-      tab === '운전 조건' ? 500 : 3000,
+      tab === 'Operating conditions' ? 500 : 3000,
     );
     const visible = () => {
       if (document.visibilityState === 'visible') void refresh();
@@ -243,8 +243,7 @@ export function App() {
   }
   async function logout() {
     if (busy.current) return;
-    if (hasUnsavedDraft && !window.confirm('저장되지 않은 공정 편집을 버리고 로그아웃할까요?'))
-      return;
+    if (hasUnsavedDraft && !window.confirm('Discard unsaved workflow edits and sign out?')) return;
     busy.current = true;
     setWorking(true);
     try {
@@ -326,7 +325,8 @@ export function App() {
         installation: data.installation.id,
         store_generation: data.installation.store_generation,
         route: dialog?.kind === 'hold' ? '/api/v1/cells/hold' : '/api/v1/runs',
-        label: dialog?.kind === 'hold' ? `${config.id} 운전 보류` : `${config.id} 새 실행 준비`,
+        label:
+          dialog?.kind === 'hold' ? `${config.id} Operation hold` : `${config.id} Prepare new run`,
         command:
           dialog?.kind === 'hold'
             ? { cell: config.id }
@@ -442,7 +442,7 @@ export function App() {
       clearPending(sessionStorage);
       setPending(null);
       setDialog(null);
-      setToast('요청 기록을 확인했습니다. 최신 상태를 조회했습니다.');
+      setToast('The request record was verified and the latest state was retrieved.');
       await refresh();
     } catch (e) {
       if (!sent) setStorageError(true);
@@ -456,7 +456,7 @@ export function App() {
         }
       }
       setToast(
-        `${explain(e)}${sent && (retry || !(e instanceof ApiFailure) || e.unknownOutcome) ? ' 같은 요청 번호로 기록을 확인해야 합니다.' : ''}`,
+        `${explain(e)}${sent && (retry || !(e instanceof ApiFailure) || e.unknownOutcome) ? ' Verify the record using the same request key.' : ''}`,
       );
       setDialog(null);
     } finally {
@@ -492,15 +492,15 @@ export function App() {
           <div className="wordmark">RX</div>
           <p className="eyebrow">ROBOT OPERATIONS</p>
           <h1>
-            현장을 연결하고,
+            Connect your site.
             <br />
-            운전을 신뢰할 수 있게.
+            Operate with confidence.
           </h1>
           <div className="entry-line" />
           <p>
-            장비와 공정의 실행 상태를 확인하고
+            View device and workflow execution states
             <br />
-            다음 작업을 준비하는 RX 운영 공간입니다.
+            and prepare the next task in the RX operations workspace.
           </p>
           <footer>
             RX <span>ROBOT SYSTEMS · 0.1</span>
@@ -508,22 +508,22 @@ export function App() {
         </section>
         <section className="entry-form">
           <div className="pill">RX OPERATIONS</div>
-          <h2>운영 공간에 로그인</h2>
-          <p className="muted">현장 계정으로 접근 가능한 셀을 확인하세요.</p>
+          <h2>Sign in to the operations workspace</h2>
+          <p className="muted">Use your site account to view accessible cells.</p>
           {phase === 'checking' ? (
             <>
-              <p role="status">서비스 연결을 확인하고 있습니다.</p>
+              <p role="status">Checking the service connection.</p>
               {error && (
                 <p role="alert" className="error">
                   {error}
                 </p>
               )}
-              <button onClick={() => void refresh()}>다시 확인</button>
+              <button onClick={() => void refresh()}>Check again</button>
             </>
           ) : (
             <form onSubmit={login}>
               <label>
-                계정
+                Account
                 <input
                   name="principal"
                   autoComplete="username"
@@ -533,7 +533,7 @@ export function App() {
                 />
               </label>
               <label>
-                비밀번호
+                Password
                 <input
                   type="password"
                   name="password"
@@ -548,15 +548,16 @@ export function App() {
                 </p>
               )}
               <button className="primary" disabled={working}>
-                {working ? '확인 중…' : '로그인'}
+                {working ? 'Checking…' : 'Sign in'}
                 <span aria-hidden="true">→</span>
               </button>
             </form>
           )}
           <p className="entry-note">
-            로그인 후 현재 셀과 단말 연결 상태를 확인합니다.
+            After signing in, check the current cell and terminal connection.
             <br />
-            작업 시작은 등록 단말과 현재 운전 자격·조건을 검사합니다.
+            Starting a task checks the registered terminal and current operating qualification and
+            conditions.
           </p>
         </section>
       </div>
@@ -567,15 +568,15 @@ export function App() {
       <aside className="sidebar">
         <div className="wordmark">RX</div>
         <p className="sidebar-label">OPERATIONS WORKSPACE</p>
-        <nav aria-label="주 메뉴">
+        <nav aria-label="Main menu">
           {[
-            '운영',
-            '운전 조건',
-            '실행 기록',
-            '개입 사건',
-            ...(canReadDrafts ? ['공정 설계', '패키지 검토'] : []),
-            '구성',
-            '내 접근 권한',
+            'Operations',
+            'Operating conditions',
+            'Run records',
+            'Intervention cases',
+            ...(canReadDrafts ? ['Workflow design', 'Package review'] : []),
+            'Configuration',
+            'My access',
           ].map((item, i) => (
             <button
               key={item}
@@ -594,8 +595,12 @@ export function App() {
         </nav>
         <div className="sidebar-bottom">
           {fresh && <span className="signal" />}
-          {fresh ? (data?.user.terminal ? '등록 단말 연결' : '서비스 연결') : '연결 확인 필요'}
-          <p>운전 상태는 셀별로 확인</p>
+          {fresh
+            ? data?.user.terminal
+              ? 'Registered terminal connected'
+              : 'Service connected'
+            : 'Connection needs verification'}
+          <p>Check operating state for each cell</p>
           <div className="sidebar-rule" />
           <b>RX</b>
           <small>RX AUTOMATION / 0.1</small>
@@ -610,7 +615,7 @@ export function App() {
             <span className="avatar">{data?.user.principal.slice(0, 1).toUpperCase()}</span>
             <b>{data?.user.principal}</b>
             <button className="text-button" onClick={() => void logout()} disabled={working}>
-              로그아웃
+              Sign out
             </button>
           </div>
         </header>
@@ -619,60 +624,66 @@ export function App() {
             <div>
               <p className="eyebrow">
                 RX /{' '}
-                {tab === '운영'
+                {tab === 'Operations'
                   ? 'CELL OPERATIONS'
-                  : tab === '패키지 검토'
+                  : tab === 'Package review'
                     ? 'PACKAGE REVIEW'
-                    : tab === '공정 설계'
+                    : tab === 'Workflow design'
                       ? 'PROCESS AUTHORING'
-                      : tab === '운전 조건'
+                      : tab === 'Operating conditions'
                         ? 'CONDITIONS'
-                        : tab === '실행 기록'
+                        : tab === 'Run records'
                           ? 'EXECUTION RECORDS'
-                          : tab === '개입 사건'
+                          : tab === 'Intervention cases'
                             ? 'INTERVENTIONS'
-                            : tab === '구성'
+                            : tab === 'Configuration'
                               ? 'CONFIGURATION'
                               : 'ACCESS'}
               </p>
-              <h1>{tab === '운영' ? '셀 운영' : tab}</h1>
+              <h1>{tab === 'Operations' ? 'Cell operations' : tab}</h1>
               <p className="muted">
-                {tab === '운영'
-                  ? '확인된 상태에서, 다음 작업을 준비합니다.'
-                  : '현재 설치와 계정에 연결된 기록을 확인합니다.'}
+                {tab === 'Operations'
+                  ? 'Prepare the next task using verified state.'
+                  : 'View records associated with the current installation and account.'}
               </p>
             </div>
             <div className="connection">
               <span className={`status-dot ${fresh ? 'online' : 'offline'}`} />
-              <span>{fresh ? '조회 연결됨' : '최신 상태 확인 필요'}</span>
-              <small>{lastRead ? `마지막 확인 ${time(lastRead)}` : '아직 확인하지 못함'}</small>
+              <span>{fresh ? 'Read connection active' : 'Latest state needs verification'}</span>
+              <small>{lastRead ? `Last checked ${time(lastRead)}` : 'Not checked yet'}</small>
               <button className="text-button" onClick={() => void refresh()}>
-                새로고침 ↻
+                Refresh ↻
               </button>
             </div>
           </div>
           {error && (
             <div className="notice error" role="alert">
-              {error} 표시된 내용은 마지막으로 확인한 기록입니다. 새 요청은 차단됩니다.
+              {error} These are the last verified records. New requests are blocked.
             </div>
           )}
           {storageError && (
             <div className="notice error" role="alert">
-              브라우저의 요청 기록을 읽거나 저장할 수 없습니다. 현재는 조회만 가능합니다.
+              Cannot read or save request records in this browser. Only read access is currently
+              available.
             </div>
           )}
           {pending && (
             <div className="notice pending" role="alert">
               <div>
-                <b>{working ? '요청을 처리하고 있습니다' : '요청 결과를 확인해야 합니다'}</b>
+                <b>
+                  {working ? 'Processing the request' : 'The request outcome needs verification'}
+                </b>
                 <p>
-                  {pending.label} · 요청 {short(pending.request_key)}
+                  {pending.label} · request {short(pending.request_key)}
                 </p>
-                <small>새 요청을 만들지 않고, 전송했던 번호와 내용으로 확인합니다.</small>
+                <small>
+                  Verify using the original request key and content without creating a new request.
+                </small>
                 {data && !canRecoverHostRequest(pending, data) && (
                   <p>
-                    현재 설치·계정 또는 연결 세대·단말 권한이 원래 요청과 다릅니다. 원래 요청은
-                    보존했습니다. {pending.principal} 계정의 요청 기록 확인이 필요합니다.
+                    The current installation, account, connection generation, or terminal authority
+                    differs from the original request. The original request has been preserved.{' '}
+                    {pending.principal} account request records need verification.
                   </p>
                 )}
               </div>
@@ -680,7 +691,7 @@ export function App() {
                 onClick={() => void submit(pending)}
                 disabled={!fresh || working || !data || !canRecoverHostRequest(pending, data)}
               >
-                {working ? '확인 중…' : '같은 요청 확인'}
+                {working ? 'Checking…' : 'Check original request'}
               </button>
             </div>
           )}
@@ -689,7 +700,7 @@ export function App() {
               {toast}
             </div>
           )}
-          {tab === '내 접근 권한' ? (
+          {tab === 'My access' ? (
             <section className="panel access-panel">
               <p className="eyebrow">CURRENT ACCOUNT</p>
               <h2>{data?.user.principal}</h2>
@@ -700,31 +711,37 @@ export function App() {
                   </span>
                 ))}
               </div>
-              <h3>접근 가능한 셀</h3>
+              <h3>Accessible cells</h3>
               <ul>
                 {data?.user.cells.map((c) => (
                   <li key={c}>{c}</li>
                 ))}
               </ul>
               <div className="inset">
-                <b>등록 단말 인증</b>
+                <b>Registered terminal authentication</b>
                 <p>
                   {data?.user.terminal
-                    ? `${data.user.terminal}에서 인증된 세션입니다. 작업 시작에는 현재 운전 조건 확인도 필요합니다.`
-                    : '현재 세션에는 등록 단말 인증이 없습니다. 로그인만으로 실장비 운전을 시작할 수 없습니다.'}
+                    ? `${data.user.terminal} authenticated this session. Starting a task also requires checking current operating conditions.`
+                    : 'This session has no registered terminal authentication. Signing in alone cannot start physical equipment.'}
                 </p>
               </div>
             </section>
           ) : !data?.cells.length ? (
             <section className="empty panel">
               <div className="empty-symbol">＋</div>
-              <h2>아직 등록된 셀이 없습니다</h2>
-              <p>엔지니어가 셀 구성을 등록하면 장비, 공정과 실행 기록이 여기에 표시됩니다.</p>
-              <small>구성 등록과 실제 운전 자격은 별도로 확인합니다.</small>
+              <h2>No cells have been registered yet</h2>
+              <p>
+                Devices, workflows, and run records appear here after an engineer registers the cell
+                configuration.
+              </p>
+              <small>
+                Configuration registration and physical operating qualification are checked
+                separately.
+              </small>
             </section>
           ) : (
             <>
-              <div className="cell-tabs" role="tablist" aria-label="셀 선택">
+              <div className="cell-tabs" role="tablist" aria-label="Select cell">
                 {data.cells.map((c) => (
                   <button
                     role="tab"
@@ -748,7 +765,7 @@ export function App() {
                   cell={cell.cell.value.id}
                   principal={data.user.principal}
                   roles={data.user.roles}
-                  active={tab === '패키지 검토'}
+                  active={tab === 'Package review'}
                   canWrite={fresh && !pending && !working && !storageError}
                   buffer={packageBuffers[cell.cell.value.id] ?? emptyPackageBuffer()}
                   onBuffer={(v) =>
@@ -758,23 +775,23 @@ export function App() {
                   onSubmit={packageSubmit}
                 />
               )}
-              {cell && tab === '패키지 검토' && !canReadDrafts && (
+              {cell && tab === 'Package review' && !canReadDrafts && (
                 <section className="panel empty">
-                  <h2>검토 기록 접근 권한이 필요합니다</h2>
-                  <p>구성 담당자 또는 검토자 계정으로 확인할 수 있습니다.</p>
+                  <h2>Access to review records is required</h2>
+                  <p>Use an engineer or verifier account to view these records.</p>
                 </section>
               )}
               {cell &&
-                tab !== '패키지 검토' &&
-                (tab === '운영' ? (
+                tab !== 'Package review' &&
+                (tab === 'Operations' ? (
                   <>
                     <div className="cell-hero">
                       <div>
                         <div className="hero-top">
                           <span className="pill">
                             {cell.cell.value.environment === 'SIMULATION'
-                              ? '모의 환경'
-                              : '실장비 구성'}
+                              ? 'Simulation'
+                              : 'Physical device configuration'}
                           </span>
                           <span className="mono">
                             CELL /{' '}
@@ -784,27 +801,27 @@ export function App() {
                         <h2>{cell.cell.value.id}</h2>
                         <p>
                           {cell.cell.value.commissioning === 'REVALIDATION_REQUIRED'
-                            ? '이전 자격 기록을 그대로 사용할 수 없습니다. 개입·변경 사항을 재검증해야 합니다.'
+                            ? 'The previous qualification record cannot be reused. Revalidate interventions and changes.'
                             : cell.cell.value.commissioning === 'COMMISSIONED'
-                              ? '운전 자격 기록이 있습니다. 시작 시 현재 조건을 다시 확인합니다.'
+                              ? 'Operating qualification is recorded. Current conditions are checked again at start.'
                               : cell.cell.value.commissioning === 'NOT_COMMISSIONED'
-                                ? '운전 자격이 아직 등록되지 않았습니다. 구성을 확인하고 검증을 준비하세요.'
-                                : '운전 상태 기록이 없습니다. 현재 상태를 다시 확인해야 합니다.'}
+                                ? 'Operating qualification has not been registered. Check the configuration and prepare for verification.'
+                                : 'No operating state is recorded. Check the current state again.'}
                         </p>
                       </div>
                       <div className="hero-status">
                         <span className="status-dot caution" />
                         <strong>
                           {cell.cell.value.blocks.length
-                            ? '운전 보류'
+                            ? 'Operation hold'
                             : cell.cell.value.qualification
-                              ? '자격 기록 있음'
-                              : '검증 대기'}
+                              ? 'Qualification recorded'
+                              : 'Awaiting verification'}
                         </strong>
                         <small>
                           {cell.cell.value.blocks.length
-                            ? `${cell.cell.value.blocks.length}개 차단 사유 확인 필요`
-                            : '현재 운전 가능 판정을 의미하지 않습니다'}
+                            ? `${cell.cell.value.blocks.length} blocking reasons need review`
+                            : 'This does not establish current operating readiness'}
                         </small>
                       </div>
                     </div>
@@ -813,29 +830,29 @@ export function App() {
                         <div className="section-heading">
                           <div>
                             <p className="eyebrow">NEXT ACTION</p>
-                            <h3>실행 준비</h3>
+                            <h3>Run preparation</h3>
                           </div>
                           <span className="section-no">01</span>
                         </div>
                         <p className="body-copy">
-                          등록된 공정과 현장 구성을 연결해 새 실행 기록을 만듭니다. 장비 동작은
-                          시작하지 않습니다.
+                          Create a new run record from the registered workflow and site
+                          configuration. This does not start device motion.
                         </p>
                         <dl className="facts">
                           <div>
-                            <dt>장비 연결 구성</dt>
-                            <dd>{cell.cell.value.hosts.length}개 항목</dd>
+                            <dt>Device connection configuration</dt>
+                            <dd>{count(cell.cell.value.hosts.length, 'item')}</dd>
                           </div>
                           <div>
-                            <dt>셀 기록 버전</dt>
+                            <dt>Cell record revision</dt>
                             <dd>r{cell.cell.revision}</dd>
                           </div>
                           <div>
-                            <dt>RX 운영 모드</dt>
+                            <dt>RX operating mode</dt>
                             <dd>{text(cell.cell.value.mode ?? 'UNKNOWN')}</dd>
                           </div>
                           <div>
-                            <dt>운전 자격</dt>
+                            <dt>Operating qualification</dt>
                             <dd>{text(cell.cell.value.commissioning ?? 'UNKNOWN')}</dd>
                           </div>
                         </dl>
@@ -844,11 +861,11 @@ export function App() {
                           disabled={!canRequest}
                           onClick={() => setDialog({ kind: 'run', cell })}
                         >
-                          새 실행 준비 <span aria-hidden="true">＋</span>
+                          Prepare new run <span aria-hidden="true">＋</span>
                         </button>
                         {!canOperate && (
                           <small className="muted">
-                            운영 권한이 있는 계정에서 요청할 수 있습니다.
+                            An account with operator authority can submit this request.
                           </small>
                         )}
                       </section>
@@ -856,7 +873,7 @@ export function App() {
                         <div className="section-heading">
                           <div>
                             <p className="eyebrow">ATTENTION</p>
-                            <h3>확인이 필요한 상태</h3>
+                            <h3>States requiring attention</h3>
                           </div>
                           <span className="section-no">02</span>
                         </div>
@@ -864,8 +881,8 @@ export function App() {
                           <div className="check-line">
                             <span className="check-mark">!</span>
                             <div>
-                              <b>현장 검증·운전 자격 미등록</b>
-                              <p>구성 등록이 운전 허가를 대신하지 않습니다.</p>
+                              <b>Site verification and operating qualification not registered</b>
+                              <p>Configuration registration does not grant operating permission.</p>
                             </div>
                           </div>
                         )}
@@ -876,8 +893,8 @@ export function App() {
                               <b>{text(b.reason)}</b>
                               <p>
                                 {b.latched
-                                  ? '원인이 해소되어도 자동 재시작하지 않습니다.'
-                                  : '현재 조건을 다시 확인하세요.'}
+                                  ? 'Resolving the cause does not restart operation automatically.'
+                                  : 'Check the current conditions again.'}
                               </p>
                             </div>
                           </div>
@@ -885,11 +902,15 @@ export function App() {
                         <div className="check-line">
                           <span className="check-mark neutral">—</span>
                           <div>
-                            <b>{data.user.terminal ? '등록 단말 인증됨' : '등록 단말 인증 없음'}</b>
+                            <b>
+                              {data.user.terminal
+                                ? 'Registered terminal authenticated'
+                                : 'No registered terminal authentication'}
+                            </b>
                             <p>
                               {data.user.terminal
-                                ? `${data.user.terminal} · 실행을 선택해 현재 시작 조건을 조회하세요.`
-                                : '작업 시작 요청에는 등록 단말 인증이 필요합니다.'}
+                                ? `${data.user.terminal} · Select a run to query its current start conditions.`
+                                : 'Task start requests require registered terminal authentication.'}
                             </p>
                           </div>
                         </div>
@@ -898,21 +919,26 @@ export function App() {
                           disabled={!canRequest}
                           onClick={() => setDialog({ kind: 'hold', cell })}
                         >
-                          운전 보류 요청
+                          Request operation hold
                         </button>
                         <small className="muted">
-                          소프트웨어 권한 철회 요청입니다. 물리적 정지 확인은 별도입니다.
+                          This requests revocation of software authority. Physical stop confirmation
+                          is separate.
                         </small>
                       </section>
                     </div>
-                    <button className="conditions-link" onClick={() => setTab('운전 조건')}>
-                      운전 조건과 관측 근거 확인 <span aria-hidden="true">↗</span>
+                    <button
+                      className="conditions-link"
+                      onClick={() => setTab('Operating conditions')}
+                    >
+                      View operating conditions and observation evidence{' '}
+                      <span aria-hidden="true">↗</span>
                     </button>
                     <Runs cell={cell} />
                   </>
-                ) : tab === '운전 조건' ? (
+                ) : tab === 'Operating conditions' ? (
                   <Conditions cell={cell} requestStarted={readStarted} queryFresh={fresh} />
-                ) : tab === '공정 설계' && canReadDrafts ? (
+                ) : tab === 'Workflow design' && canReadDrafts ? (
                   <ProcessEditor
                     key={cell.cell.value.id}
                     cell={cell.cell.value.id}
@@ -933,7 +959,7 @@ export function App() {
                         installation: data.installation.id,
                         store_generation: data.installation.store_generation,
                         route: '/api/v1/process-draft-bindings',
-                        label: `${buffer.title} 바인딩 저장`,
+                        label: `${buffer.title} Save bindings`,
                         command: {
                           draft: buffer.id,
                           cell: buffer.cell,
@@ -952,7 +978,7 @@ export function App() {
                         installation: data.installation.id,
                         store_generation: data.installation.store_generation,
                         route: '/api/v1/process-drafts',
-                        label: `${buffer.title} 초안 저장`,
+                        label: `${buffer.title} Save draft`,
                         command: {
                           id: buffer.id,
                           cell: buffer.cell,
@@ -963,7 +989,7 @@ export function App() {
                       })
                     }
                   />
-                ) : tab === '개입 사건' ? (
+                ) : tab === 'Intervention cases' ? (
                   <Cases
                     cell={cell.cell.value.id}
                     refreshToken={data.snapshot_id}
@@ -975,7 +1001,7 @@ export function App() {
                         installation: data.installation.id,
                         store_generation: data.installation.store_generation,
                         route: '/api/v1/cases/acknowledge',
-                        label: `개입 사건 ${short(item.case.id)} 알림 확인`,
+                        label: `Intervention cases ${short(item.case.id)} Acknowledge notification`,
                         command: {
                           cell: cell.cell.value.id,
                           case: item.case.id,
@@ -985,7 +1011,7 @@ export function App() {
                       })
                     }
                   />
-                ) : tab === '실행 기록' ? (
+                ) : tab === 'Run records' ? (
                   <>
                     <Runs cell={cell} />
                     <Work cell={cell} />
@@ -993,7 +1019,7 @@ export function App() {
                 ) : (
                   <Configuration cell={cell} />
                 ))}
-              {cell && tab === '구성' && data.user.roles.includes('RELEASE_MANAGER') && (
+              {cell && tab === 'Configuration' && data.user.roles.includes('RELEASE_MANAGER') && (
                 <HostRecovery
                   key={JSON.stringify([
                     data.user.principal,
@@ -1014,7 +1040,7 @@ export function App() {
                   onSelectCell={setSelected}
                 />
               )}
-              {cell && (tab === '운영' || tab === '실행 기록') && (
+              {cell && (tab === 'Operations' || tab === 'Run records') && (
                 <RunStart
                   key={JSON.stringify([
                     data.user.principal,
@@ -1053,8 +1079,11 @@ export function App() {
             </>
           )}
           <footer className="page-footer">
-            <span>RX · 확인된 사실을 기준으로</span>
-            <span>설치 {short(data?.installation.id ?? '')} / 최근 조회 결과 표시</span>
+            <span>RX · Grounded in verified facts</span>
+            <span>
+              Installation {short(data?.installation.id ?? '')} / displaying the latest retrieved
+              records
+            </span>
           </footer>
         </div>
       </main>
@@ -1074,22 +1103,26 @@ export function App() {
         >
           <p className="eyebrow">REVIEW REQUEST</p>
           <h2 id="action-title">
-            {dialog?.kind === 'hold' ? '운전을 보류할까요?' : '새 실행을 준비할까요?'}
+            {dialog?.kind === 'hold' ? 'Place operation on hold?' : 'Prepare a new run?'}
           </h2>
           <p>
-            <b>{dialog?.cell.cell.value.id}</b> · 셀 기록 r{dialog?.cell.cell.revision}
+            <b>{dialog?.cell.cell.value.id}</b> · cell record r{dialog?.cell.cell.revision}
           </p>
           <p>
             {dialog?.kind === 'hold'
-              ? '관련 운전 권한을 철회하고 차단 사유를 기록합니다. 실제 장비 정지는 이 응답만으로 확인되지 않습니다.'
-              : '현재 등록된 공정과 구성으로 실행 기록을 생성합니다. 장비를 움직이거나 운전 자격을 부여하지 않습니다.'}
+              ? 'Revoke the related operating authority and record a blocking reason. This response alone does not confirm a physical device stop.'
+              : 'Create a run record using the currently registered workflow and configuration. This does not move devices or grant operating qualification.'}
           </p>
           <div className="dialog-actions">
             <button type="button" onClick={() => setDialog(null)} disabled={working}>
-              돌아가기
+              Back
             </button>
             <button type="submit" className="primary" disabled={!canRequest}>
-              {working ? '요청 중…' : dialog?.kind === 'hold' ? '보류 요청' : '실행 기록 만들기'}
+              {working
+                ? 'Requesting…'
+                : dialog?.kind === 'hold'
+                  ? 'Request hold'
+                  : 'Create run record'}
             </button>
           </div>
         </form>

@@ -1,8 +1,8 @@
-# 공정 패키지 조립·외부 서명·내용 검증
+# Process package assembly, external signing and content verification
 
-2026-09-12. `rx-process-package`는 작성된 compile input을 결정적인 Process package 후보로 묶고, 외부 detached signature를 기존 package verifier에 연결한다. 서명 키 생성·보관이나 P trust 등록·배포·실행을 수행하지 않는다.
+2026-09-12. `rx-process-package` bundles authored compile input into deterministic Process package candidates and connects external detached signatures to the existing package verifier. It does not generate/store signing keys or perform P trust registration, deployment or execution.
 
-## 단계와 명령
+## Stages and commands
 
 ```text
 rx-process-package assemble BUNDLE RECIPE NEW_CANDIDATE_DIRECTORY
@@ -12,61 +12,61 @@ rx-process-package verify PACKAGE POLICY
 rx-process-package compile PACKAGE POLICY NEW_OUTPUT_DIRECTORY
 ```
 
-- assemble은 digest가 맞는 원문/바인딩을 기존 S compiler로 검사하고 `UNSIGNED_CANDIDATE`를 만든다.
-- request는 key ID와 canonical manifest에 결합한 실제 signing message의 hex/digest를 기록한다. 사람이 검토하거나 외부 signer/HSM에 전달할 수 있다. 이 명령은 메시지를 외부로 보내거나 개인키를 읽지 않는다.
-- seal은 외부 서명과 명시적 로컬 trust policy를 검증하고, 내용 의미를 다시 확인한 뒤 새 디렉터리에 완성한 패키지를 공개한다.
-- verify/compile은 서명·현재 trust·파일·target/계약·잠긴 의존성·artifact를 검사하고 검증된 immutable bytes에서 다시 공정을 구성한다.
+- assemble validates digest-matching originals/bindings through the existing S compiler and produces `UNSIGNED_CANDIDATE`.
+- request records hex/digest of the actual signing message bound to the key ID and canonical manifest. It can be reviewed by a person or passed to an external signer/HSM. This command neither sends the message externally nor reads private keys.
+- seal validates the external signature and explicit local trust policy, rechecks content semantics and publishes the completed package in a new directory.
+- verify/compile check signature, current trust, files, target/contracts, locked dependencies and artifacts, then reconstruct the process from verified immutable bytes.
 
-검증/컴파일 결과는 `CONTENT_VERIFIED_NOT_QUALIFIED`다. VerifiedPackage 또는 서명이 field qualification, native 준비, 운영자 승인, dispatch permit를 의미하지 않는다.
+Verification/compilation results are `CONTENT_VERIFIED_NOT_QUALIFIED`. VerifiedPackage or a signature does not mean field qualification, native readiness, operator approval or dispatch permit.
 
-## 파일 구성과 결정성
+## File layout and determinism
 
-| 파일 | 내용 |
+| File | Contents |
 |---|---|
-| manifest.json | 기존 `rx.package.v1` manifest와 정확한 inventory |
-| manifest.sig.json | 봉인 후에만 존재하는 Ed25519 detached signature |
-| process/source.json | 공정 source |
-| process/bindings.json | 정규화 검사를 거친 Host+intent 입력 |
-| authoring/compile-input.json | 원래 source/binding/cell/catalog provenance |
-| authoring/package-recipe.json | package/version/publisher/contract/target/dependency/asset 선택 |
-| process/context-requirements.json | profile/site/calibration/tool/mode/stream 및 catalog digest의 연결 의무 |
+| manifest.json | Existing `rx.package.v1` manifest and exact inventory |
+| manifest.sig.json | Ed25519 detached signature, present only after sealing |
+| process/source.json | Process source |
+| process/bindings.json | Host+intent inputs checked for normalization |
+| authoring/compile-input.json | Original source/binding/cell/catalog provenance |
+| authoring/package-recipe.json | Package/version/publisher/contract/target/dependency/asset selections |
+| process/context-requirements.json | Required bindings among profile/site/calibration/tool/mode/stream and catalog digests |
 
-같은 입력과 recipe는 같은 manifest digest를 만든다. 후보를 다시 취득할 때 재조립한 manifest와 모든 file bytes를 대조한다. 서명 검증 후에도 이 대응을 재확인하여, 서명은 유효하지만 패키지 내부의 원문과 바인딩이 다른 경우를 거부한다.
+Identical inputs and recipe produce the same manifest digest. Candidate reacquisition compares the reassembled manifest and all file bytes. This correspondence is checked again after signature verification, rejecting packages with valid signatures but inconsistent internal originals/bindings.
 
-파생 resolved/BT 파일은 원본 패키지에 자기 package digest와 함께 넣지 않는다. 검증된 패키지에서 다시 컴파일하고 결과의 package_digest를 실제 manifest digest에 연결한다. 순환하는 자기 hash를 만들지 않는다.
+Derived resolved/BT files are not embedded in the original package with their own package digest. They are recompiled from the verified package, and resulting package_digest is bound to the actual manifest digest. No circular self-hash is created.
 
-## 권한과 외부 참조
+## Permissions and external references
 
-요청 permission은 실제 공정에서 쓰는 OperationSubmit 및 조건/control source의 ObservationRead schema, ArtifactRead에서 도출한다. Process package에 NativeEndpoint 또는 executable file을 넣지 않는다. 쓰지 않는 추가 action binding을 조용히 승인하지 않는다.
+Requested permissions derive from OperationSubmit actually used by the process, ObservationRead schemas for condition/control sources, and ArtifactRead. Process packages contain no NativeEndpoint or executable files. Unused additional action bindings are not silently approved.
 
-trajectory/program/parameter-set/procedure 같은 ArtifactRef는 recipe의 assets에 같은 metadata로 선언돼야 한다. 같은 digest의 다른 metadata는 거부한다. profile/site/calibration 등 semantic digest는 단순 파일 SHA로 위장하지 않고 별도 context requirements로 남긴다. 이것들은 실제 device/profile/site authority에서 확인해야 한다.
+ArtifactRefs such as trajectory/program/parameter-set/procedure must be declared with identical metadata in recipe assets. Different metadata for the same digest is rejected. Semantic digests such as profile/site/calibration are not disguised as simple file SHA values; they remain separate context requirements. These must be checked by actual device/profile/site authorities.
 
-현재 ActionBinding은 Host+intent다. 전체 Cell StepBinding의 조건·완료·절차 의미와 실제 장비 package를 조립·활성화하는 경로는 후속이다. 이 도구는 그 검증을 생략한 완성 셀 패키지를 주장하지 않는다.
+Current ActionBinding is Host+intent. Full Cell StepBinding condition/completion/procedure semantics and the path for assembling/activating actual device packages remain future work. This tool does not claim a complete cell package with those checks omitted.
 
-## 검증 정책과 외부 signer
+## Verification policy and external signer
 
-정책 파일은 단일 ABI의 `rx.package-verification-policy.v1` 또는 명시적인 추가 ABI 목록을 가진 `rx.package-verification-policy.v2`다. 계약/target, 명시적 key ID·publisher·공개키·허용 package kind/permissions, 확인할 asset 파일과 잠긴 dependency 경로를 지정한다. CLI 호출자가 제공하는 로컬 검증 기준이며, 이 파일을 P의 운영 trust로 자동 등록하지 않는다. v2의 `additional_package_abis`는 기본 ABI 이외의 1–8개를 중복 없이 지정한다. 장비 ABI v2와 공정 ABI v1을 한 정책으로 허용해도 signer 종류·권한과 내용 검증은 각각 유지한다.
+Policy files use single-ABI `rx.package-verification-policy.v1` or `rx.package-verification-policy.v2` with an explicit additional-ABI list. They specify contracts/target, explicit key IDs/publishers/public keys/allowed package kinds/permissions, asset files to check and locked dependency paths. This is a local verification basis supplied by the CLI caller; it is not automatically registered as P operational trust. v2 `additional_package_abis` specifies 1–8 unique ABIs beyond the primary ABI. Allowing device ABI v2 and process ABI v1 in one policy retains each signer's kind/permission and content validation.
 
-asset 파일은 크기와 실제 SHA-256을 확인한다. dependency 디렉터리는 bounded capability 취득으로 읽고 지정 manifest digest를 확인한 뒤 순서대로 검증한다. cycle/missing dependency, revoked 또는 범위를 벗어난 key는 통과하지 않는다. 단순히 과거에 검증한 객체라는 이유로 현재 정책 검사를 건너뛰지 않는다.
+Asset files are checked for size and actual SHA-256. Dependency directories are read through bounded capability acquisition, checked for designated manifest digests and then verified in order. Cyclic/missing dependencies and revoked/out-of-scope keys do not pass. Current policy checks are not skipped merely because an object was verified previously.
 
-정책 한도는 key128개, asset1024개/총256 MiB, dependency128개다. 이 CLI의 개별 패키지 취득은 파일32개/내용4 MiB 범위이며 더 큰 장비 package/streaming asset을 처리하는 배포 도구를 대체하지 않는다.
+Policy limits are 128 keys, 1,024 assets/256 MiB total and 128 dependencies. This CLI acquires each package within 32 files/4 MiB of content; it does not replace deployment tools for larger device packages/streaming assets.
 
-실제 production signing service와 운영 trust 공급/회수 절차는 아직 연결하지 않았다. 테스트는 고정된 test-only 키를 시험 코드 안에서만 사용하고 서명·공개 정책·예상 signing message만 내보낸다. 기본 제품 키나 private key 파일은 생성하지 않는다.
+An actual production signing service and operational trust provisioning/revocation procedures are not yet connected. Tests use fixed test-only keys solely in test code and export only signatures, public policies and expected signing messages. No default product keys or private-key files are generated.
 
-## 취득과 출력
+## Acquisition and output
 
-공통 `rx-package::directory::acquire_directory`는 검증 전 owned bytes를 반환할 뿐이다. 이 타입/경로로 VerifiedPackage를 만들었다고 표시할 수 없다. 기존 symlink/특수파일/경로/수량·크기 제한을 유지한다. 실제 verify_directory는 취득 후 원래 서명·내용 검증을 계속 수행한다.
+Shared `rx-package::directory::acquire_directory` returns only owned bytes before verification. This type/path cannot be labeled as creating VerifiedPackage. Existing symlink/special-file/path/count/size restrictions remain. Actual verify_directory continues original signature/content verification after acquisition.
 
-출력은 장비 작성 도구와 공유하는 SDK publish_files를 사용한다. 같은 parent의 임시 디렉터리에서 완성·동기화한 뒤 Linux/macOS의 no-replace rename으로 공개한다. 기존 파일/디렉터리·symlink를 덮어쓰지 않는다. Windows에서의 atomic publication backend와 host-root 공격 방어는 이 단계의 검증 범위가 아니다.
+Output uses SDK publish_files shared with the device authoring tool. It completes and syncs files in a temporary directory under the same parent, then publishes with Linux/macOS no-replace rename. Existing files/directories/symlinks are not overwritten. Atomic publication backend on Windows and defenses against host-root attacks are outside this stage's verification scope.
 
-## 검증 범위
+## Verification scope
 
-결정적 조립·외부 서명·불변 bytes 재컴파일, signer 종류/권한·key alias, 파일/inventory 변경, signed-but-inconsistent 내용, 미선언 artifact·병렬 자원 충돌, 의존성의 현재 trust, asset 내용 변경과 no-overwrite 출력을 시험한다. 실제 작성했던 공정을 최종 이미지에서 조립→서명 요청→test-only detached signature 봉인→검증→컴파일하는 증거도 별도로 남긴다.
+Tests cover deterministic assembly, external signing, recompilation from immutable bytes, signer kinds/permissions/key aliases, file/inventory changes, signed-but-inconsistent content, undeclared artifacts/parallel resource conflicts, current dependency trust, asset content changes and no-overwrite output. Separate evidence also records assembly→signing request→test-only detached-signature sealing→verification→compilation of a previously authored actual process in the final image.
 
-package 검토 승인, P artifact admission·활성화, 완전한 device/site context 검증, operator UI의 검증/서명/배포 흐름과 현장 인수는 남아 있다. 첫 물리 셀은 NOT_COMMISSIONED다.
+Package review approval, P artifact admission/activation, complete device/site context validation, operator UI validation/signing/deployment flows and site acceptance remain outstanding. The first physical cell is NOT_COMMISSIONED.
 
-P/S의 로컬 trust policy 취득은 SDK `rx-package::policy`를 공유한다. P의 별도 보관 경계와 오프라인 도구는 [STORE.md](https://github.com/jack0682/rx-platform/blob/codex/initial-draft/crates/rx-package/STORE.md)에 설명한다. P 보관 성공은 이 crate의 공정 의미 재검증이나 사용자/셀 승인으로 승격되지 않는다.
+P/S local trust-policy acquisition shares SDK `rx-package::policy`. P's separate retention boundary and offline tools are described in [STORE.md](https://github.com/jack0682/rx-platform/blob/codex/initial-draft/crates/rx-package/STORE.md). Successful P retention is not promoted to this crate's process semantic revalidation or user/cell approval.
 
-## 검토 자료 출력
+## Review artifact output
 
-`validator-identity`, `review PACKAGE POLICY REQUEST OUT`, `review-signing-request REPORT KEY_ID OUT`을 제공한다. 실제 signed package를 compile_verified로 검사해 canonical 검토/결과 자료를 만들고 외부 서명자가 정확한 bytes에 서명하도록 한다. 서명 서비스/개인키는 포함하지 않는다. P의 독립 검사와 승인 범위는 [공정 검토](https://github.com/jack0682/rx-platform/blob/codex/initial-draft/crates/rx-application/PROCESS_REVIEW.md)를 참조한다.
+Provides `validator-identity`, `review PACKAGE POLICY REQUEST OUT` and `review-signing-request REPORT KEY_ID OUT`. Actual signed packages are checked through compile_verified to produce canonical review/result artifacts for an external signer to sign the exact bytes. No signing service/private keys are included. For P's independent inspection and approval scope, see [process review](https://github.com/jack0682/rx-platform/blob/codex/initial-draft/crates/rx-application/PROCESS_REVIEW.md).
