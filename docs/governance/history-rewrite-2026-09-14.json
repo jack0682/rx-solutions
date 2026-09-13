@@ -1,0 +1,224 @@
+{
+  "repository": "jack0682/rx-solutions",
+  "signing_fingerprint": "7527E36F9EB3667236B5B0919C9FE74DE196CD5A",
+  "created_at": "2026-09-13T23:43:23.919984+00:00",
+  "backup_sha256": "63633f25e2ee2ff88de7e330cd93b9d9b9ba88ae8071f77f55f423b6c13a5244",
+  "commits": {
+    "1c5c996c4a3364b7fc9c0e707bf20de8d040b919": {
+      "new": "251e22a11fb11994cbc5561eb1e112b26ce2c4b1",
+      "tree": "a1fcce3decb67bd8dc506d5e1543708509fd46f1",
+      "parents": [],
+      "author": "Jaehong Oh <jaehongoh1554@gmail.com>"
+    },
+    "bec454188eb6e5de64bd8f845603202838975207": {
+      "new": "4c6b4bec24bc63264c464d34eb5cbefcf8dfec47",
+      "tree": "c71bdf03b7323d246ede41cb83f163aa6c7b555a",
+      "parents": [
+        "1c5c996c4a3364b7fc9c0e707bf20de8d040b919"
+      ],
+      "author": "Jaehong Oh <jaehongoh1554@gmail.com>"
+    },
+    "57a791c40b07ee7698b3cbe4c78ad9b6d6f3522a": {
+      "new": "fd415d251ffae3ea7d51af6faee2f884f106e388",
+      "tree": "6a74c4361c709879288e7c7313d5c82dc6826955",
+      "parents": [
+        "bec454188eb6e5de64bd8f845603202838975207"
+      ],
+      "author": "Jaehong Oh <jaehongoh1554@gmail.com>"
+    },
+    "5679aba72a6646ec28d533dcd5c13ef4a781da7b": {
+      "new": "b102fa3964ab6bdb653635115eda85d587a50e84",
+      "tree": "7f3a3e4ac66a1a9e643b043396e3f85ba94e73ce",
+      "parents": [
+        "57a791c40b07ee7698b3cbe4c78ad9b6d6f3522a"
+      ],
+      "author": "Jaehong Oh <jaehongoh1554@gmail.com>"
+    },
+    "4683296658fd38893e35f33b2dc46d4bfeab1b16": {
+      "new": "be578cc99d7b8869fdee051d7e5b2f4cb385bbff",
+      "tree": "812b4f41c6287c7cfedfe8edd8ed9aa7d36fdb92",
+      "parents": [
+        "5679aba72a6646ec28d533dcd5c13ef4a781da7b"
+      ],
+      "author": "Jaehong Oh <jaehongoh1554@gmail.com>"
+    },
+    "aa481a84d57eac49dbfbb6804c14f68a04ae53fa": {
+      "new": "8a1bd135d1327767d81ea048de8e77165a7aee09",
+      "tree": "6dd4778b98b2f1e7389e9bb3ab6e20ca362c493f",
+      "parents": [
+        "4683296658fd38893e35f33b2dc46d4bfeab1b16"
+      ],
+      "author": "Jaehong Oh <jaehongoh1554@gmail.com>"
+    },
+    "3aa6e85d024b6d7ab9d2e65de27e4cb316ac328d": {
+      "new": "a649d9c982f5db7051c406c870d247c98a55378d",
+      "tree": "9600c4b431527d2c27c034521e30ca49e5ba236d",
+      "parents": [
+        "aa481a84d57eac49dbfbb6804c14f68a04ae53fa"
+      ],
+      "author": "Jaehong Oh <jaehongoh1554@gmail.com>"
+    },
+    "0b9ba1646d930e1cb8dbba93d3d1a572532c8967": {
+      "new": "4a1c23878a897f4140fb01a2cea7f4701b2461e2",
+      "tree": "e44265d5f8016aecd87b28fb45f8f2b0b75704d6",
+      "parents": [
+        "3aa6e85d024b6d7ab9d2e65de27e4cb316ac328d"
+      ],
+      "author": "Jaehong Oh <jaehongoh1554@gmail.com>"
+    },
+    "ba94ef055dbfd2d1f4061a85f4ecad8b0a268b6b": {
+      "new": "9bd5639eb877767ed064999e5100126eb4b96878",
+      "tree": "b1b0a082272ef4784b9f699065334a7342ed99fb",
+      "parents": [
+        "0b9ba1646d930e1cb8dbba93d3d1a572532c8967"
+      ],
+      "author": "Jaehong Oh <jaehongoh1554@gmail.com>"
+    },
+    "c2df7748ba93cf2d64fe489c1aa1d45bd69d992d": {
+      "new": "ad0d917036ff11d2abe93bc62dacee60237ab195",
+      "tree": "7caf01719e45448efe846812d5f93569143c8ab7",
+      "parents": [
+        "ba94ef055dbfd2d1f4061a85f4ecad8b0a268b6b"
+      ],
+      "author": "Jaehong Oh <jaehongoh1554@gmail.com>"
+    },
+    "3d323f717af074ce147bfca2ff7a5668c4b2a36c": {
+      "new": "dd8dbc05ac7542b1a3b8b07463623fc632d43041",
+      "tree": "e4024b795730d9c1103ede9b2ee1113b6b838404",
+      "parents": [
+        "c2df7748ba93cf2d64fe489c1aa1d45bd69d992d"
+      ],
+      "author": "Jaehong Oh <jaehongoh1554@gmail.com>"
+    },
+    "3d5f6d09058a44ff9706924cabf3adf50616e828": {
+      "new": "4b8dc36aee599701ec9a89e23f96ac31fb5fd40b",
+      "tree": "e3b63eb5aa68beedabfc6f6c1cdbcb1260c5aca9",
+      "parents": [
+        "3d323f717af074ce147bfca2ff7a5668c4b2a36c"
+      ],
+      "author": "Jaehong Oh <jaehongoh1554@gmail.com>"
+    },
+    "12bbf645dcfae95f0ddb96c16a00eb0b7ac4ee34": {
+      "new": "372e8b7e7f1715bab5562e43c2d67cdc50883e04",
+      "tree": "36cd12ab75e875f6d58f3ee6ad72a5bcdf6988a1",
+      "parents": [
+        "3d323f717af074ce147bfca2ff7a5668c4b2a36c"
+      ],
+      "author": "Jaehong Oh <jaehongoh1554@gmail.com>"
+    },
+    "e81825b2e440ded36e25c5cb8125f7d68281f6da": {
+      "new": "6da77adf4a20e4a057e7918c4d50282dc65df3a7",
+      "tree": "0fa1f053ab3d16653b1d02ba6aafe684a42faf38",
+      "parents": [
+        "12bbf645dcfae95f0ddb96c16a00eb0b7ac4ee34"
+      ],
+      "author": "Jaehong Oh <jaehongoh1554@gmail.com>"
+    },
+    "11f9b9c33a0b9d3e4f8c30a9dd036996255c4776": {
+      "new": "c130693be098ae321a993a377db2694032ff0209",
+      "tree": "aad966a7aa6aefb77a1c57828768bb994f097ebb",
+      "parents": [
+        "e81825b2e440ded36e25c5cb8125f7d68281f6da"
+      ],
+      "author": "Jaehong Oh <jaehongoh1554@gmail.com>"
+    },
+    "0a489eb960b18ede0e8dda85d358741f0587abaa": {
+      "new": "80c4400235fae8da73731c840aa878621ffb35ee",
+      "tree": "fe5ce0e8fcaf2e80392ae95ebb34b7388fc7488c",
+      "parents": [
+        "11f9b9c33a0b9d3e4f8c30a9dd036996255c4776"
+      ],
+      "author": "Jaehong Oh <jaehongoh1554@gmail.com>"
+    },
+    "d3195c6ab4826a369328aee5c3fae1a97f54c5a7": {
+      "new": "7a135f335cfdbb9e09da578267d570c839aa7ee7",
+      "tree": "a6e4908ef2037aa99ac76d98b239b88db152116d",
+      "parents": [
+        "0a489eb960b18ede0e8dda85d358741f0587abaa"
+      ],
+      "author": "Jaehong Oh <jaehongoh1554@gmail.com>"
+    },
+    "6c4a8ae9c3c81a002635255621f2e2196804a07b": {
+      "new": "2a8dc5140e5a268cc8506938a407cfb741f9f907",
+      "tree": "a6e4908ef2037aa99ac76d98b239b88db152116d",
+      "parents": [
+        "0a489eb960b18ede0e8dda85d358741f0587abaa",
+        "d3195c6ab4826a369328aee5c3fae1a97f54c5a7"
+      ],
+      "author": "jack0682 <131640493+jack0682@users.noreply.github.com>"
+    },
+    "1f3617ecb7b6da65fc09e22455ba8d0e95d2cc87": {
+      "new": "c086b5f518b455483c87720b8505e5bb11b4b18e",
+      "tree": "e3d981a7542bcaf91e37abaa830ea4dc0f78b94d",
+      "parents": [
+        "6c4a8ae9c3c81a002635255621f2e2196804a07b"
+      ],
+      "author": "Jaehong Oh <jaehongoh1554@gmail.com>"
+    },
+    "e3535e279d1b76e3174a3621bc984a4b98f2529e": {
+      "new": "b74898e8f8b55f3e6b97a0478cce606c3b9163a3",
+      "tree": "e3d981a7542bcaf91e37abaa830ea4dc0f78b94d",
+      "parents": [
+        "0a489eb960b18ede0e8dda85d358741f0587abaa",
+        "1f3617ecb7b6da65fc09e22455ba8d0e95d2cc87"
+      ],
+      "author": "jack0682 <131640493+jack0682@users.noreply.github.com>"
+    },
+    "e152bbcf8704dcb39d28ce29e1ac3849209ff9db": {
+      "new": "8cf5aa130edaf4b96fb45e3c5715e73fef58658b",
+      "tree": "e3d981a7542bcaf91e37abaa830ea4dc0f78b94d",
+      "parents": [
+        "6c4a8ae9c3c81a002635255621f2e2196804a07b",
+        "e3535e279d1b76e3174a3621bc984a4b98f2529e"
+      ],
+      "author": "jack0682 <131640493+jack0682@users.noreply.github.com>"
+    }
+  },
+  "refs": {
+    "refs/heads/develop": {
+      "old": "e152bbcf8704dcb39d28ce29e1ac3849209ff9db",
+      "new": "8cf5aa130edaf4b96fb45e3c5715e73fef58658b",
+      "tree": "e3d981a7542bcaf91e37abaa830ea4dc0f78b94d"
+    },
+    "refs/heads/main": {
+      "old": "e3535e279d1b76e3174a3621bc984a4b98f2529e",
+      "new": "b74898e8f8b55f3e6b97a0478cce606c3b9163a3",
+      "tree": "e3d981a7542bcaf91e37abaa830ea4dc0f78b94d"
+    },
+    "refs/tags/archive/initial-draft-2026-09-14": {
+      "old": "d25890160354047e2df7ec4827f751f5cdc3ddf6",
+      "new": "86cda02f1afacd293053f8cc300739a665bc1ea3",
+      "old_target": "12bbf645dcfae95f0ddb96c16a00eb0b7ac4ee34",
+      "new_target": "372e8b7e7f1715bab5562e43c2d67cdc50883e04",
+      "tree": "36cd12ab75e875f6d58f3ee6ad72a5bcdf6988a1"
+    },
+    "refs/tags/archive/investigation-wip-2026-09-14": {
+      "old": "a35502175f104a6f0eb7bc9847d4d90b7907f771",
+      "new": "c909504cee82d007f9d97bc66fb8320e6824707c",
+      "old_target": "3d5f6d09058a44ff9706924cabf3adf50616e828",
+      "new_target": "4b8dc36aee599701ec9a89e23f96ac31fb5fd40b",
+      "tree": "e3b63eb5aa68beedabfc6f6c1cdbcb1260c5aca9"
+    },
+    "refs/tags/codex/initial-draft": {
+      "old": "6b615001cb694c78e4221a3c3362928bacf889d5",
+      "new": "8b4b7c529357071bfe0ee7aa72f70a03795eddb4",
+      "old_target": "12bbf645dcfae95f0ddb96c16a00eb0b7ac4ee34",
+      "new_target": "372e8b7e7f1715bab5562e43c2d67cdc50883e04",
+      "tree": "36cd12ab75e875f6d58f3ee6ad72a5bcdf6988a1"
+    },
+    "refs/tags/codex/investigation-wip": {
+      "old": "ddd9f9c8280ddc4e8497e3c702d9d5151565c765",
+      "new": "88a1a481727fc36d37bf46fb9d5fb7fba115bf85",
+      "old_target": "3d5f6d09058a44ff9706924cabf3adf50616e828",
+      "new_target": "4b8dc36aee599701ec9a89e23f96ac31fb5fd40b",
+      "tree": "e3b63eb5aa68beedabfc6f6c1cdbcb1260c5aca9"
+    },
+    "refs/tags/draft-v0.1": {
+      "old": "a5d6c8b874102a60435c0b8434c5f0a1e542d38d",
+      "new": "e74244dca4f82bf4e84409b9e18b7d4a907608ec",
+      "old_target": "12bbf645dcfae95f0ddb96c16a00eb0b7ac4ee34",
+      "new_target": "372e8b7e7f1715bab5562e43c2d67cdc50883e04",
+      "tree": "36cd12ab75e875f6d58f3ee6ad72a5bcdf6988a1"
+    }
+  }
+}
