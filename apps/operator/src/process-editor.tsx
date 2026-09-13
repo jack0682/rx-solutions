@@ -1,3 +1,4 @@
+import { count } from './labels';
 import { DraftBindings } from './draft-bindings';
 import type { BindingEdit, BindingVersion } from './draft-bindings-schema';
 import { previewRows } from './process-preview';
@@ -14,37 +15,37 @@ import {
   type EditableSource,
 } from './draft-schema';
 const kinds: Record<string, string> = {
-  SEQUENCE: '순차',
-  PARALLEL_ALL: '병렬',
-  BRANCH: '분기',
-  REPEAT: '반복',
-  CALL: '공정 호출',
-  OPERATION: '작업',
-  WAIT: '조건 대기',
-  INTERVENTION: '작업자 개입',
+  SEQUENCE: 'Sequence',
+  PARALLEL_ALL: 'Parallel',
+  BRANCH: 'Branch',
+  REPEAT: 'Repeat',
+  CALL: 'Call workflow',
+  OPERATION: 'Operation',
+  WAIT: 'Wait for condition',
+  INTERVENTION: 'Operator intervention',
 };
 const issueLabels: Record<string, string> = {
-  DOCUMENT_SHAPE: '필수 항목과 값 형식을 확인하세요.',
-  SOURCE_SHAPE: '공정 형식 또는 하위 공정 수를 확인하세요.',
-  DUPLICATE_FLOW: '공정 식별 이름이 중복되었습니다.',
-  ENTRY_MISSING: '진입 공정을 선택하세요.',
-  NODE_LIMIT: '노드 수를 확인하세요.',
-  DUPLICATE_NODE: '노드 식별 이름이 중복되었습니다.',
-  ROOT_MISSING: '시작 노드를 선택하세요.',
-  CHILD_MISSING: '연결한 하위 노드가 없습니다.',
-  EMPTY_CONTROL: '순차·병렬 노드에 하위 노드를 연결하세요.',
-  REPEAT_LIMIT: '반복 횟수는 1–1024의 유한 값이어야 합니다.',
-  CALL_MISSING: '호출할 공정이 없습니다.',
-  CONDITION_MISSING: '선택한 조건의 정의가 없습니다.',
-  WAIT_LIMIT: '대기 기한을 지정하세요.',
+  DOCUMENT_SHAPE: 'Check required fields and value types.',
+  SOURCE_SHAPE: 'Check the workflow format and number of subworkflows.',
+  DUPLICATE_FLOW: 'Workflow identifiers are duplicated.',
+  ENTRY_MISSING: 'Select an entry workflow.',
+  NODE_LIMIT: 'Check the number of nodes.',
+  DUPLICATE_NODE: 'Node identifiers are duplicated.',
+  ROOT_MISSING: 'Select a root node.',
+  CHILD_MISSING: 'A referenced child node does not exist.',
+  EMPTY_CONTROL: 'Connect child nodes to sequence and parallel nodes.',
+  REPEAT_LIMIT: 'The repeat count must be a finite value from 1 to 1024.',
+  CALL_MISSING: 'The called workflow does not exist.',
+  CONDITION_MISSING: 'The selected condition has no definition.',
+  WAIT_LIMIT: 'Specify a wait deadline.',
   SHARED_OR_CYCLIC_NODE:
-    '하위 노드가 중복 연결되었거나 순환합니다. 재사용은 공정 호출로 구성하세요.',
-  TREE_DEPTH_OR_CYCLE: '순환 또는 구조 깊이를 확인하세요.',
-  UNREACHABLE_NODE: '시작 노드에서 연결되지 않은 노드가 있습니다.',
-  CONDITION_SHAPE: '조건식의 구조와 범위를 확인하세요.',
-  EXPANSION_LIMIT: '반복·호출을 전개한 공정이 너무 큽니다.',
-  CALL_CYCLE: '공정 호출이 순환합니다.',
-  UNREACHABLE_FLOW: '진입 공정에서 호출하지 않는 하위 공정이 있습니다.',
+    'Child nodes are linked more than once or form a cycle. Use workflow calls for reuse.',
+  TREE_DEPTH_OR_CYCLE: 'Check for cycles and excessive structural depth.',
+  UNREACHABLE_NODE: 'Some nodes are unreachable from the root node.',
+  CONDITION_SHAPE: 'Check the structure and scope of the condition expression.',
+  EXPANSION_LIMIT: 'The workflow is too large after expanding repeats and calls.',
+  CALL_CYCLE: 'Workflow calls form a cycle.',
+  UNREACHABLE_FLOW: 'Some subworkflows are not called from the entry workflow.',
 };
 const str = (v: unknown) => (typeof v === 'string' ? v : '');
 const strings = (v: unknown) =>
@@ -92,10 +93,10 @@ function Tree({
                   className={`graph-node kind-${str(node.body.kind).toLowerCase()}`}
                   onClick={() => onSelect(row.nodeIndex)}
                 >
-                  <small>{kinds[str(node.body.kind)] ?? '미지원 노드'}</small>
+                  <small>{kinds[str(node.body.kind)] ?? 'Unsupported node'}</small>
                   <strong>
                     {node.body.kind === 'OPERATION'
-                      ? str(node.body.binding) || '작업 연결 필요'
+                      ? str(node.body.binding) || 'Operation bindings required'
                       : node.id}
                   </strong>
                 </button>
@@ -308,7 +309,7 @@ export function ProcessEditor({
     <div className="draft-workspace">
       <aside className="panel draft-list">
         <div className="section-heading">
-          <h3>공정 초안</h3>
+          <h3>Workflow drafts</h3>
           <span className="count">{drafts.length}</span>
         </div>
         <button
@@ -319,7 +320,7 @@ export function ProcessEditor({
               id: crypto.randomUUID(),
               cell,
               expected: null,
-              title: '새 공정',
+              title: 'New workflow',
               document: blank(),
               dirty: true,
               validation: null,
@@ -329,7 +330,7 @@ export function ProcessEditor({
             setSelected(0);
           }}
         >
-          새 초안
+          New draft
         </button>
         {drafts.map((d) => (
           <button
@@ -341,13 +342,15 @@ export function ProcessEditor({
             <b>{d.title}</b>
             <small>
               r{d.revision} ·{' '}
-              {d.structurally_valid ? '구조 확인됨' : `${d.issue_count}개 확인 필요`}
+              {d.structurally_valid
+                ? 'Structure verified'
+                : `${count(d.issue_count, 'item')} to review`}
             </small>
           </button>
         ))}
-        {next && <button onClick={() => void list(next)}>더 보기</button>}
+        {next && <button onClick={() => void list(next)}>Load more</button>}
         {buffer?.dirty && (
-          <p className="muted">다른 초안을 열기 전에 저장하거나 변경을 버리세요.</p>
+          <p className="muted">Save or discard your changes before opening another draft.</p>
         )}
       </aside>
       <section className="draft-main">
@@ -358,9 +361,14 @@ export function ProcessEditor({
         )}
         {!buffer ? (
           <div className="panel empty">
-            <h2>공정을 초안으로 설계합니다</h2>
-            <p>작업과 흐름을 구성하고 저장한 버전의 검사 결과를 확인합니다.</p>
-            <small>초안 저장은 현재 셀 구성이나 실행 중인 작업을 변경하지 않습니다.</small>
+            <h2>Design a workflow draft</h2>
+            <p>
+              Arrange operations and control flow, then inspect validation results for the saved
+              version.
+            </p>
+            <small>
+              Saving a draft does not change the current cell configuration or running operations.
+            </small>
           </div>
         ) : (
           <>
@@ -368,7 +376,7 @@ export function ProcessEditor({
               <div>
                 <p className="eyebrow">PROCESS DRAFT</p>
                 <label>
-                  초안 제목
+                  Draft title
                   <input
                     value={buffer.title}
                     maxLength={120}
@@ -377,9 +385,9 @@ export function ProcessEditor({
                   />
                 </label>
                 <p className="muted">
-                  {buffer.expected ? `기준 r${buffer.expected}` : '저장 전'} ·{' '}
-                  {pendingEdit ? '저장되지 않은 변경 있음' : '저장된 버전'} · 작성 중인 구성을
-                  실행에 적용하지 않습니다.
+                  {buffer.expected ? `Baseline r${buffer.expected}` : 'Not saved yet'} ·{' '}
+                  {pendingEdit ? 'Unsaved changes' : 'Saved version'} · The configuration being
+                  edited is not applied to execution.
                 </p>
               </div>
               <div className="draft-actions">
@@ -390,7 +398,7 @@ export function ProcessEditor({
                   }
                   onClick={() => void onSave(buffer)}
                 >
-                  초안 저장·구조 확인
+                  Save draft and validate structure
                 </button>
                 <button
                   disabled={!pendingEdit || loading}
@@ -399,7 +407,7 @@ export function ProcessEditor({
                     setComparison(null);
                   }}
                 >
-                  변경 버리기
+                  Discard changes
                 </button>
                 <button
                   disabled={disabled || pendingEdit}
@@ -408,7 +416,7 @@ export function ProcessEditor({
                       ...buffer,
                       id: crypto.randomUUID(),
                       expected: null,
-                      title: `${buffer.title} 복사`.slice(0, 120),
+                      title: `${buffer.title} Copy`.slice(0, 120),
                       document: structuredClone(buffer.document),
                       dirty: true,
                       validation: null,
@@ -420,71 +428,74 @@ export function ProcessEditor({
                     setComparison(null);
                   }}
                 >
-                  초안 복사
+                  Copy draft
                 </button>
-                <button onClick={exportJson}>소스 내보내기</button>
-                {buffer.expected && <button onClick={() => void compare()}>서버 버전 비교</button>}
+                <button onClick={exportJson}>Export source</button>
+                {buffer.expected && (
+                  <button onClick={() => void compare()}>Compare server version</button>
+                )}
               </div>
             </header>
             {comparison && (
               <div className="panel draft-comparison">
-                <h3>편집 중인 내용과 서버 기록</h3>
+                <h3>Current edits and server record</h3>
                 <p>
-                  편집 기준 r{buffer.expected} / 서버 r{comparison.version.revision}
+                  Editing baseline r{buffer.expected} / server r{comparison.version.revision}
                 </p>
                 <div className="draft-history-picker">
                   <label>
-                    비교할 저장 버전
+                    Saved version to compare
                     <input
                       inputMode="numeric"
                       value={historyVersion}
                       onChange={(e) => setHistoryVersion(e.target.value)}
-                      placeholder="예: 1"
+                      placeholder="Example: 1"
                     />
                   </label>
                   <button
                     disabled={!/^[1-9][0-9]*$/.test(historyVersion)}
                     onClick={() => void compare(historyVersion)}
                   >
-                    이 버전 불러오기
+                    Load this version
                   </button>
                 </div>
                 <div className="compare-grid">
                   <div>
-                    <b>내 편집</b>
+                    <b>My edits</b>
                     <p>{buffer.title}</p>
                     <pre>{JSON.stringify(buffer.document, null, 2)}</pre>
                   </div>
                   <div>
-                    <b>서버 기록</b>
+                    <b>Server record</b>
                     <p>{comparison.version.title}</p>
                     <pre>{JSON.stringify(comparison.document, null, 2)}</pre>
                   </div>
                 </div>
                 <p className="muted">
-                  이 비교는 편집 중인 내용을 덮어쓰지 않습니다. 변경을 버린 뒤 목록에서 다시 열면
-                  서버의 최신 버전을 읽습니다.
+                  This comparison does not overwrite your edits. Discard changes and reopen the
+                  draft from the list to load the latest server version.
                 </p>
               </div>
             )}
             <section className="panel draft-validation">
               <div className="section-heading">
-                <h3>저장 버전의 검사 결과</h3>
+                <h3>Saved version validation results</h3>
                 <span
                   className={`badge ${buffer.validation?.structurally_valid && !buffer.dirty ? 'good' : 'warning'}`}
                 >
                   {buffer.dirty
-                    ? '현재 편집 재검사 필요'
+                    ? 'Current edits need revalidation'
                     : buffer.validation?.structurally_valid
-                      ? '구조 확인됨'
-                      : '구조 확인 필요'}
+                      ? 'Structure verified'
+                      : 'Structure needs verification'}
                 </span>
               </div>
               {buffer.validation ? (
                 <>
                   <p className="muted">
-                    검사 대상 r{buffer.expected} · 전개 노드 {buffer.validation.expanded_nodes}개 ·
-                    장비 바인딩과 패키지·실물 검증은 별도입니다.
+                    Validated revision r{buffer.expected} · expanded nodes{' '}
+                    {count(buffer.validation.expanded_nodes, 'item')} · device bindings, package
+                    verification, and physical verification are separate.
                   </p>
                   <ul className="draft-issues">
                     {buffer.validation.issues.map((issue, i) => (
@@ -496,11 +507,13 @@ export function ProcessEditor({
                       </li>
                     ))}
                   </ul>
-                  <p>연결할 작업: {buffer.validation.required_bindings.join(', ') || '없음'}</p>
+                  <p>
+                    Operations to bind: {buffer.validation.required_bindings.join(', ') || 'None'}
+                  </p>
                 </>
               ) : (
                 <p className="muted">
-                  초안을 저장하면 구조를 검사합니다. 미완성 내용도 저장할 수 있습니다.
+                  Saving the draft validates its structure. Incomplete content can also be saved.
                 </p>
               )}
             </section>
@@ -516,7 +529,7 @@ export function ProcessEditor({
               <>
                 <div className="panel flow-toolbar">
                   <label>
-                    진입 공정
+                    Entry workflow
                     <select
                       disabled={disabled}
                       value={source.entry}
@@ -534,7 +547,7 @@ export function ProcessEditor({
                     </select>
                   </label>
                   <label>
-                    편집 공정
+                    Workflow to edit
                     <select
                       value={flowIndex}
                       onChange={(e) => {
@@ -561,10 +574,10 @@ export function ProcessEditor({
                       })
                     }
                   >
-                    하위 공정 추가
+                    Add subworkflow
                   </button>
                   <label>
-                    공정 식별 이름
+                    Workflow identifier
                     <input
                       value={source.process}
                       disabled={disabled}
@@ -581,11 +594,11 @@ export function ProcessEditor({
                     <div className="editor-grid">
                       <section className="panel graph-canvas">
                         <div className="section-heading">
-                          <h3>공정 흐름</h3>
-                          <span className="muted">{flow.nodes.length}개 노드</span>
+                          <h3>Workflow flow</h3>
+                          <span className="muted">{count(flow.nodes.length, 'node')}</span>
                         </div>
                         <label>
-                          시작 노드
+                          Root node
                           <select
                             disabled={disabled}
                             value={flow.root}
@@ -595,7 +608,7 @@ export function ProcessEditor({
                               })
                             }
                           >
-                            <option value="">선택 필요</option>
+                            <option value="">Selection required</option>
                             {flow.nodes.map((n, i) => (
                               <option key={i} value={n.id}>
                                 {n.id}
@@ -614,24 +627,24 @@ export function ProcessEditor({
                       </section>
                       <section className="panel node-inspector">
                         <div className="section-heading">
-                          <h3>노드 설정</h3>
+                          <h3>Node settings</h3>
                         </div>
                         <label>
-                          노드 선택
+                          Select node
                           <select
                             value={selected}
                             onChange={(e) => setSelected(Number(e.target.value))}
                           >
                             {flow.nodes.map((n, i) => (
                               <option key={i} value={i}>
-                                {n.id} · {kinds[str(n.body.kind)] ?? '미지원'}
+                                {n.id} · {kinds[str(n.body.kind)] ?? 'Unsupported'}
                               </option>
                             ))}
                           </select>
                         </label>
                         <div className="add-node">
                           <select
-                            aria-label="추가할 노드 종류"
+                            aria-label="Node kind to add"
                             disabled={disabled}
                             value={nodeKind}
                             onChange={(e) => setNodeKind(e.target.value)}
@@ -643,34 +656,34 @@ export function ProcessEditor({
                             ))}
                           </select>
                           <button disabled={disabled} onClick={add}>
-                            노드 추가
+                            Add node
                           </button>
                         </div>
                         {node && (
                           <>
                             <p className="node-kind">
-                              {kinds[str(node.body.kind)] ?? '미지원 노드'} · {node.id}
+                              {kinds[str(node.body.kind)] ?? 'Unsupported node'} · {node.id}
                             </p>
                             {node.body.kind === 'OPERATION' && (
                               <label>
-                                작업 연결 이름
+                                Operation binding name
                                 <input
                                   value={str(node.body.binding)}
                                   disabled={disabled}
                                   onChange={(e) => field('binding', e.target.value)}
-                                  placeholder="예: load-material"
+                                  placeholder="Example: load-material"
                                 />
                               </label>
                             )}
                             {(node.body.kind === 'SEQUENCE' ||
                               node.body.kind === 'PARALLEL_ALL') && (
                               <div>
-                                <b>하위 노드 순서</b>
+                                <b>Child node order</b>
                                 {strings(node.body.children).map((child, i) => (
                                   <div className="child-order" key={`${child}/${i}`}>
                                     <span>{child}</span>
                                     <button
-                                      aria-label={`${child} 위로`}
+                                      aria-label={`${child} Move up`}
                                       disabled={disabled || i === 0}
                                       onClick={() => {
                                         const a = strings(node.body.children);
@@ -681,7 +694,7 @@ export function ProcessEditor({
                                       ↑
                                     </button>
                                     <button
-                                      aria-label={`${child} 연결 해제`}
+                                      aria-label={`${child} Unlink`}
                                       disabled={disabled}
                                       onClick={() =>
                                         field(
@@ -697,7 +710,7 @@ export function ProcessEditor({
                                   </div>
                                 ))}
                                 <select
-                                  aria-label="하위 노드 연결"
+                                  aria-label="Connect child node"
                                   disabled={disabled}
                                   value=""
                                   onChange={(e) =>
@@ -707,7 +720,7 @@ export function ProcessEditor({
                                     ])
                                   }
                                 >
-                                  <option value="">노드 연결</option>
+                                  <option value="">Connect node</option>
                                   {flow.nodes
                                     .filter((n) => n.id !== node.id)
                                     .map((n, i) => (
@@ -720,7 +733,7 @@ export function ProcessEditor({
                             )}
                             {['BRANCH', 'WAIT'].includes(str(node.body.kind)) && (
                               <label>
-                                조건 이름
+                                Condition name
                                 <input
                                   list="draft-conditions"
                                   value={str(node.body.condition)}
@@ -737,13 +750,15 @@ export function ProcessEditor({
                             {node.body.kind === 'BRANCH' &&
                               (['when_true', 'when_false'] as const).map((key) => (
                                 <label key={key}>
-                                  {key === 'when_true' ? '조건 충족 시' : '조건 미충족 시'}
+                                  {key === 'when_true'
+                                    ? 'When condition is met'
+                                    : 'When condition is not met'}
                                   <select
                                     disabled={disabled}
                                     value={str(node.body[key])}
                                     onChange={(e) => field(key, e.target.value)}
                                   >
-                                    <option value="">선택 필요</option>
+                                    <option value="">Selection required</option>
                                     {flow.nodes
                                       .filter((n) => n.id !== node.id)
                                       .map((n, i) => (
@@ -757,7 +772,7 @@ export function ProcessEditor({
                             {node.body.kind === 'REPEAT' && (
                               <>
                                 <label>
-                                  반복 횟수
+                                  Repeat count
                                   <input
                                     inputMode="numeric"
                                     value={str(node.body.count)}
@@ -766,13 +781,13 @@ export function ProcessEditor({
                                   />
                                 </label>
                                 <label>
-                                  반복할 노드
+                                  Node to repeat
                                   <select
                                     disabled={disabled}
                                     value={str(node.body.child)}
                                     onChange={(e) => field('child', e.target.value)}
                                   >
-                                    <option value="">선택 필요</option>
+                                    <option value="">Selection required</option>
                                     {flow.nodes
                                       .filter((n) => n.id !== node.id)
                                       .map((n, i) => (
@@ -786,7 +801,7 @@ export function ProcessEditor({
                             )}
                             {node.body.kind === 'WAIT' && (
                               <label>
-                                대기 기한(ns)
+                                Wait deadline (ns)
                                 <input
                                   inputMode="numeric"
                                   value={str(node.body.timeout_ns)}
@@ -797,13 +812,13 @@ export function ProcessEditor({
                             )}
                             {node.body.kind === 'CALL' && (
                               <label>
-                                호출할 공정
+                                Workflow to call
                                 <select
                                   disabled={disabled}
                                   value={str(node.body.flow)}
                                   onChange={(e) => field('flow', e.target.value)}
                                 >
-                                  <option value="">선택 필요</option>
+                                  <option value="">Selection required</option>
                                   {source.flows.map((f, i) => (
                                     <option key={i} value={f.id}>
                                       {f.id}
@@ -814,8 +829,8 @@ export function ProcessEditor({
                             )}
                             {node.body.kind === 'INTERVENTION' && (
                               <p className="muted">
-                                절차 artifact의 연결은 고급 소스 편집에서 지정합니다. 미지정 상태는
-                                구조 확인 필요로 저장됩니다.
+                                Specify procedure artifact bindings in advanced source editing.
+                                Unspecified bindings are saved as requiring structural verification.
                               </p>
                             )}
                             <button
@@ -823,7 +838,7 @@ export function ProcessEditor({
                               disabled={disabled}
                               onClick={remove}
                             >
-                              이 노드 삭제
+                              Delete this node
                             </button>
                           </>
                         )}
@@ -832,21 +847,21 @@ export function ProcessEditor({
                   </>
                 )}
                 <section className="panel">
-                  <h3>조건 정의</h3>
+                  <h3>Condition definitions</h3>
                   <p className="muted">
-                    조건식은 장비의 관측 이름과 연결합니다. 현재는 JSON 조건식을 편집하며 장비
-                    신호를 자동 승인하지 않습니다.
+                    Condition expressions reference device observation names. Edit the expressions
+                    as JSON; device signals are not approved automatically.
                   </p>
                   <button
                     disabled={disabled}
                     onClick={() => setConditionRaw(JSON.stringify(source.conditions, null, 2))}
                   >
-                    조건 편집 열기
+                    Open condition editor
                   </button>
                   {editingConditions && (
                     <>
                       <textarea
-                        aria-label="조건 정의 JSON"
+                        aria-label="Condition definitions JSON"
                         className="source-code"
                         value={conditionRaw}
                         onChange={(e) => setConditionRaw(e.target.value)}
@@ -868,14 +883,14 @@ export function ProcessEditor({
                               conditionText: null,
                             });
                           } catch {
-                            setError('조건 JSON 형식을 확인하세요.');
+                            setError('Check the condition JSON format.');
                           }
                         }}
                       >
-                        조건 적용
+                        Apply conditions
                       </button>
                       <button disabled={inputDisabled} onClick={() => setConditionRaw(null)}>
-                        조건 편집 취소
+                        Cancel condition editing
                       </button>
                     </>
                   )}
@@ -883,25 +898,25 @@ export function ProcessEditor({
               </>
             ) : (
               <div className="notice warning">
-                구조 편집기로 표시할 수 없는 문서입니다. 고급 소스 편집으로 확인할 수 있으며 저장된
-                원문은 유지됩니다.
+                This document cannot be displayed in the structural editor. Use advanced source
+                editing to inspect it. The saved source is preserved.
               </div>
             )}
             <details className="panel advanced-source">
-              <summary>고급 소스 편집·가져오기</summary>
+              <summary>Advanced source editing and import</summary>
               <p className="muted">
-                JSON 원문을 변경합니다. 편집 내용은 저장 전까지 활성 공정에 영향을 주지 않습니다.
+                Edit the JSON source. Edits do not affect the active workflow before saving.
               </p>
               <button
                 disabled={disabled}
                 onClick={() => setRaw(JSON.stringify(buffer.document, null, 2))}
               >
-                소스 편집 열기
+                Open source editor
               </button>
               {editingSource && (
                 <>
                   <textarea
-                    aria-label="공정 소스 JSON"
+                    aria-label="Workflow source JSON"
                     className="source-code"
                     value={raw}
                     onChange={(e) => setRaw(e.target.value)}
@@ -920,19 +935,19 @@ export function ProcessEditor({
                         setFlow(0);
                         setSelected(0);
                       } catch {
-                        setError('JSON 형식을 확인하세요.');
+                        setError('Check the JSON format.');
                       }
                     }}
                   >
-                    소스 적용
+                    Apply source
                   </button>
                   <button disabled={inputDisabled} onClick={() => setRaw(null)}>
-                    소스 편집 취소
+                    Cancel source editing
                   </button>
                 </>
               )}
               <label>
-                JSON 파일 가져오기
+                Import JSON file
                 <input
                   type="file"
                   accept="application/json,.json"
@@ -941,7 +956,7 @@ export function ProcessEditor({
                     const file = e.target.files?.[0];
                     if (file) {
                       if (file.size > 524288) {
-                        setError('가져올 문서는 512 KiB 이하여야 합니다.');
+                        setError('The imported document must not exceed 512 KiB.');
                         return;
                       }
                       void file.text().then((text) => {
@@ -954,7 +969,7 @@ export function ProcessEditor({
                           setFlow(0);
                           setSelected(0);
                         } catch {
-                          setError('JSON 파일 형식을 확인하세요.');
+                          setError('Check the JSON file format.');
                         }
                       });
                     }

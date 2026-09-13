@@ -509,7 +509,7 @@ export async function freezeRecoveryProposal(
     installation: data.installation.id,
     store_generation: data.installation.store_generation,
     route: '/api/v1/host-recoveries',
-    label: `${context.context.host} 복구 연결 제안`,
+    label: `${context.context.host} Propose recovery binding`,
     command: {
       host: context.context.host,
       origin: context.context.origin,
@@ -542,7 +542,7 @@ export async function freezeRecoveryApproval(
     installation: data.installation.id,
     store_generation: data.installation.store_generation,
     route: '/api/v1/host-recovery/approve',
-    label: `${b.context.host} 복구 조회 연결 승인`,
+    label: `${b.context.host} Approve recovery inspection binding`,
     command: {
       id: b.id,
       expected_revision: b.revision,

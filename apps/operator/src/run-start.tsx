@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { api, ApiFailure, explain } from './api';
 import { canRecover } from './pending';
-import { short, text } from './labels';
+import { count, short, text } from './labels';
 import type { CellOverview, Overview, Pending } from './schema';
 import {
   attemptPath,
@@ -17,10 +17,10 @@ import {
 } from './run-start-schema';
 
 const attemptLabels = {
-  PENDING: '시작 대기',
-  ARMING: '시작 접수 · Host 확인 중',
-  STARTED: '시작 확정',
-  REJECTED: '시작 거부 기록',
+  PENDING: 'Start pending',
+  ARMING: 'Start accepted · awaiting Host confirmation',
+  STARTED: 'Start confirmed',
+  REJECTED: 'Start rejection recorded',
 };
 
 export function RunStart({
@@ -167,26 +167,28 @@ export function RunStart({
   }, [selectedRun, attemptId, data.snapshot_id, fresh, reload]);
 
   return (
-    <section className="panel records" aria-label="선택 실행 시작과 상태">
+    <section className="panel records" aria-label="Selected run start and status">
       <div className="section-heading">
         <div>
           <p className="eyebrow">RUN START</p>
-          <h3>실행 시작과 상태</h3>
+          <h3>Run start and status</h3>
         </div>
         <button onClick={() => setReload((value) => value + 1)} disabled={!fresh}>
-          다시 조회
+          Refresh
         </button>
       </div>
       <label>
-        실행 기록 선택
+        Select run record
         <select
           value={selectedRun}
           onChange={(event) => onSelectRun(event.target.value)}
           disabled={!!review || working}
         >
-          <option value="">시작하거나 조회할 실행을 선택하세요</option>
+          <option value="">Select a run to start or inspect</option>
           {selectedRun && !selected && (
-            <option value={selectedRun}>{short(selectedRun)} · 현재 목록 밖 기록</option>
+            <option value={selectedRun}>
+              {short(selectedRun)} · record outside the current list
+            </option>
           )}
           {cell.runs.map((item) => (
             <option key={item.value.id} value={item.value.id}>
@@ -197,66 +199,69 @@ export function RunStart({
       </label>
       {selectedRun ? (
         <>
-          <p className="mono">실행 {selectedRun}</p>
+          <p className="mono">Run {selectedRun}</p>
           <p>
-            {fresh ? '현재 실행 상태' : '마지막 조회 실행 상태'} · {text(attemptDisplay.runState)}
+            {fresh ? 'Current run state' : 'Last retrieved run state'} ·{' '}
+            {text(attemptDisplay.runState)}
           </p>
           {(!selected || selected.value.state === 'PREPARED') && (
             <>
               <label>
-                소재 시도 수량
+                Material attempt count
                 <input
                   inputMode="numeric"
                   value={requestedQuantity}
-                  placeholder="양의 정수를 직접 입력하세요"
+                  placeholder="Enter a positive integer"
                   onChange={(event) => setQuantity(event.target.value)}
                   disabled={!!fixedBudget || !!review || working}
                   aria-describedby="start-quantity-help"
                 />
               </label>
               <p id="start-quantity-help" className="muted">
-                생산 · 소재 시도 예산입니다. 확인 완료 수량과는 다릅니다.
-                {fixedBudget ? ` 기존 ${fixedBudget.limit}회 예산은 변경할 수 없습니다.` : ''}
+                Production · this is a material attempt budget, not a confirmed completion count.
+                {fixedBudget
+                  ? ` The existing ${fixedBudget.limit}-attempt budget cannot be changed.`
+                  : ''}
                 {contextCurrent
-                  ? ` 이 셀의 최대 허용 수량은 ${context.maximum_budget}회입니다.`
+                  ? ` The maximum permitted count for this cell is ${count(context.maximum_budget, 'attempt')}.`
                   : ''}
               </p>
               {!positiveQuantity(requestedQuantity) && (
-                <p className="muted">수량을 입력하면 현재 시작 조건을 조회합니다.</p>
+                <p className="muted">Enter a count to query the current start conditions.</p>
               )}
               {contextError && (
                 <p role="alert" className="error">
-                  {contextError} 시작 조건을 다시 조회해야 합니다.
+                  {contextError} Refresh the start conditions.
                 </p>
               )}
               {contextCurrent && (
                 <>
                   <dl className="facts">
                     <div>
-                      <dt>검토한 기록</dt>
+                      <dt>Reviewed records</dt>
                       <dd>
-                        셀 r{context.cell_revision} / 실행 r{context.run_revision}
+                        Cell r{context.cell_revision} / run r{context.run_revision}
                       </dd>
                     </div>
                     <div>
-                      <dt>운전 자격 기록</dt>
+                      <dt>Operating qualification record</dt>
                       <dd>{text(context.commissioning ?? 'UNKNOWN')}</dd>
                     </div>
                     <div>
-                      <dt>시작 조건 조회</dt>
+                      <dt>Start condition query</dt>
                       <dd>
                         {!contextFresh
-                          ? '최신 조회 필요'
+                          ? 'Fresh query required'
                           : context.can_request
-                            ? '요청 전 검사 통과'
-                            : '현재 시작 요청 차단'}
+                            ? 'Pre-request checks passed'
+                            : 'Start request currently blocked'}
                       </dd>
                     </div>
                   </dl>
                   {context.blocking_reason && (
                     <p className="notice" role="status">
                       {context.blocking_reason === 'BUSY'
-                        ? '현재 시작 시도 또는 실행 연결을 확인해야 합니다. 운전 조건과 실행 기록을 확인하세요.'
+                        ? 'Check the current start attempt or execution binding. Review operating conditions and run records.'
                         : explain(new ApiFailure(context.blocking_reason))}{' '}
                       · {context.blocking_reason}
                     </p>
@@ -274,11 +279,12 @@ export function RunStart({
                     });
                 }}
               >
-                시작 내용 검토
+                Review start details
               </button>
               <p className="muted">
-                조회 결과는 운전 허가가 아닙니다. 시작 요청과 Host 확인 시 현재 단말·자격·조건을
-                다시 검사합니다.
+                Query results do not grant operating permission. The current terminal,
+                qualification, and conditions are rechecked at the start request and Host
+                confirmation.
               </p>
             </>
           )}
@@ -286,30 +292,30 @@ export function RunStart({
             <div className="inset" role="status">
               <b>
                 {attempt && attemptDisplay.attemptMatches
-                  ? `${attemptFresh ? '' : '마지막 조회 · '}${attemptLabels[attempt.attempt.status]}`
-                  : '저장된 시작 시도 조회 중'}
+                  ? `${attemptFresh ? '' : 'Last retrieved · '}${attemptLabels[attempt.attempt.status]}`
+                  : 'Loading stored start attempt'}
               </b>
-              <p className="mono">시작 시도 {attemptId}</p>
+              <p className="mono">Start attempt {attemptId}</p>
               {attemptError && <p className="error">{attemptError}</p>}
               {attempt && attemptDisplay.attemptMatches && (
                 <>
                   <p>
-                    Host 확인 {Object.keys(attempt.attempt.acknowledgments).length} /{' '}
+                    Host confirmations {Object.keys(attempt.attempt.acknowledgments).length} /{' '}
                     {Object.keys(attempt.attempt.host_boots).length}
-                    {' · '}저장 상태 {attempt.attempt.status}
+                    {' · '}Stored state {attempt.attempt.status}
                   </p>
                   <p>
-                    시작 확인 기한 ·{' '}
+                    Start confirmation deadline ·{' '}
                     {attempt.deadline_status === 'WITHIN_DEADLINE'
-                      ? '기한 내'
+                      ? 'Within deadline'
                       : attempt.deadline_status === 'ELAPSED'
-                        ? '기한 경과'
-                        : '시간 기준 변경'}
+                        ? 'Deadline elapsed'
+                        : 'Clock basis changed'}
                   </p>
                   {!attemptFresh && (
                     <p>
-                      마지막 확인 기록입니다. 현재 실행 기록과 일치하는 최신 시작 상태를 다시
-                      조회해야 합니다.
+                      This is the last verified record. Retrieve the latest start state that matches
+                      the current run record.
                     </p>
                   )}
                   {attempt.deadline_status !== 'WITHIN_DEADLINE' &&
@@ -317,27 +323,30 @@ export function RunStart({
                       attempt.attempt.status === 'PENDING') && (
                       <p className="error">
                         {attempt.deadline_status === 'ELAPSED'
-                          ? '시작 확인 기한 경과'
-                          : '시작 확인 시간 기준 변경'}
-                        {' · '}저장 상태는 {attempt.attempt.status}입니다. 조정이 필요하며 자동으로
-                        재시작하지 않습니다.
+                          ? 'Start confirmation deadline elapsed'
+                          : 'Start confirmation clock basis changed'}
+                        {' · '}The stored state is {attempt.attempt.status}. Coordination is
+                        required; no automatic restart occurs.
                       </p>
                     )}
                   {attempt.attempt.status === 'ARMING' && (
-                    <p>시작 요청 기록을 수신했습니다. 실제 시작 확정은 아직 확인되지 않았습니다.</p>
+                    <p>
+                      The start request record was received. Actual start confirmation has not yet
+                      been verified.
+                    </p>
                   )}
                 </>
               )}
             </div>
           )}
           <p className="muted">
-            소재별 완료 집계는 아직 제공되지 않습니다. 실행 기록과 작업 결과·자원 인계를 각각
-            확인하세요.
+            Per-material completion totals are not yet available. Review run records, operation
+            outcomes, and resource handover separately.
           </p>
         </>
       ) : (
         <p className="empty-inline">
-          실행 기록을 선택하세요. 가장 최근 실행을 자동으로 시작하지 않습니다.
+          Select a run record. The most recent run is not started automatically.
         </p>
       )}
       <dialog
@@ -361,59 +370,60 @@ export function RunStart({
           }}
         >
           <p className="eyebrow">REVIEW START REQUEST</p>
-          <h2 id="start-title">이 실행을 시작할까요?</h2>
+          <h2 id="start-title">Start this run?</h2>
           {review && (
             <>
               <p>
                 <b>{review.context.cell}</b> ·{' '}
-                {review.context.environment === 'SIMULATION' ? '모의 환경' : '실장비'}
+                {review.context.environment === 'SIMULATION' ? 'Simulation' : 'Physical equipment'}
               </p>
               <dl className="config-list">
                 <div>
-                  <dt>정확한 실행 번호</dt>
+                  <dt>Exact run ID</dt>
                   <dd>{review.context.run.id}</dd>
                 </div>
                 <div>
-                  <dt>생산 소재 시도 수량</dt>
-                  <dd>{String(review.request.command.budget_limit)}회</dd>
+                  <dt>Production material attempt count</dt>
+                  <dd>{count(String(review.request.command.budget_limit), 'attempt')}</dd>
                 </div>
                 <div>
-                  <dt>검토한 버전</dt>
+                  <dt>Reviewed revision</dt>
                   <dd>
-                    셀 r{review.context.cell_revision} / 실행 r{review.context.run_revision}
+                    Cell r{review.context.cell_revision} / run r{review.context.run_revision}
                   </dd>
                 </div>
                 <div>
-                  <dt>공정</dt>
+                  <dt>Workflow</dt>
                   <dd>{review.context.recipe.sha256}</dd>
                 </div>
                 <div>
-                  <dt>운전 범위</dt>
+                  <dt>Operating envelope</dt>
                   <dd>{review.context.envelope.sha256}</dd>
                 </div>
               </dl>
               <p>
-                현재 조건을 다시 검사해 시작 시도를 기록합니다. Host 확인이 끝난 뒤 저장된 시작
-                확정을 확인합니다.
+                Recheck the current conditions and record a start attempt. After Host confirmation,
+                verify the stored start confirmation.
               </p>
               {!reviewCurrent && (
                 <p className="error" role="alert">
-                  검토 후 상태가 변경되었습니다. 돌아가서 최신 내용을 다시 검토하세요.
+                  The state has changed since review. Go back and review the latest details.
                 </p>
               )}
               {reviewCurrent && !reviewAllowed && (
                 <p className="error" role="alert">
-                  현재 시작 조건을 다시 확인해야 합니다. 요청 내용은 검토한 값으로 유지됩니다.
+                  The current start conditions need to be checked again. The request retains the
+                  reviewed values.
                 </p>
               )}
             </>
           )}
           <div className="dialog-actions">
             <button type="button" onClick={() => setReview(null)} disabled={working}>
-              돌아가기
+              Back
             </button>
             <button type="submit" className="primary" disabled={!reviewAllowed}>
-              {working ? '요청 중…' : '검토한 수량으로 시작 요청'}
+              {working ? 'Requesting…' : 'Request start with reviewed count'}
             </button>
           </div>
         </form>

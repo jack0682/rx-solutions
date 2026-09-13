@@ -152,35 +152,37 @@ export function DraftBindings({
     <section className="panel draft-bindings">
       {!!view?.binding?.device_plans.length && (
         <p className="notice">
-          검토된 장비 변경안의 후보를 사용하는 공정 초안입니다. 실행 중인 구성에는 아직 적용되지
-          않았습니다.
+          This workflow draft uses a candidate from a reviewed device change proposal. It has not
+          been applied to the running configuration.
         </p>
       )}
       <div className="section-heading">
         <div>
           <p className="eyebrow">ACTION BINDINGS</p>
-          <h3>공정 작업과 장비 작업 연결</h3>
+          <h3>Workflow and device operation bindings</h3>
         </div>
         <span
           className={`badge ${!edit && view?.binding?.complete && !view.stale.length ? 'good' : 'warning'}`}
         >
           {edit
-            ? '저장되지 않은 선택'
+            ? 'Unsaved selections'
             : !view?.binding
-              ? '연결 선택 필요'
+              ? 'Binding selections required'
               : view.stale.length
-                ? '구성 재검토 필요'
+                ? 'Configuration review required'
                 : view.binding.complete
-                  ? '모든 연결 선택됨'
-                  : '미연결 작업 있음'}
+                  ? 'All bindings selected'
+                  : 'Some operations are unbound'}
         </span>
       </div>
       <p className="muted">
-        현재 셀에 등록된 작업에서 선택합니다. 바인딩 저장과 컴파일 입력은 장비 실행이나 검증 승인을
-        만들지 않습니다.
+        Select from operations registered in the current cell. Saving bindings and exporting
+        compiler input do not execute devices or grant verification approval.
       </p>
       {!sourceReady && (
-        <p className="notice">공정 원문을 먼저 저장하고 구조 검사 결과를 확인하세요.</p>
+        <p className="notice">
+          Save the workflow source first and check its structural validation results.
+        </p>
       )}
       {error && (
         <p className="notice error" role="alert">
@@ -190,15 +192,18 @@ export function DraftBindings({
       {view?.stale.length !== 0 && view?.stale.length && (
         <p className="notice warning">
           {view.stale.includes('SOURCE_CHANGED')
-            ? '저장한 연결의 공정 내용이 현재 초안과 다릅니다. '
+            ? 'The saved bindings refer to different workflow content than the current draft. '
             : ''}
-          {view.stale.includes('CATALOG_CHANGED') ? '장비 작업 구성이 변경되었습니다. ' : ''}기존
-          선택을 확인하고 현재 구성으로 다시 저장해야 합니다.
+          {view.stale.includes('CATALOG_CHANGED')
+            ? 'The device operation configuration has changed. '
+            : ''}
+          Review the existing selections and save them again against the current configuration.
         </p>
       )}
       {changedContext && (
         <p className="notice warning">
-          편집 기준이 변경됐습니다. 새 목록과 선택을 대조한 뒤 현재 기준으로 검토하세요.
+          The editing baseline has changed. Compare the new list with your selections and review
+          against the current baseline.
         </p>
       )}
       <div className="binding-table">
@@ -209,28 +214,31 @@ export function DraftBindings({
               <label>
                 {binding}
                 <select
-                  aria-label={`${binding} 장비 작업`}
+                  aria-label={`${binding} Device operation`}
                   value={selections[binding] ?? ''}
                   disabled={!canEdit || !sourceReady || !contextCurrent || working}
                   onChange={(e) => choose(binding, e.target.value)}
                 >
-                  <option value="">작업 선택</option>
+                  <option value="">Select operation</option>
                   {catalog?.candidates.map((c) => (
                     <option key={c.step} value={c.step}>
                       {c.step} · {c.host} / {c.target}
                     </option>
                   ))}
                   {selections[binding] && !selected && (
-                    <option value={selections[binding]}>이전 선택 · {selections[binding]}</option>
+                    <option value={selections[binding]}>
+                      Previous selection · {selections[binding]}
+                    </option>
                   )}
                 </select>
               </label>
               {selected && (
                 <div className="binding-info">
                   <span>{selected.host}</span>
-                  <span>대상 {selected.target}</span>
+                  <span>Target {selected.target}</span>
                   <small>
-                    자원 {selected.resources.join(', ')} · intent {short(selected.intent_digest)}
+                    Resources {selected.resources.join(', ')} · intent{' '}
+                    {short(selected.intent_digest)}
                   </small>
                 </div>
               )}
@@ -240,7 +248,7 @@ export function DraftBindings({
       </div>
       {extra.length > 0 && (
         <div className="notice warning">
-          현재 공정에 없는 이전 선택: {extra.join(', ')}
+          Previous selections absent from the current workflow: {extra.join(', ')}
           <button
             disabled={!canEdit || working}
             onClick={() => {
@@ -252,7 +260,7 @@ export function DraftBindings({
               }
             }}
           >
-            이전 선택 제외
+            Remove previous selection
           </button>
         </div>
       )}
@@ -264,20 +272,20 @@ export function DraftBindings({
             if (next) onBuffer({ ...buffer, bindingEdit: next });
           }}
         >
-          현재 기준으로 검토
+          Review against current baseline
         </button>
         <button
           className="primary"
           disabled={!canSave || !sourceReady || !edit || changedContext || working}
           onClick={() => edit && void onSave(edit)}
         >
-          바인딩 저장
+          Save bindings
         </button>
         <button
           disabled={!edit || working}
           onClick={() => onBuffer({ ...buffer, bindingEdit: null })}
         >
-          선택 변경 버리기
+          Discard selection changes
         </button>
         <button
           disabled={
@@ -285,16 +293,16 @@ export function DraftBindings({
           }
           onClick={() => void exportBundle()}
         >
-          컴파일 입력 내보내기
+          Export compiler input
         </button>
         <button disabled={working || !buffer.expected} onClick={() => void load()}>
-          장비 작업 다시 조회
+          Refresh device operations
         </button>
       </div>
       {view?.binding && (
         <p className="muted">
-          바인딩 r{view.binding.revision} · 원문 r{view.binding.source_revision} 기준 · 수정자{' '}
-          {view.binding.updated_by}
+          Bindings r{view.binding.revision} · source r{view.binding.source_revision} baseline ·
+          edited by {view.binding.updated_by}
         </p>
       )}
     </section>

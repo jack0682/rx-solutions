@@ -30,6 +30,8 @@ jobs:
           persist-credentials: false
       - name: Test repository checks
         run: python3 .github/test_repository.py
+      - name: Test browser server lifecycle helper
+        run: python3 apps/operator/tests/test_with_servers.py
       - name: Validate PR branch route
         if: github.event_name == 'pull_request'
         run: python3 tools/check_repository.py --event "$GITHUB_EVENT_PATH"
@@ -93,7 +95,7 @@ jobs:
       - run: npm run build
 
   ci:
-    name: CI
+    name: ${{ github.event_name == 'pull_request' && 'CI' || 'Branch CI' }}
     if: ${{ always() }}
     needs: [repository, rust, operator]
     runs-on: ubuntu-24.04

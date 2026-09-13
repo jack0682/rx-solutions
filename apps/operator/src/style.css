@@ -1843,7 +1843,11 @@ textarea:focus-visible {
 
 .device-review-workspace {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 20px;
+  min-width: 0;
+}
+.device-review-workspace > .panel {
   min-width: 0;
 }
 .device-review-material,
