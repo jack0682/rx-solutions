@@ -21,6 +21,11 @@ name = "rx-host-sim-server"
 path = "tests/support/sim_server.rs"
 required-features = ["test-harness"]
 
+[[bin]]
+name = "rx-host-recovery-fixture"
+path = "tests/support/recovery_native_fixture.rs"
+required-features = ["test-harness"]
+
 [dependencies]
 rx-service-status = {path="../rx-service-status"}
 rx-process-contract = {path="../../sdk/crates/rx-process-contract"}

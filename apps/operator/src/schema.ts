@@ -1,5 +1,5 @@
 import { diagnosticsSchema } from './diagnostics-schema';
-import { z } from 'zod';
+import { z } from './schema-runtime';
 export const counter = z
   .string()
   .regex(/^(0|[1-9][0-9]{0,19})$/)
@@ -156,6 +156,35 @@ export const startReviewSchema = z
     runtime_boot: id,
   })
   .strict();
+const recoveryDigest = z.string().regex(/^[0-9a-f]{64}$/);
+export const recoveryPrepareSchema = z
+  .object({
+    host: z.string().min(1),
+    origin: z.string().min(1),
+    expected_context: recoveryDigest,
+    expected_cells: z.record(z.string(), counter),
+  })
+  .strict();
+export const recoveryApproveSchema = z
+  .object({
+    id,
+    expected_revision: counter,
+    proposal_digest: recoveryDigest,
+    expected_cells: z.record(z.string(), counter),
+  })
+  .strict();
+export const recoveryReviewSchema = z
+  .object({
+    host: z.string().min(1),
+    origin: z.string().min(1),
+    runtime_boot: id,
+    context_digest: recoveryDigest,
+    binding: id.optional(),
+    proposal_digest: recoveryDigest.optional(),
+    fence_requests: z.record(z.string(), id).optional(),
+    fence_payloads: z.record(z.string(), recoveryDigest).optional(),
+  })
+  .strict();
 export const pendingSchema = z
   .object({
     request_key: id,
@@ -174,6 +203,8 @@ export const pendingSchema = z
       '/api/v1/device-reviews',
       '/api/v1/device-review/reports',
       '/api/v1/device-review/decisions',
+      '/api/v1/host-recoveries',
+      '/api/v1/host-recovery/approve',
     ]),
     command: z.record(z.string(), z.unknown()),
     label: z.string(),
@@ -181,8 +212,36 @@ export const pendingSchema = z
     installation: id,
     store_generation: id,
     start_review: startReviewSchema.optional(),
+    recovery_review: recoveryReviewSchema.optional(),
   })
   .superRefine((value, context) => {
+    if (
+      value.route === '/api/v1/host-recoveries' ||
+      value.route === '/api/v1/host-recovery/approve'
+    ) {
+      const review = value.recovery_review;
+      const command =
+        value.route === '/api/v1/host-recoveries'
+          ? recoveryPrepareSchema.safeParse(value.command)
+          : recoveryApproveSchema.safeParse(value.command);
+      if (
+        !review ||
+        !command.success ||
+        (value.route === '/api/v1/host-recoveries' &&
+          (value.command.host !== review.host ||
+            value.command.origin !== review.origin ||
+            value.command.expected_context !== review.context_digest)) ||
+        (value.route === '/api/v1/host-recovery/approve' &&
+          (value.command.id !== review.binding ||
+            value.command.proposal_digest !== review.proposal_digest ||
+            !review.fence_requests ||
+            !review.fence_payloads))
+      )
+        context.addIssue({
+          code: 'custom',
+          message: 'Recovery request and reviewed Host context differ.',
+        });
+    }
     if (
       value.route === '/api/v1/runs/start' &&
       (!value.start_review || !startCommandSchema.safeParse(value.command).success)

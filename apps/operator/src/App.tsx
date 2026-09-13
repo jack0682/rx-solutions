@@ -19,6 +19,14 @@ import { Conditions } from './conditions';
 import { text, short, time } from './labels';
 import { Runs, Work, Configuration } from './views';
 import { RunStart } from './run-start';
+import { HostRecovery } from './host-recovery';
+import {
+  canRecoverHostRequest,
+  recoveryRoute,
+  validateRecoveryReceipt,
+  type RecoveryTransientRoute,
+  type RecoveryView,
+} from './host-recovery-schema';
 import {
   attemptPath,
   readStartWatch,
@@ -29,7 +37,7 @@ import {
 } from './run-start-schema';
 import { Cases } from './cases';
 import { useState, useEffect, useRef, useCallback, type FormEvent } from 'react';
-import { z } from 'zod';
+import { z } from './schema-runtime';
 import { api, ApiFailure, explain } from './api';
 import {
   overviewSchema,
@@ -62,6 +70,7 @@ export function App() {
   const [dialog, setDialog] = useState<{ kind: 'run' | 'hold'; cell: CellOverview } | null>(null);
   const [pending, setPending] = useState<Pending | null>(null);
   const [startWatch, setStartWatch] = useState<StartWatch | null>(null);
+  const [recoveryReceipt, setRecoveryReceipt] = useState<RecoveryView | null>(null);
   const [runSelections, setRunSelections] = useState<Record<string, string>>({});
   const [storageError, setStorageError] = useState(false);
   const [working, setWorking] = useState(false);
@@ -104,6 +113,7 @@ export function App() {
         setDraftReceipt(null);
         setBindingReceipt(null);
         setRunSelections({});
+        setRecoveryReceipt(null);
       }
       setData(result);
       setReadStarted(started);
@@ -193,6 +203,13 @@ export function App() {
   const canEditDraft = canAuthor && !pending && !working && !storageError;
   const canSaveDraft = fresh && canEditDraft;
   const canRequest = fresh && canOperate && !pending && !working && !storageError;
+  const canRecoverHost =
+    fresh &&
+    !!data?.user.roles.includes('RELEASE_MANAGER') &&
+    !!data?.user.terminal &&
+    !pending &&
+    !working &&
+    !storageError;
 
   const canAcknowledge =
     fresh &&
@@ -243,6 +260,7 @@ export function App() {
       setBindingReceipt(null);
       setError('');
       setDialog(null);
+      setRecoveryReceipt(null);
     } catch (e) {
       setError(explain(e));
     } finally {
@@ -281,26 +299,19 @@ export function App() {
   }
   async function submit(retry?: Pending, action?: Pending) {
     if (busy.current || !data || !cell || !fresh || storageError) return;
-    if (
-      retry &&
-      !canRecover(
-        retry,
-        data.user.principal,
-        data.installation.id,
-        data.installation.store_generation,
-      )
-    )
-      return;
+    if (retry && !canRecoverHostRequest(retry, data)) return;
     if (
       !retry &&
-      !(action && packageRoute(action.route)
-        ? fresh && canReadDrafts && canEditDraftRequest(action.route)
-        : action?.route === '/api/v1/process-drafts' ||
-            action?.route === '/api/v1/process-draft-bindings'
-          ? canSaveDraft
-          : action?.route === '/api/v1/cases/acknowledge'
-            ? canAcknowledge
-            : canRequest)
+      !(action && recoveryRoute(action.route)
+        ? canRecoverHost
+        : action && packageRoute(action.route)
+          ? fresh && canReadDrafts && canEditDraftRequest(action.route)
+          : action?.route === '/api/v1/process-drafts' ||
+              action?.route === '/api/v1/process-draft-bindings'
+            ? canSaveDraft
+            : action?.route === '/api/v1/cases/acknowledge'
+              ? canAcknowledge
+              : canRequest)
     )
       return;
     busy.current = true;
@@ -334,7 +345,9 @@ export function App() {
       sent = true;
       const result = await api(record.route, { body: requestBody(record) });
       try {
-        if (packageRoute(record.route)) {
+        if (recoveryRoute(record.route)) {
+          setRecoveryReceipt(await validateRecoveryReceipt(record, result));
+        } else if (packageRoute(record.route)) {
           const value = validatePackageReceipt(record.route, record.command, result);
           setPackageReceipt({ route: record.route, value, key: record.request_key });
         } else if (record.route === '/api/v1/process-draft-bindings') {
@@ -446,6 +459,26 @@ export function App() {
         `${explain(e)}${sent && (retry || !(e instanceof ApiFailure) || e.unknownOutcome) ? ' 같은 요청 번호로 기록을 확인해야 합니다.' : ''}`,
       );
       setDialog(null);
+    } finally {
+      busy.current = false;
+      setWorking(false);
+    }
+  }
+
+  async function recoveryAction(
+    route: RecoveryTransientRoute,
+    command: { id: string; operation?: string },
+  ) {
+    if (busy.current || !canRecoverHost) throw new ApiFailure('FORBIDDEN');
+    const body = (
+      route === '/api/v1/host-recovery/query'
+        ? z.object({ id: z.uuid(), operation: z.uuid() }).strict()
+        : z.object({ id: z.uuid() }).strict()
+    ).parse(command);
+    busy.current = true;
+    setWorking(true);
+    try {
+      return await api(route, { body });
     } finally {
       busy.current = false;
       setWorking(false);
@@ -636,32 +669,16 @@ export function App() {
                   {pending.label} · 요청 {short(pending.request_key)}
                 </p>
                 <small>새 요청을 만들지 않고, 전송했던 번호와 내용으로 확인합니다.</small>
-                {data &&
-                  !canRecover(
-                    pending,
-                    data.user.principal,
-                    data.installation.id,
-                    data.installation.store_generation,
-                  ) && (
-                    <p>
-                      현재 설치·계정이 원래 요청과 다릅니다. {pending.principal} 계정과 원래
-                      설치에서 확인해야 합니다.
-                    </p>
-                  )}
+                {data && !canRecoverHostRequest(pending, data) && (
+                  <p>
+                    현재 설치·계정 또는 연결 세대·단말 권한이 원래 요청과 다릅니다. 원래 요청은
+                    보존했습니다. {pending.principal} 계정의 요청 기록 확인이 필요합니다.
+                  </p>
+                )}
               </div>
               <button
                 onClick={() => void submit(pending)}
-                disabled={
-                  !fresh ||
-                  working ||
-                  !data ||
-                  !canRecover(
-                    pending,
-                    data.user.principal,
-                    data.installation.id,
-                    data.installation.store_generation,
-                  )
-                }
+                disabled={!fresh || working || !data || !canRecoverHostRequest(pending, data)}
               >
                 {working ? '확인 중…' : '같은 요청 확인'}
               </button>
@@ -976,6 +993,27 @@ export function App() {
                 ) : (
                   <Configuration cell={cell} />
                 ))}
+              {cell && tab === '구성' && data.user.roles.includes('RELEASE_MANAGER') && (
+                <HostRecovery
+                  key={JSON.stringify([
+                    data.user.principal,
+                    data.installation.id,
+                    data.installation.store_generation,
+                    data.installation.runtime_boot,
+                    cell.cell.value.id,
+                  ])}
+                  data={data}
+                  cell={cell}
+                  fresh={fresh}
+                  canWrite={canRecoverHost}
+                  working={working}
+                  pending={pending}
+                  receipt={recoveryReceipt}
+                  onSubmit={(record) => submit(undefined, record)}
+                  onAction={recoveryAction}
+                  onSelectCell={setSelected}
+                />
+              )}
               {cell && (tab === '운영' || tab === '실행 기록') && (
                 <RunStart
                   key={JSON.stringify([

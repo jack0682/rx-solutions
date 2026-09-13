@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from './schema-runtime';
 import { stableDocument } from './draft-schema';
 import {
   deviceReviewRoutes,
