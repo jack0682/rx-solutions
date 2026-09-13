@@ -1,10 +1,17 @@
 {
   "files": {
-    "cell_operations_manifest.json": "e0225c1e39b179f941d98f91daa94b387a6028e4e872b4499f20d63440d270c8",
-    "contracts_manifest.json": "66756d119140d436da477cce4331f34ef705900b83c338a870bdbe2ced78dd3b",
+    "cell_operations_manifest.json": "0c167639b3d048f6717819f9cc9b92bba8c3a11a4c41c7068d3a04c44e7be0ea",
+    "contracts_manifest.json": "3499dff92023509d4daaded3bb9d89a822c948a9b2c025e954262c9bef9d5afe",
     "rx/cell/v1/cell.proto": "79471c513559c862f8461de355e7dc7f79bbe6907f94d2c5d518b234b7013b83",
     "rx/contract/v1/contract.proto": "35f0aee44287f4f0914487f16fbd4efda963c314ac440b17438014ee44f27626",
-    "semantic_fields.json": "32792a527ca48375304efe392aa5a23c0573cac44d0064a518fa8c8f7e83fc53"
+    "rx/executor/assignment/v1/assignment.proto": "1a325f6094e6e65f43b69cc5d28822deb9cac452ea82bf1a04a743ae5b364f48",
+    "rx/executor/plan/v1/plan.proto": "1a16e0c3f9a8151e8988641025468fbc9b37c0412feda1ec1f9f3c5dcbe65bd6",
+    "rx/executor/production/v1/production.proto": "9f78624e8e46c818e6c1d7f246d2679023810e55c940fd395bf894726c668cf4",
+    "rx/executor/v1/executor.proto": "66e51589302672ebb087c601486e30f2156cc3dcd09c731be8fec7ef70079218",
+    "rx/host/configuration/v1/configuration.proto": "641bd1edf2038dda0b49072d48a520798bb8a6c8c463bde2de03bae9d6babdbf",
+    "rx/host/qualification/v1/qualification.proto": "71c0192b3684c5a73ae1b6499f78709cb088122ed7857ed5764475bda903f744",
+    "rx/host/read/v1/read.proto": "66cfb6c5dde27063834398d11713006578cc83c9dfd7ec4e6f864b4f9bc7efc3",
+    "semantic_fields.json": "766ee1084d41fdc64d435911300bf898709a28953b8b007cfa361969c471b60e"
   },
   "schema": "rx.protocol-source-bundle.v1"
 }

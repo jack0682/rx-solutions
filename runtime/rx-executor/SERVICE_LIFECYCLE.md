@@ -25,7 +25,7 @@ BT graph 완료 자체는 part/run 완료가 아니다. SerialProduction은 [소
 
 ## 종료·재시작
 
-중단 의도를 먼저 저장하고 일반 계획을 동결한 뒤, planner 자식만 닫는다. P와의 통신은 pause 확인까지 유지한다. Host/DHI/토크 제어 프로세스를 이 서비스의 종료와 묶지 않는다. P pause 관측은 물리 정지·소재 지지 해제·자원 인계 확인이 아니다.
+중단 의도를 먼저 저장하고 일반 계획을 동결한 뒤, planner 자식만 닫는다. P와의 통신은 pause 확인까지 유지한다. Host/장비 드라이버/토크 제어 프로세스를 이 서비스의 종료와 묶지 않는다. P pause 관측은 물리 정지·소재 지지 해제·자원 인계 확인이 아니다.
 
 서비스는 제한된 시간 안에 P의 제한 상태를 확인하려고 한다. P에 도달하지 못하면 PENDING을 남기고 attention 결과로 종료한다. 프로그램 재시작 시 그 의도를 먼저 읽어 처리하며 BT를 새로 띄우지 않는다. 이미 완료된 중단 기록도 자동으로 지우지 않는다. 같은 run의 재운전에는 후속 명시적 재시작/수명주기 재결합이 필요하다. 정상 직렬 소재 전환은 P 완료 확인으로 기존 planner만 retire하며 run-pause를 발생시키지 않는다.
 
@@ -49,4 +49,4 @@ CLI는 구성 해석 직후, P 연결/Session.Open 전에 설정된 journal의 �
 
 새 boot 복원에서 BT 기동 0회, 원래 intent/attempt 보존, 유실된 응답의 부재, P 미응답 때 Pending 유지, 저장 장애 중 P pause 시도와 장애 표시를 확인한다. journal 시험은 rollback/commit 응답 유실, key/history 불변성과 중단 기록의 자동 재개 금지를 확인한다. 서비스 시험의 조건·clock·초기 operator/part 시작은 simulation이다. 실제 CLI signal-to-P 전체 경로·제품 supervisor·물리 장비 종료 인수까지 검증했다고 확대하지 않는다.
 
-직렬 part coordinator는 연결했다. 남은 것은 병렬 소재·실물 genealogy, 같은 run의 명시적 재시작/rebind, intervention/clearance/cancel과 continuous control, 전체 P/Host/S supervisor·두 제품 이미지·자사 스택·설치복원/인수 및 전체 UI다.
+직렬 part coordinator는 연결했다. 남은 것은 병렬 소재·실물 genealogy, 같은 run의 명시적 재시작/rebind, intervention/clearance/cancel과 continuous control, 전체 P/Host/S supervisor·두 제품 이미지·장비 스택·설치복원/인수 및 전체 UI다.

@@ -29,7 +29,7 @@ SUCCESS는 해당 P view로 계산한 BT 상태다. P의 part/run 완료 기록,
 
 `EngineProcess::spawn`은 절대 경로의 일반 파일과 SHA-256을 확인하고 shell/현장 argv 없이 실행한다. 배포는 해당 binary와 의존 라이브러리를 immutable/read-only release로 제공해야 한다. 해시 검사를 수정 가능한 파일시스템의 TOCTOU 방어로 과장하지 않는다. 자식에게 부모 환경/credential을 전달하지 않는다.
 
-연결부는 sequence/응답 크기·필드·상태·요청 context를 확인한다. pipe I/O는 2초로 제한하고 오류 후 자동으로 재시작하지 않는다. 부모가 bridge를 폐기하면 planner 자식을 종료한다. 이 동작으로 Host/DHI/토크 제어 프로세스를 종료해서는 안 된다.
+연결부는 sequence/응답 크기·필드·상태·요청 context를 확인한다. pipe I/O는 2초로 제한하고 오류 후 자동으로 재시작하지 않는다. 부모가 bridge를 폐기하면 planner 자식을 종료한다. 이 동작으로 Host/장비 드라이버/토크 제어 프로세스를 종료해서는 안 된다.
 
 PendingRequests는 최대 32개의 일반 제안과 우선 pause 상태를 관리한다. 완료 전 요청은 새 프레임이 오더라도 유지한다. 특히 BeginWait의 시작 확정은 요청을 없애지 않으며, wait 결과까지 계속 확인한다. 반복 요청은 합치고 body 변경을 거부한다. 일시적 RPC 오류는 100ms–5초 backoff, 상태 재확인은 짧은 간격으로 진행한다. backoff용 Instant는 물리 시계/허가 만료 판단에 쓰지 않는다.
 

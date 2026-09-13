@@ -269,7 +269,7 @@ public:
            {"controller", controller_},
            {"action", action_},
            {"joints", joints_},
-           {"source_observed_only", true},
+           {"unqualified_declaration_only", true},
            {"catalog_sha256", catalog_sha256},
            {"controller_generation_known", false}});
   }

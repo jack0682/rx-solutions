@@ -1,7 +1,7 @@
 //! Explicit management of release-owned diagnostics and protocol-guarded RX services.
 use rx_domain::canonical;
 use rx_package::PackagePath;
-use rx_solution_catalog::OwnPlatformCatalog;
+use rx_solution_catalog::DeviceCatalog;
 use rx_storage::SqliteRepository;
 use rx_supervisor::{
     Supervisor,
@@ -82,8 +82,7 @@ async fn main() -> Result<()> {
     } else {
         Vec::new()
     };
-    let support =
-        OwnPlatformCatalog::decode(&fs::read(root.join("catalogs/robotis-support.v1.json"))?)?;
+    let support = DeviceCatalog::decode(&fs::read(root.join("catalogs/device-support.v1.json"))?)?;
     let plan_digest = configuration.plan.validate(&programs, &support)?;
     if args[0] == "inspect" {
         println!(

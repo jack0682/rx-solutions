@@ -80,7 +80,7 @@ fn startup_rejects_policy_tampering_unknown_fields_and_unimplemented_physical_ba
     let (dir, file, clock) = fixture();
     let mut loaded = Loaded::read(&file).unwrap();
     loaded.config.backend = Backend::ValidatedDriver {
-        profile: name("robotis/omy"),
+        profile: name("simulation/arm"),
         driver_digest: Digest::from_bytes([1; 32]),
     };
     assert!(service::initialize_with(&loaded, clock, &service::Builtin).is_err());

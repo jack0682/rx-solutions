@@ -5,7 +5,6 @@ if [ "${1:-}" = "host" ]; then
     exec /opt/rx/bin/rx-hostd "$@"
 fi
 source /opt/ros/jazzy/setup.bash
-source /opt/rx/robotis/setup.bash
 set -u
 if [ "${1:-}" = "supervise" ]; then
     shift

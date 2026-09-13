@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""ROS-only simulator for Rust Host integration; never loads any ROBOTIS hardware plugin."""
+"""ROS-only simulator for Rust Host integration; never loads any ROS hardware plugin."""
 import argparse,json,os,time,threading,uuid
 from pathlib import Path
 import rclpy

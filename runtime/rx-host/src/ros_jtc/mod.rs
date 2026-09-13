@@ -1,4 +1,4 @@
-//! ROBOTIS ROS action adapter. Physical authority must come from a separate release-owned provider.
+//! ROS ROS action adapter. Physical authority must come from a separate release-owned provider.
 mod adapter;
 pub mod authoring;
 mod journal;

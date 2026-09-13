@@ -104,8 +104,8 @@ handover는 profile의 전체 resource set에만 제공한다. native pending �
 
 새 crate를 포함하도록 Solutions Dockerfile의 `drivers` 복사를 추가했다. 기존 FILE_SIMULATION과 별도로 MELSEC_PACKAGE를 명시 선택할 수 있다. 구체 설정 검증과 물리 qualification을 구분한다.
 
-남은 사항: publication 계약의 물리적 성립·실제 프로그램/장치 일치 검증, 첫 현장의 실제 source/주소와 physical qualification, 일반 driver factory·업데이트/복원, 실제 P outcome/프로파일과 재검증 통합, 전체 복구·새 세대 조정·진단 reconnect, native journal 10,000개 한도 이후 보관/유지보수, 장기·부하·실물 시험. 자사 ROBOTIS 기본 지원 및 전체 요구는 [구현 추적표](../../../docs/implementation/requirements.md)를 따른다.
+남은 사항: publication 계약의 물리적 성립·실제 프로그램/장치 일치 검증, 첫 현장의 실제 source/주소와 physical qualification, 일반 driver factory·업데이트/복원, 실제 P outcome/프로파일과 재검증 통합, 전체 복구·새 세대 조정·진단 reconnect, native journal 10,000개 한도 이후 보관/유지보수, 장기·부하·실물 시험. 제조사 중립 장비 연동과 전체 요구는 [구현 추적표](https://github.com/jack0682/rx_docs/blob/main/docs/implementation/requirements.md)를 따른다.
 
-검증 명령·플랫폼별 결과·소스 hash와 archive는 [phase57 검증 기록](../../../references/implementation/phase57_checks.json)에 둔다. 해당 보고서의 PASS는 명시된 모의/소프트웨어 범위에 한정한다.
+검증 명령·플랫폼별 결과·소스 hash와 archive는 [phase57 검증 기록](https://github.com/jack0682/rx_docs/blob/6111a7d1dcf33052f38c3e67c6585aec2b44df3c/references/implementation/phase57_checks.json)에 둔다. 해당 보고서의 PASS는 명시된 모의/소프트웨어 범위에 한정한다.
 
 이번 검증 결과: macOS 솔루션 전체116개·workspace clippy, Linux Host/통신67개, 이후 실제 Linux CLOCK_BOOTTIME 시나리오를 포함한 MELSEC14개가 통과했다. 최종 S image의 제품 Host·진단·관리 smoke도 통과했다. 각 범위는 중복된 시험을 포함하므로 숫자를 합산하지 않는다. Linux clippy는 미설치로 미수행이다.

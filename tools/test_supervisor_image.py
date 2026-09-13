@@ -10,7 +10,7 @@ def run(*args):
 with socket.socket() as s:s.bind(('127.0.0.1',0));port=s.getsockname()[1]
 suffix=uuid.uuid4().hex[:12];volume='rx-supervisor-data-'+suffix;names=[]
 with tempfile.TemporaryDirectory(prefix='rx-supervisor-image-') as tmp:
- config=Path(tmp)/'startup.json';config.write_text(json.dumps({'schema':'rx.solutions-startup.v1','state_subdirectory':'managed','plan':{'schema':'rx.solutions-process-plan.v1','id':str(uuid.uuid4()),'environment':'SIMULATION','profiles':['OM-05'],'processes':[{'id':'status','program':'rx/status-http','parameters':{'bind':'0.0.0.0','port':'8081'},'depends_on':[],'startup_timeout_ms':'10000','shutdown_timeout_ms':'5000','restart_limit':'0','restart_backoff_ms':'500'}]}}));config.chmod(0o644)
+ config=Path(tmp)/'startup.json';config.write_text(json.dumps({'schema':'rx.solutions-startup.v1','state_subdirectory':'managed','plan':{'schema':'rx.solutions-process-plan.v1','id':str(uuid.uuid4()),'environment':'SIMULATION','profiles':['SIM-JTC-6DOF'],'processes':[{'id':'status','program':'rx/status-http','parameters':{'bind':'0.0.0.0','port':'8081'},'depends_on':[],'startup_timeout_ms':'10000','shutdown_timeout_ms':'5000','restart_limit':'0','restart_backoff_ms':'500'}]}}));config.chmod(0o644)
  opener=urllib.request.build_opener(urllib.request.ProxyHandler({}))
  def start(label,activate=False):
   name='rx-supervisor-'+label+'-'+suffix;names.append(name)

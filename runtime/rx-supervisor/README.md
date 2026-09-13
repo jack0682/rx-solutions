@@ -1,10 +1,10 @@
 # 솔루션 프로세스 관리 초안
 
-2026-09-11. `rx-supervisor`와 `rx-solutionsd`를 추가했다. 선택한 프로그램의 기동·관측·종료를 별도 S 저장소에 기록하고, 프로세스의 생존과 RX 운전 준비를 구별한다. 이 단계의 제품 recipe는 **읽기 전용 상태 서비스 하나**이며, 실제 자사 driver/controller의 lifecycle authority 연결은 후속이다.
+2026-09-11. `rx-supervisor`와 `rx-solutionsd`를 추가했다. 선택한 프로그램의 기동·관측·종료를 별도 S 저장소에 기록하고, 프로세스의 생존과 RX 운전 준비를 구별한다. 이 단계의 제품 recipe는 **읽기 전용 상태 서비스 하나**이며, 실제 장비 driver/controller의 lifecycle authority 연결은 후속이다.
 
 ## 레포·제품 경계
 
-관리 모듈은 `rx-solutions` 안에 있으며 같은 이미지에 포함된다. 자사 다섯 레포와 전이 의존성은 기존 기본 포함 집합을 유지한다. 프로그램 기동은 모든 모델의 launch를 일괄 실행하지 않는다. 선택 profile ID가 카탈로그에 존재하는지 확인하지만, 그 사실로 해당 모델의 제어 준비나 실물 검증을 선언하지 않는다.
+관리 모듈은 `rx-solutions` 안에 있으며 같은 이미지에 포함된다. 기본 카탈로그는 모의 장비 선언이며 외부 장비 의존성은 개별 연결 때 추가한다. 프로그램 기동은 모든 모델의 launch를 일괄 실행하지 않는다. 선택 profile ID가 카탈로그에 존재하는지 확인하지만, 그 사실로 해당 모델의 제어 준비나 실물 검증을 선언하지 않는다.
 
 P의 run/operation/qualification/dispatch permit를 이 저장소로 복제하지 않는다. 제어 프로세스의 실제 시작·종료는 기존 P/Host 권한과 검증된 현장 절차에 연결돼야 한다. `LifecycleAuthority`는 그 연결을 위한 포트이며 제품 기본 `SoftwareOnly`는 제어 효과가 있는 프로그램을 거부한다. 시험용 authority는 명시적 모의 backend에서만 사용한다.
 
@@ -12,7 +12,7 @@ P의 run/operation/qualification/dispatch permit를 이 저장소로 복제하�
 
 사이트 계획은 process ID, release program ID, 허용된 parameter, dependency, 기동/종료 timeout, restart limit/backoff를 지정한다. 실행 파일·script 경로·임의 argv·환경 변수·효과 분류를 사이트 입력으로 받지 않는다. 현재 `rx/status-http` recipe는 고정 Python interpreter와 RX 상태 script, 제한된 bind/port만 받는다.
 
-프로그램과 효과 분류는 release-owned catalog의 책임이다. 실행 파일과 관련 파일의 SHA-256을 확인한다. 계획 digest는 원본 계획뿐 아니라 선택 프로그램의 실제 실행 정의·파일 digest·효과 분류와 선택 자사 profile에 결합한다. 같은 저장 계획에 바뀐 프로그램을 몰래 적용하지 않는다.
+프로그램과 효과 분류는 release-owned catalog의 책임이다. 실행 파일과 관련 파일의 SHA-256을 확인한다. 계획 digest는 원본 계획뿐 아니라 선택 프로그램의 실제 실행 정의·파일 digest·효과 분류와 선택 장비 profile에 결합한다. 같은 저장 계획에 바뀐 프로그램을 몰래 적용하지 않는다.
 
 기동 의존성은 최대 32개 프로그램의 DAG다. 누락/중복/순환과 허용되지 않은 인자·profile을 거부한다. 기동/종료 timeout은 현재 100–30000 ms, software restart limit은 0–3으로 제한한다. 이 범위는 관리 소프트웨어의 입력 범위이며 모든 제어기의 안전한 시간 값이라는 뜻이 아니다. 제어 효과 프로그램은 자동 restart limit 0만 허용한다.
 
@@ -59,7 +59,7 @@ Non-actuating 프로그램은 허용된 정상 종료 뒤 timeout이 지나면 �
 /opt/rx/bin/rx-solutionsd inspect /config/solutions-startup.json
 ```
 
-[예제 계획](../../examples/deployment/solutions-startup.json)은 `OM-05`를 참조하지만 읽기 전용 상태 HTTP 프로그램만 시작한다. controller/로봇 Host를 시작하지 않으며 control_prepared와 physical_shutdown_assessed는 false다.
+[예제 계획](../../examples/deployment/solutions-startup.json)은 `SIM-JTC-6DOF`를 참조하지만 읽기 전용 상태 HTTP 프로그램만 시작한다. controller/로봇 Host를 시작하지 않으며 control_prepared와 physical_shutdown_assessed는 false다.
 
 state_subdirectory는 `/var/lib/rx-solutions` 아래의 제한된 상대 경로다. directory와 DB/lock symlink를 거부한다. P의 DB를 volume으로 제공하지 않는다. 명령 인자/프로그램 경로와 state 경로는 서로 다른 검증을 거친다.
 

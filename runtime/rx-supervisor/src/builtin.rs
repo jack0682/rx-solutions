@@ -32,8 +32,8 @@ pub fn release_programs(root: &Path) -> Result<BTreeMap<Name, Program>> {
             .ok_or_else(|| Error::Invalid("required release file absent".into()))
     };
     verify(
-        &root.join("catalogs/robotis-support.v1.json"),
-        digest(inventory.files.get("catalogs/robotis-support.v1.json"))?,
+        &root.join("catalogs/device-support.v1.json"),
+        digest(inventory.files.get("catalogs/device-support.v1.json"))?,
     )?;
     let script_hash = digest(inventory.files.get("tools/solutions_status.py"))?;
     let python = PathBuf::from("/usr/bin/python3");

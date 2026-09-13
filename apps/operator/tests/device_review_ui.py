@@ -4,7 +4,7 @@ from pathlib import Path
 from playwright.sync_api import expect
 def exercise(browser,context,page,origin,fixture,out,info,intake):
  headers={'Origin':origin,'Content-Type':'application/json','X-RX-Client':'browser-v1'}
- title='ROBOTIS 소재 공급 장비';panel=page.get_by_role('region',name='장비 소프트웨어 검토')
+ title='모의 로봇 작업 장비';panel=page.get_by_role('region',name='장비 소프트웨어 검토')
  expect(panel).to_be_visible();panel.get_by_role('button',name='장비 검토 요청 만들기',exact=True).click();expect(panel.get_by_role('button',name='장비 검증 요청 내려받기',exact=True)).to_be_visible()
  with page.expect_download() as download:panel.get_by_role('button',name='장비 검증 요청 내려받기',exact=True).click()
  request_path=out/'device-review-request.json';download.value.save_as(str(request_path));request=json.loads(request_path.read_text());assert request['intake']==intake;review=request['id']

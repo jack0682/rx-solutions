@@ -8,12 +8,12 @@ with sync_playwright() as p:
  page.get_by_label('계정',exact=True).fill('admin');page.get_by_label('비밀번호',exact=True).fill('browser-fixture-password');page.get_by_role('button',name='로그인',exact=True).click();expect(page.get_by_role('button',name='로그아웃',exact=True)).to_be_visible()
  before=context.request.get(origin+'/api/v1/overview').json();before_context=context.request.get(origin+'/api/v1/package-intake-context?cell=cell%2Fdemo').json()
  page.get_by_role('button',name='패키지 검토',exact=True).click();page.locator('summary').filter(has_text='서명 패키지 반입').click()
- page.get_by_label('반입 제목',exact=True).fill('ROBOTIS 소재 공급 장비');page.get_by_label('반입 폴더의 상대 경로',exact=True).fill('jtc');page.get_by_label('패키지 내용 식별자',exact=True).fill(info['object']['manifest']);page.get_by_label('패키지 서명 식별자',exact=True).fill(info['object']['signature'])
+ page.get_by_label('반입 제목',exact=True).fill('모의 로봇 작업 장비');page.get_by_label('반입 폴더의 상대 경로',exact=True).fill('jtc');page.get_by_label('패키지 내용 식별자',exact=True).fill(info['object']['manifest']);page.get_by_label('패키지 서명 식별자',exact=True).fill(info['object']['signature'])
  lost=[]
  def lose(route):
   lost.append(route.request.post_data_json);response=route.fetch();assert response.ok,response.text();route.abort('failed')
  page.route('**/api/v1/package-intakes',lose,times=1);page.get_by_role('button',name='패키지 반입 요청',exact=True).click();expect(page.get_by_role('button',name='같은 요청 확인',exact=True)).to_be_enabled();page.get_by_role('button',name='같은 요청 확인',exact=True).click()
- expect(page.get_by_role('heading',name='ROBOTIS 소재 공급 장비',exact=True)).to_be_visible();panel=page.get_by_role('region',name='장비 작업 선언');expect(panel).to_be_visible();expect(panel.get_by_text('supply',exact=True)).to_be_visible();expect(panel.get_by_text('장비 검증 필요',exact=True)).to_be_visible();expect(page.get_by_role('button',name='검토 요청 생성',exact=True)).not_to_be_visible()
+ expect(page.get_by_role('heading',name='모의 로봇 작업 장비',exact=True)).to_be_visible();panel=page.get_by_role('region',name='장비 작업 선언');expect(panel).to_be_visible();expect(panel.get_by_text('supply',exact=True)).to_be_visible();expect(panel.get_by_text('장비 검증 필요',exact=True)).to_be_visible();expect(page.get_by_role('button',name='검토 요청 생성',exact=True)).not_to_be_visible()
  with page.expect_download() as download:panel.get_by_role('button',name='장비 선언 자료 내려받기').click()
  file=out/'device-declaration.json';download.value.save_as(str(file));detail=json.loads(file.read_text());assert detail['catalog']==info['catalog'];assert detail['object']==info['object'];assert not detail['activation_authorized'] and detail['manufacturer_validation_required']
  receipt=lost[0]['command']['id'];assert detail['intake']==receipt

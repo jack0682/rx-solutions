@@ -20,7 +20,7 @@ fn path(v: &str) -> PackagePath {
 pub fn driver() -> Driver {
     Driver {
         schema: n("rx.native-driver-reference.v1"),
-        implementation: n("rx.robotis.position-jtc.v1"),
+        implementation: n("rx.ros.position-jtc.v1"),
         source_digest: serde_json::from_value(serde_json::Value::String(
             env!("RX_JTC_DRIVER_SOURCE_SHA256").into(),
         ))
@@ -31,7 +31,7 @@ pub fn permissions() -> Vec<Permission> {
     vec![
         Permission::ArtifactRead,
         Permission::NativeEndpoint {
-            role: n("robotis-position-jtc"),
+            role: n("ros-position-jtc"),
         },
         Permission::ObservationRead {
             schema: n("rx.ros-jtc-reply.v1"),
@@ -48,13 +48,13 @@ pub fn catalog(
         (
             "family",
             "family.json",
-            "rx.robotis-jtc-family.v1",
+            "rx.ros-jtc-family.v1",
             canonical::bytes(&resolved.family)?,
         ),
         (
             "profile",
             "profile.json",
-            "rx.robotis-jtc-profile.v1",
+            "rx.ros-jtc-profile.v1",
             canonical::bytes(profile)?,
         ),
         (

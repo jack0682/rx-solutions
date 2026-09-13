@@ -24,7 +24,7 @@ fn profile() -> Profile {
     let bridge = Configuration {
         schema: n("rx.ros-jtc-bridge.v1"),
         catalog_sha256: catalog_digest(),
-        support_id: n("OM-06"),
+        support_id: n("SIM-JTC-6DOF"),
         controller: "arm_controller".into(),
         namespace: "/robot".into(),
         controller_manager: "/robot/controller_manager".into(),
@@ -56,7 +56,7 @@ fn profile() -> Profile {
     };
     let bytes = canonical::bytes(&goal).unwrap();
     Profile {
-        schema: n("rx.robotis-jtc-profile.v1"),
+        schema: n("rx.ros-jtc-profile.v1"),
         installation: id(),
         cell: n("cell/robot"),
         target: n("robot/arm"),

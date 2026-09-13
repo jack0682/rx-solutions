@@ -34,7 +34,19 @@ pub struct Profile {
 impl Profile {
     pub fn validate(&self) -> Result<()> {
         self.bridge.joints()?;
-        if self.schema.as_str() != "rx.robotis-jtc-profile.v1"
+        let catalog = rx_solution_catalog::builtin_catalog()
+            .map_err(|e| HostError::Invalid(e.to_string()))?;
+        let declaration = catalog
+            .profile(&self.bridge.support_id)
+            .ok_or(HostError::Guard)?;
+        if declaration.evidence_level == rx_solution_catalog::EvidenceLevel::SimulationFixture
+            && self.environment != Environment::Simulation
+        {
+            return Err(HostError::Invalid(
+                "simulation fixture cannot identify physical equipment".into(),
+            ));
+        }
+        if self.schema.as_str() != "rx.ros-jtc-profile.v1"
             || self.conditions.is_empty()
             || self.conditions.len() > 32
             || self.resources.is_empty()
@@ -65,7 +77,7 @@ impl Profile {
     }
     pub fn digest(&self) -> Result<Digest> {
         self.validate()?;
-        canonical::digest("RX-ROBOTIS-JTC-PROFILE-v1", self)
+        canonical::digest("RX-ROS-JTC-PROFILE-v1", self)
             .map_err(|e| HostError::Invalid(e.to_string()))
     }
     pub(crate) fn trajectory(&self, intent: &Intent) -> Result<&TrajectoryAsset> {

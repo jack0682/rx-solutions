@@ -19,7 +19,7 @@ pub struct Configuration {
 }
 pub fn catalog_digest() -> Digest {
     rx_package::content_digest(include_bytes!(
-        "../../../../catalogs/robotis-support.v1.json"
+        "../../../../catalogs/device-support.v1.json"
     ))
 }
 fn ros_name(s: &str) -> bool {
@@ -198,7 +198,7 @@ pub struct Ready {
     pub controller: String,
     pub action: String,
     pub joints: Vec<String>,
-    pub source_observed_only: bool,
+    pub unqualified_declaration_only: bool,
     pub catalog_sha256: Digest,
     pub controller_generation_known: bool,
 }
@@ -237,7 +237,7 @@ impl Reply {
             || value.action != config.action()
             || value.joints != config.joints()?
             || value.catalog_sha256 != config.catalog_sha256
-            || !value.source_observed_only
+            || !value.unqualified_declaration_only
             || value.controller_generation_known
         {
             return Err(HostError::Guard);

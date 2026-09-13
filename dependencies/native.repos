@@ -1,0 +1,2 @@
+# No manufacturer source repository is required by the default image.
+repositories: {}

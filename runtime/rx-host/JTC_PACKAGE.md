@@ -1,6 +1,6 @@
-# ROBOTIS JTC 장비 패키지·Host 등록
+# ROS JTC 장비 패키지·Host 등록
 
-phase63. position JointTrajectoryController를 사용하는 자사 catalog 구성의 Template/Site를 DEVICE_REFERENCE v2 패키지로 작성·검증하고 Host 초기화에 연결한다. 현재 제품 factory의 JTC 실행 제공자는 미연결이다. 검사와 원장 준비는 가능하지만 `run`은 ROS client를 만들기 전에 `JTC_CONTROL_PROVIDER_NOT_CONFIGURED`로 실패한다.
+phase63. position JointTrajectoryController를 사용하는 장비 catalog 구성의 Template/Site를 DEVICE_REFERENCE v2 패키지로 작성·검증하고 Host 초기화에 연결한다. 현재 제품 factory의 JTC 실행 제공자는 미연결이다. 검사와 원장 준비는 가능하지만 `run`은 ROS client를 만들기 전에 `JTC_CONTROL_PROVIDER_NOT_CONFIGURED`로 실패한다.
 
 ## 작성 입력과 산출물
 
@@ -46,7 +46,7 @@ rx-device-package inspect PACKAGE POLICY
 
 검사기는 공통 서명·publisher·권한·내용 해시 검사 뒤 검증기가 소유한 불변 bytes를 해석한다. assembly를 재조립하여 family/profile/operations/outcomes를 다시 비교한다. 유효한 signer가 잘못된 model·timeout·결과표 또는 다른 release descriptor에 서명했어도 거부한다. 외부 calibration/tool asset 목록은 조립 원본과 정확히 같아야 한다.
 
-JTC target은 Linux/Jazzy다. Host는 현재 CPU architecture와 base/cell/package ABI, pinned policy 및 선택한 manifest digest를 추가 검사한다. source descriptor는 Host/MC 소스, 공유 SDK lock, JTC C++ 연결 계층·catalog·자사 source lock 등을 포함한 빌드 소스 기준이다. 실제 binary·동적 library의 서명 또는 물리 controller identity와 동일하지 않으며 release 검증을 대체하지 않는다.
+JTC target은 Linux/Jazzy다. Host는 현재 CPU architecture와 base/cell/package ABI, pinned policy 및 선택한 manifest digest를 추가 검사한다. source descriptor는 Host/MC 소스, 공유 SDK lock, JTC C++ 연결 계층·catalog·native source lock 등을 포함한 빌드 소스 기준이다. 실제 binary·동적 library의 서명 또는 물리 controller identity와 동일하지 않으며 release 검증을 대체하지 않는다.
 
 ## Host 설정·초기화와 실행 경계
 
@@ -62,6 +62,10 @@ phase64에서는 [P의 공통 작업 선언 반입·보관·조회](https://gith
 
 ## 검증과 제한
 
-시험은 Template 재사용·정규화, 원본→candidate→외부 test 서명→검사, signed-but-inconsistent payload 거부, asset 변조·정확한 Intent와 Host metadata 초기화·provider 없는 run 거부를 다룬다. 컨테이너 검증은 같은 image의 실제 작성 executable을 사용하며 test signer는 호스트의 별도 시험 코드다. 정확한 수행 결과는 [phase63 기록](../../../references/implementation/phase63_checks.json)을 따른다.
+시험은 Template 재사용·정규화, 원본→candidate→외부 test 서명→검사, signed-but-inconsistent payload 거부, asset 변조·정확한 Intent와 Host metadata 초기화·provider 없는 run 거부를 다룬다. 컨테이너 검증은 같은 image의 실제 작성 executable을 사용하며 test signer는 호스트의 별도 시험 코드다. 정확한 수행 결과는 [phase63 기록](https://github.com/jack0682/rx_docs/blob/6111a7d1dcf33052f38c3e67c6585aec2b44df3c/references/implementation/phase63_checks.json)을 따른다.
 
-이 단계는 실물 OMY/다른 자사 모델·그리퍼·leader/base/Sapiens 경로의 지원 인수가 아니다. 자료 선언을 실행 권한으로 바꾸지 않는다. [JTC 어댑터](ROBOTIS_JTC_ADAPTER.md), [결과 대응표](https://github.com/jack0682/rx-platform/blob/codex/initial-draft/crates/rx-application/NATIVE_OUTCOMES.md), 두 이미지·필수 자사 지원 의무와 첫 물리 셀 NOT_COMMISSIONED를 유지한다.
+이 단계는 실제 장비·그리퍼·leader/base/policy 경로의 지원 인수가 아니다. 자료 선언을 실행 권한으로 바꾸지 않는다. [JTC 어댑터](ROS_JTC_ADAPTER.md), [결과 대응표](https://github.com/jack0682/rx-platform/blob/codex/initial-draft/crates/rx-application/NATIVE_OUTCOMES.md), 두 이미지 경계와 제조사 중립 지원 선언과 첫 물리 셀 NOT_COMMISSIONED를 유지한다.
+
+## 중립 카탈로그 전환
+
+2026-09-14부터 JTC schema·family·driver 식별자와 digest domain은 `rx.ros-jtc.*`와 `RX-ROS-JTC-*`를 사용한다. 새 카탈로그는 명시적 모의 fixture다. 이전 식별자로 서명한 패키지를 자동 호환하거나 다시 해석하지 않는다. Template/Site digest를 다시 계산하고 패키지 조립·서명·검증을 다시 수행해야 한다. 현재 fixture는 SIMULATION 환경만 허용하며 실제 장비를 추가할 때 source 근거와 commissioning을 별도 확인한다.

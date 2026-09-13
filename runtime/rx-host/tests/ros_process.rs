@@ -18,7 +18,7 @@ import sys,json,time
 c=json.load(open(sys.argv[1]));instance='11111111-1111-4111-8111-111111111111'
 def reply(seq,state,value,owner=instance):
  print(json.dumps({'schema':'rx.ros-jtc-reply.v1','bridge_instance':owner,'sequence':seq,'clock_id':'test/pipe','ticks_ns':'1000','state':state,'value':value,'fault':None}),flush=True)
-reply(None,'READY',{'support_id':c['support_id'],'model':'omy_f3m','controller':c['controller'],'action':c['namespace']+'/'+c['controller']+'/follow_joint_trajectory','joints':['joint'+str(i) for i in range(1,7)],'source_observed_only':True,'catalog_sha256':c['catalog_sha256'],'controller_generation_known':False})
+reply(None,'READY',{'support_id':c['support_id'],'model':'sim-arm-6','controller':c['controller'],'action':c['namespace']+'/'+c['controller']+'/follow_joint_trajectory','joints':['joint'+str(i) for i in range(1,7)],'unqualified_declaration_only':True,'catalog_sha256':c['catalog_sha256'],'controller_generation_known':False})
 for line in sys.stdin:
  r=json.loads(line)
  if '/hang/' in c['controller_manager']:time.sleep(.4)
@@ -30,7 +30,7 @@ fn config(mode: &str) -> Configuration {
     Configuration {
         schema: Name::new("rx.ros-jtc-bridge.v1").unwrap(),
         catalog_sha256: catalog_digest(),
-        support_id: Name::new("OM-06").unwrap(),
+        support_id: Name::new("SIM-JTC-6DOF").unwrap(),
         controller: "arm_controller".into(),
         namespace: "/robot".into(),
         controller_manager: format!("/{mode}/controller_manager"),

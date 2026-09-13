@@ -5,7 +5,7 @@
     "schema": "rx.solutions-process-plan.v1",
     "id": "ad3dd650-859c-4cbe-bca1-41a6c44c8001",
     "environment": "SIMULATION",
-    "profiles": ["OM-05"],
+    "profiles": ["SIM-JTC-6DOF"],
     "processes": [
       {
         "id": "status",

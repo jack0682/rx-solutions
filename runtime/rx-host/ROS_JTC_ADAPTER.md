@@ -1,4 +1,4 @@
-# ROBOTIS JTC NativeAdapter — 영속 작업·제어권·bridge 소유
+# ROS JTC NativeAdapter — 영속 작업·제어권·bridge 소유
 
 2026-09-12. `ros_jtc::Jtc`가 기존 Host의 NativeAdapter에 연결된다. 실제 Rust Host → private pipe → C++ ROS bridge → 모의 ActionServer 경로를 구현했다. **제품 startup factory 등록과 실제 controller authority 제공자는 아직 미완료**다. 이 library를 첫 현장 운전 적합성으로 승격하지 않는다.
 
@@ -68,7 +68,7 @@ Host admission을 닫은 뒤 `prepare_shutdown`을 호출한다. 조건이 충�
 
 Linux 통합은 실제 SystemClock, 복사해 실행한 C++ bridge, 실제 ROS action/service 메시지와 모의 controller를 사용한다. Host prepare/authorize→원래 UUID 하나의 goal→reconcile/evidence→인계/종료를 확인한다. 이때 Authority는 명시적 fixture이며 실제 로봇에 대한 proof가 아니다.
 
-실제 실행 결과와 source/image hash는 [phase61 검증 기록](../../../references/implementation/phase61_checks.json)을 따른다. 생산용 Authority·ROS controller lifecycle/identity, 장비 package authoring와 factory 등록, native cancel의 영속 Host 조정·복구, 실제 ROBOTIS 장비의 calibration/지지·인수는 남아 있다. 첫 물리 셀은 NOT_COMMISSIONED다.
+실제 실행 결과와 source/image hash는 [phase61 검증 기록](https://github.com/jack0682/rx_docs/blob/6111a7d1dcf33052f38c3e67c6585aec2b44df3c/references/implementation/phase61_checks.json)을 따른다. 생산용 Authority·ROS controller lifecycle/identity, 장비 package authoring와 factory 등록, native cancel의 영속 Host 조정·복구, 실제 ROS 장비의 calibration/지지·인수는 남아 있다. 첫 물리 셀은 NOT_COMMISSIONED다.
 
 ## 8. phase62 · 플랫폼 결과 해석 연결
 
@@ -76,6 +76,6 @@ Linux 통합은 실제 SystemClock, 복사해 실행한 C++ bridge, 실제 ROS a
 
 성공 schema/code0, canceled schema/알려진 code, aborted schema/알려진 code를 구별한다. goal rejection은 FAILED이며 native 송신 전 NOT_EXECUTED로 바꾸지 않는다. 모르는 조합은 원본만 보존하고 결론을 만들지 않는다. 현재 이 반환값을 서명된 장비 패키지·P 구성으로 자동 전달하는 resolver는 후속이다. 생성 함수 호출만으로 설치/승인/운전 허가가 생기지 않는다.
 
-정확한 대응표·호환성·반례는 [코어 결과 명세](https://github.com/jack0682/rx-platform/blob/codex/initial-draft/crates/rx-application/NATIVE_OUTCOMES.md), 실제 시험 범위는 [phase62 검증 기록](../../../references/implementation/phase62_checks.json)을 따른다.
+정확한 대응표·호환성·반례는 [코어 결과 명세](https://github.com/jack0682/rx-platform/blob/codex/initial-draft/crates/rx-application/NATIVE_OUTCOMES.md), 실제 시험 범위는 [phase62 검증 기록](https://github.com/jack0682/rx_docs/blob/6111a7d1dcf33052f38c3e67c6585aec2b44df3c/references/implementation/phase62_checks.json)을 따른다.
 
 phase63에서 [Template/Site 패키지 작성·검증·Host 등록](JTC_PACKAGE.md)을 연결했다. 서명된 assembly를 재계산하여 profile/operations/outcomes를 대조하며 JTC_PACKAGE 검사와 원장 초기화를 지원한다. 현재 제품 factory에는 실행용 Authority/lifecycle 제공자가 없어 run은 ROS client를 만들기 전에 거부한다. 위의 phase61/62 후속 항목 중 패키지 작성·metadata 등록을 진전시킨 것이며, 실제 제어권·물리 검증 및 P 구성 반입 자동화까지 완료한 것은 아니다.
