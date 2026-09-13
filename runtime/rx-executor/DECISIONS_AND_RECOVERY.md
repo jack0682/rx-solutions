@@ -42,6 +42,6 @@ CommitCheckpoint에 한하여 `rx-checkpoint-error-bin`의 strict ErrorDetail과
 
 fixture의 조건·시간과 사전 operator/part 시작은 모의 구성이다. 이 시험은 새 branch/wait 경로에서 물리 장비를 제어하지 않는다. 기존 별도 Host 통합 시험이 모의 native 결과·인계 경로를 검증한다.
 
-상주 loop·프로세스 supervision, part coordinator, 개입/clearance·취소·명시적 restart, 장기 journal/후보 보존·index/용량, 전체 ErrorDetail 전송, UI·제품 이미지·자사 장비 검증은 남아 있다. 100ms 후보 수명과 모의 시험 시간을 현장 응답 성능 보장으로 사용하지 않는다.
+상주 loop·프로세스 supervision, part coordinator, 개입/clearance·취소·명시적 restart, 장기 journal/후보 보존·index/용량, 전체 ErrorDetail 전송, UI·제품 이미지·실제 장비 검증은 남아 있다. 100ms 후보 수명과 모의 시험 시간을 현장 응답 성능 보장으로 사용하지 않는다.
 
 분기·대기 통합 fixture는 후속 단계에서 [지속 BT 엔진과 요청 큐](../../native/executor/PERSISTENT_ENGINE.md)로 전환했다. 실제 운영 daemon을 대신하는 fixture는 아니며, 동일 프로세스의 dedup/대기 유지와 정상 종료 시 P pause를 검증한다.

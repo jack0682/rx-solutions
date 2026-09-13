@@ -1,0 +1,129 @@
+{
+  "schema": "rx.controller-fixtures.v1",
+  "scope": "Synthetic controller declarations for software simulation only; no physical equipment or manufacturer qualification.",
+  "profiles": [
+    {
+      "support_id": "SIM-JTC-6DOF",
+      "model": "sim-arm-6",
+      "role": "MANIPULATOR",
+      "declared_update_hz": "100",
+      "controllers": [
+        {
+          "name": "arm_controller",
+          "plugin": "joint_trajectory_controller/JointTrajectoryController",
+          "joint_order": [
+            "joint1",
+            "joint2",
+            "joint3",
+            "joint4",
+            "joint5",
+            "joint6"
+          ],
+          "command_interfaces": [
+            "position"
+          ],
+          "state_interfaces": [
+            "position",
+            "velocity"
+          ]
+        },
+        {
+          "name": "gripper_controller",
+          "plugin": "position_controllers/GripperActionController",
+          "joint_order": [
+            "joint1"
+          ],
+          "command_interfaces": [
+            "position"
+          ],
+          "state_interfaces": [
+            "position",
+            "velocity"
+          ]
+        }
+      ]
+    },
+    {
+      "support_id": "SIM-JTC-7DOF",
+      "model": "sim-arm-7",
+      "role": "FOLLOWER",
+      "declared_update_hz": "100",
+      "controllers": [
+        {
+          "name": "arm_controller",
+          "plugin": "joint_trajectory_controller/JointTrajectoryController",
+          "joint_order": [
+            "joint1",
+            "joint2",
+            "joint3",
+            "joint4",
+            "joint5",
+            "joint6",
+            "joint7"
+          ],
+          "command_interfaces": [
+            "position"
+          ],
+          "state_interfaces": [
+            "position",
+            "velocity"
+          ]
+        }
+      ]
+    },
+    {
+      "support_id": "SIM-LEADER",
+      "model": "sim-leader",
+      "role": "LEADER",
+      "declared_update_hz": "100",
+      "controllers": [
+        {
+          "name": "arm_controller",
+          "plugin": "joint_trajectory_controller/JointTrajectoryController",
+          "joint_order": [
+            "joint1",
+            "joint2",
+            "joint3",
+            "joint4",
+            "joint5",
+            "joint6"
+          ],
+          "command_interfaces": [
+            "position"
+          ],
+          "state_interfaces": [
+            "position",
+            "velocity"
+          ]
+        }
+      ]
+    },
+    {
+      "support_id": "SIM-IMPEDANCE",
+      "model": "sim-impedance",
+      "role": "IMPEDANCE_CONTROL",
+      "declared_update_hz": "100",
+      "controllers": [
+        {
+          "name": "joint_group_impedance_controller",
+          "plugin": "simulation/ImpedanceController",
+          "joint_order": [
+            "joint1",
+            "joint2",
+            "joint3",
+            "joint4",
+            "joint5",
+            "joint6"
+          ],
+          "command_interfaces": [
+            "position"
+          ],
+          "state_interfaces": [
+            "position",
+            "velocity"
+          ]
+        }
+      ]
+    }
+  ]
+}

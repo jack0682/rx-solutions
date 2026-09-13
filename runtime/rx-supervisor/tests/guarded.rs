@@ -1,5 +1,5 @@
 use rx_domain::types::*;
-use rx_solution_catalog::OwnPlatformCatalog;
+use rx_solution_catalog::DeviceCatalog;
 use rx_storage::SqliteRepository;
 use rx_supervisor::{
     Error, Result, Supervisor,
@@ -17,8 +17,8 @@ fn n(s: &str) -> Name {
 fn id() -> Id {
     Id::new(uuid::Uuid::new_v4().to_string()).unwrap()
 }
-fn catalog() -> OwnPlatformCatalog {
-    OwnPlatformCatalog::decode(include_bytes!("../../../catalogs/robotis-support.v1.json")).unwrap()
+fn catalog() -> DeviceCatalog {
+    DeviceCatalog::decode(include_bytes!("../../../catalogs/device-support.v1.json")).unwrap()
 }
 fn program() -> Program {
     Program {

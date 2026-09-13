@@ -1,6 +1,6 @@
 #![cfg(unix)]
 use rx_domain::types::*;
-use rx_solution_catalog::OwnPlatformCatalog;
+use rx_solution_catalog::DeviceCatalog;
 use rx_storage::SqliteRepository;
 use rx_supervisor::{
     Result, Supervisor,
@@ -108,7 +108,7 @@ HTTPServer(('127.0.0.1',int(sys.argv[2])),Handler).serve_forever()
         schema: name("rx.solutions-process-plan.v1"),
         id: id(),
         environment: Environment::Simulation,
-        profiles: vec![name("OM-05")],
+        profiles: vec![name("SIM-JTC-6DOF")],
         processes: vec![Process {
             id: name("main"),
             program: program.id.clone(),
@@ -127,7 +127,7 @@ fn real_process_readiness_is_instance_correlated_and_shutdown_reaps_the_owned_pr
     for wrong in [false, true] {
         let (dir, plan, program) = fixture(wrong);
         let support =
-            OwnPlatformCatalog::decode(include_bytes!("../../../catalogs/robotis-support.v1.json"))
+            DeviceCatalog::decode(include_bytes!("../../../catalogs/device-support.v1.json"))
                 .unwrap();
         let backend = TestProcesses(OsProcesses::new(dir.path().join("logs")).unwrap());
         let mut s = Supervisor::open(
@@ -182,8 +182,7 @@ fn tampered_program_file_is_not_started() {
     let script = program.files.keys().next().unwrap();
     std::fs::write(script, b"raise SystemExit('changed')").unwrap();
     let support =
-        OwnPlatformCatalog::decode(include_bytes!("../../../catalogs/robotis-support.v1.json"))
-            .unwrap();
+        DeviceCatalog::decode(include_bytes!("../../../catalogs/device-support.v1.json")).unwrap();
     let log = dir.path().join("logs");
     let mut s = Supervisor::open(
         SqliteRepository::open(dir.path().join("state.db")).unwrap(),

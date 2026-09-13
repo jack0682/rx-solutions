@@ -38,11 +38,11 @@ fn write(p: &Path, v: &impl serde::Serialize) {
 }
 fn inputs() -> (Template, Site, Recipe) {
     let t = Template {
-        schema: n("rx.robotis-jtc-template.v1"),
-        id: n("test/omy"),
+        schema: n("rx.ros-jtc-template.v1"),
+        id: n("test/sim-arm"),
         revision: Counter(1),
         catalog_sha256: rx_host::ros_jtc::protocol::catalog_digest(),
-        support_id: n("OM-06"),
+        support_id: n("SIM-JTC-6DOF"),
         controller: "arm_controller".into(),
         resource_roles: [n("controller")].into(),
         condition_roles: [n("ready")].into(),
@@ -89,7 +89,7 @@ fn inputs() -> (Template, Site, Recipe) {
         goal_time_ns: Counter(100_000_000),
     };
     let s = Site {
-        schema: n("rx.robotis-jtc-site.v1"),
+        schema: n("rx.ros-jtc-site.v1"),
         template_digest: t.digest().unwrap(),
         installation: id(1),
         cell: n("cell/one"),
@@ -312,6 +312,12 @@ fn missing_alias_or_foreign_bindings_and_invalid_trajectory_are_rejected() {
     assert!(jtc::assemble(&t, &s, &wrong).is_err());
 }
 #[test]
+fn simulation_catalog_cannot_be_promoted_to_a_physical_site() {
+    let (template, mut site, recipe) = inputs();
+    site.environment = Environment::Physical;
+    assert!(jtc::assemble(&template, &site, &recipe).is_err());
+}
+#[test]
 fn host_package_checks_assets_and_exact_intents_but_cannot_create_control_authority() {
     let root = tempfile::tempdir().unwrap();
     let (_, backend) = published(root.path());
@@ -510,7 +516,7 @@ fn export_image_fixture() {
     let (host_root, host_file, _) = host_fixture::fixture();
     let mut loaded = service::config::Loaded::read(&host_file).unwrap();
     let resolved = jtc::Assembly {
-        schema: n("rx.robotis-jtc-assembly.v1"),
+        schema: n("rx.ros-jtc-assembly.v1"),
         template: t,
         site: s.clone(),
     }

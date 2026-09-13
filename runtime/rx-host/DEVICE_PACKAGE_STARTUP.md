@@ -78,4 +78,4 @@ Host library 시험에서 PHYSICAL **metadata**와 loopback PLC를 사용해 sta
 
 제품 image 시험은 실제 `rx-hostd`에 서명된 모의 package를 입력한다. network-none·non-root·read-only root에서 init/passive run, native journal identity, mTLS h2, 중복 owner 거부, SIGTERM 후 별도 drop proof를 검사한다. Python PLC는 시험이 직접 띄운 loopback 보조 프로세스이며 패키지가 실행하는 코드가 아니다. 이 image 시험의 native write 수는 0이다.
 
-실제 명령·결과·source/image hash는 [phase58 검증 기록](../../../references/implementation/phase58_checks.json)에 둔다. 물리 장비의 publication/프로그램 확인·현장 인수, 다른 제조사 device package authoring와 작성 UI, 운영 중 trust 회수 감시, image/패키지 변경과 native 원장 migration, 전체 장애 복구·보관 정책 및 자사 필수 backend 연결은 남아 있다.
+실제 명령·결과·source/image hash는 [phase58 검증 기록](https://github.com/jack0682/rx_docs/blob/6111a7d1dcf33052f38c3e67c6585aec2b44df3c/references/implementation/phase58_checks.json)에 둔다. 물리 장비의 publication/프로그램 확인·현장 인수, 다른 제조사 device package authoring와 작성 UI, 운영 중 trust 회수 감시, image/패키지 변경과 native 원장 migration, 전체 장애 복구·보관 정책 및 장비별 backend 연결은 남아 있다.

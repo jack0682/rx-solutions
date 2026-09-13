@@ -503,7 +503,7 @@ export function App() {
             다음 작업을 준비하는 RX 운영 공간입니다.
           </p>
           <footer>
-            ROBOTIS <span>RX AUTOMATION · 0.1</span>
+            RX <span>ROBOT SYSTEMS · 0.1</span>
           </footer>
         </section>
         <section className="entry-form">
@@ -597,7 +597,7 @@ export function App() {
           {fresh ? (data?.user.terminal ? '등록 단말 연결' : '서비스 연결') : '연결 확인 필요'}
           <p>운전 상태는 셀별로 확인</p>
           <div className="sidebar-rule" />
-          <b>ROBOTIS</b>
+          <b>RX</b>
           <small>RX AUTOMATION / 0.1</small>
         </div>
       </aside>

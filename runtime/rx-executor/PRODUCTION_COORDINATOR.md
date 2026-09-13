@@ -37,4 +37,4 @@ P의 인증된 최신 조회로만 CompletedVisit 값을 만들 수 있다. Engi
 
 연속 두 소재 통합은 정상, 첫 Begin 응답 유실, 첫 Complete 응답 유실의 3사례다. 실제 S 서비스·지속 BT·P mTLS/SQLite가 part admission/완료/다음 context를 처리한다. fixture는 Host 완료·세 인계 근거를 합성해 입력한다. S가 인계 조회를 요청하기 전에는 해제하지 않는다. P budget 소비2회·part2개·작업2개, planner2회, 중간 pause 없음, 유실된 응답의 PENDING 보존과 재시작 추가 planner0회를 확인한다. 실제 모의 Host/native 전달은 별도 기존 통합 시험으로 구분한다.
 
-이 변경은 직렬 소재 조정이다. 병렬 소재 pipeline, 실제 material genealogy, 새로운 session의 명시적 재시작/rebind, setup 완료 조정, intervention/clearance/cancel/control-session, 큰 run의 paging/index/용량, 전체 supervisor·제품 이미지·자사 장비 인수는 계속 남아 있다.
+이 변경은 직렬 소재 조정이다. 병렬 소재 pipeline, 실제 material genealogy, 새로운 session의 명시적 재시작/rebind, setup 완료 조정, intervention/clearance/cancel/control-session, 큰 run의 paging/index/용량, 전체 supervisor·제품 이미지·실제 장비 인수는 계속 남아 있다.

@@ -1,6 +1,6 @@
-# ROBOTIS JTC 작성 예제 — SIMULATION
+# ROS JTC 작성 예제 — SIMULATION
 
-catalog OM-06/arm_controller를 선택하는 작성 입력이다. calibration.bin/tool.bin은 TEST ONLY 문자열이며 실물 측정·기구 적합성 자료가 아니다. 좌표·관절 목표와 domain171은 모의 시험용이다. 패키지 서명, 운영 trust, 운전 자격은 포함하지 않는다.
+catalog SIM-JTC-6DOF/arm_controller를 선택하는 작성 입력이다. calibration.bin/tool.bin은 TEST ONLY 문자열이며 실물 측정·기구 적합성 자료가 아니다. 좌표·관절 목표와 domain171은 모의 시험용이다. 패키지 서명, 운영 trust, 운전 자격은 포함하지 않는다.
 
 ```text
 rx-device-package template-digest template.json

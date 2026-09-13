@@ -1,4 +1,7 @@
 /node_modules/
+/.claude/
+/.tools/
+/.archive/
 /**/node_modules/
 /**/dist/
 /build/

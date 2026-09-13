@@ -1,7 +1,7 @@
 use crate::{Error, Result, model::*, process::Backend};
 use rx_domain::{canonical, types::*};
 use rx_ports::{Document, Repository, StoreError};
-use rx_solution_catalog::OwnPlatformCatalog;
+use rx_solution_catalog::DeviceCatalog;
 use std::{
     collections::BTreeMap,
     time::{Duration, Instant},
@@ -75,7 +75,7 @@ impl<R: Repository, B: Backend, A: LifecycleAuthority> Supervisor<R, B, A> {
         authority: A,
         plan: Plan,
         programs: BTreeMap<Name, Program>,
-        support: &OwnPlatformCatalog,
+        support: &DeviceCatalog,
     ) -> Result<Self> {
         let digest = plan.validate(&programs, support)?;
         let existing = repository.snapshot()?.1;

@@ -27,7 +27,7 @@ fn run() -> AnyResult<()> {
         },
         Some("template-digest") if a.len()==2=>{
             let value:serde_json::Value=policy::read(Path::new(&a[1]))?;
-            let (digest,id,revision)=if value["schema"]=="rx.robotis-jtc-template.v1" {
+            let (digest,id,revision)=if value["schema"]=="rx.ros-jtc-template.v1" {
                 let t:jtc::Template=serde_json::from_value(value)?;(t.digest()?,t.id,t.revision)
             } else {let t:Template=serde_json::from_value(value)?;(t.digest()?,t.id,t.revision)};
             output(serde_json::json!({"status":"TEMPLATE_STRUCTURE_VALID","template_digest":digest,"template":id,"revision":revision,"activation_authorized":false}))
@@ -36,7 +36,7 @@ fn run() -> AnyResult<()> {
         Some("driver-identity") if a.as_slice()==["driver-identity","jtc"]=>output(serde_json::to_value(rx_host::service::jtc_package::driver())?),
         Some("assemble") if a.len()==5=>{
             let value:serde_json::Value=policy::read(Path::new(&a[1]))?;let recipe:Recipe=policy::read(Path::new(&a[3]))?;
-            let (candidate,digest)=if value["schema"]=="rx.robotis-jtc-template.v1" {
+            let (candidate,digest)=if value["schema"]=="rx.ros-jtc-template.v1" {
                 let t:jtc::Template=serde_json::from_value(value)?;let s:jtc::Site=policy::read(Path::new(&a[2]))?;
                 (jtc::assemble(&t,&s,&recipe)?,t.digest()?)
             } else {let t:Template=serde_json::from_value(value)?;let s:Site=policy::read(Path::new(&a[2]))?;(assemble(&t,&s,&recipe)?,t.digest()?)};

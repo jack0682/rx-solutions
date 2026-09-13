@@ -1,6 +1,6 @@
 use rx_domain::types::*;
 use rx_ports::{Repository, Transaction};
-use rx_solution_catalog::OwnPlatformCatalog;
+use rx_solution_catalog::DeviceCatalog;
 use rx_storage::SqliteRepository;
 use rx_supervisor::{
     Error, Result, Supervisor,
@@ -21,8 +21,8 @@ fn name(s: &str) -> Name {
 fn id() -> Id {
     Id::new(uuid::Uuid::new_v4().to_string()).unwrap()
 }
-fn support() -> OwnPlatformCatalog {
-    OwnPlatformCatalog::decode(include_bytes!("../../../catalogs/robotis-support.v1.json")).unwrap()
+fn support() -> DeviceCatalog {
+    DeviceCatalog::decode(include_bytes!("../../../catalogs/device-support.v1.json")).unwrap()
 }
 fn program(effect: Effect) -> Program {
     Program {
@@ -41,7 +41,7 @@ fn plan() -> Plan {
         schema: name("rx.solutions-process-plan.v1"),
         id: id(),
         environment: Environment::Simulation,
-        profiles: vec![name("OM-05")],
+        profiles: vec![name("SIM-JTC-6DOF")],
         processes: vec![Process {
             id: name("main"),
             program: name("test/service"),

@@ -184,7 +184,7 @@ pub fn from_files(mut files: BTreeMap<PackagePath, Vec<u8>>) -> Result<Candidate
                 canonical::decode_json(assembly).map_err(|e| Error::Invalid(e.to_string()))?;
             assemble(&a.template, &a.site, &recipe)?
         }
-        Some("rx.robotis-jtc-assembly.v1") => {
+        Some("rx.ros-jtc-assembly.v1") => {
             let a: jtc::Assembly =
                 canonical::decode_json(assembly).map_err(|e| Error::Invalid(e.to_string()))?;
             jtc::assemble(&a.template, &a.site, &recipe)?
@@ -220,7 +220,7 @@ pub fn decode_verified_any(package: &VerifiedPackage) -> Result<Device> {
     .map_err(|e| Error::Invalid(e.to_string()))?;
     match driver.implementation.as_str() {
         "rx.melsec.ensure-state.v1" => Ok(Device::Melsec(decode_verified(package)?)),
-        "rx.robotis.position-jtc.v1" => Ok(Device::Jtc(
+        "rx.ros.position-jtc.v1" => Ok(Device::Jtc(
             rx_host::service::jtc_package::decode_verified(package)
                 .map_err(|e| Error::Invalid(e.to_string()))?,
         )),

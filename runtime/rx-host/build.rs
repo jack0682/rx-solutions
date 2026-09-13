@@ -96,16 +96,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("cargo:rerun-if-changed={}", folder.display());
     }
     for path in [
-        "catalogs/robotis-support.v1.json",
+        "catalogs/device-support.v1.json",
+        "catalogs/fixtures/controllers.v1.json",
         "runtime/rx-solution-catalog/Cargo.toml",
         "dependencies/native-stack.lock.json",
-        "dependencies/robotis.repos",
+        "dependencies/native.repos",
     ] {
         material.insert(path.into());
         println!("cargo:rerun-if-changed={}", solutions.join(path).display());
     }
     let mut digest = Sha256::new();
-    digest.update(b"RX-HOST-ROBOTIS-JTC-SOURCE-v1\0");
+    digest.update(b"RX-HOST-ROS-JTC-SOURCE-v1\0");
     for path in material {
         let bytes = fs::read(solutions.join(&path))?;
         digest.update((path.len() as u64).to_le_bytes());

@@ -43,7 +43,7 @@ pub struct Template {
 }
 impl Template {
     pub fn normalized(&self) -> Result<Self> {
-        if self.schema.as_str() != "rx.robotis-jtc-template.v1"
+        if self.schema.as_str() != "rx.ros-jtc-template.v1"
             || self.revision.0 == 0
             || self.catalog_sha256 != catalog_digest()
             || self.resource_roles.is_empty()
@@ -77,7 +77,7 @@ impl Template {
         Ok(t)
     }
     pub fn digest(&self) -> Result<Digest> {
-        canonical::digest("RX-ROBOTIS-JTC-TEMPLATE-v1", &self.normalized()?).map_err(|_| invalid())
+        canonical::digest("RX-ROS-JTC-TEMPLATE-v1", &self.normalized()?).map_err(|_| invalid())
     }
     fn bridge(
         &self,
@@ -149,8 +149,8 @@ impl Assembly {
     pub fn resolve(&self) -> Result<Resolved> {
         let t = self.template.normalized()?;
         let s = &self.site;
-        if self.schema.as_str() != "rx.robotis-jtc-assembly.v1"
-            || s.schema.as_str() != "rx.robotis-jtc-site.v1"
+        if self.schema.as_str() != "rx.ros-jtc-assembly.v1"
+            || s.schema.as_str() != "rx.ros-jtc-site.v1"
             || s.template_digest != t.digest()?
             || s.resources.keys().cloned().collect::<BTreeSet<_>>() != t.resource_roles
             || s.conditions.keys().cloned().collect::<BTreeSet<_>>() != t.condition_roles
@@ -214,7 +214,7 @@ impl Assembly {
             });
         }
         let mut profile = Profile {
-            schema: n("rx.robotis-jtc-profile.v1"),
+            schema: n("rx.ros-jtc-profile.v1"),
             installation: s.installation.clone(),
             cell: s.cell.clone(),
             target: s.target.clone(),
@@ -270,8 +270,8 @@ impl Assembly {
             .clone();
         Ok(Resolved {
             family: Family {
-                schema: n("rx.robotis-jtc-family.v1"),
-                family: n("robotis/jtc"),
+                schema: n("rx.ros-jtc-family.v1"),
+                family: n("ros/jtc"),
                 model,
                 support_id: t.support_id,
                 environment: s.environment,

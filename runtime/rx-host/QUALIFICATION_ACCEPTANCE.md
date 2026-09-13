@@ -74,7 +74,7 @@ static Binding은 바꾸지 않고 수용된 자격을 별도 원장으로 보�
 
 ## 검증·남은 일
 
-[phase53 기록](../../../references/implementation/phase53_checks.json)에 범위를 구분한다. Host 시험은 수용만으로 동작하지 않음, 명시적 Arm/새 자격의 모의 동작, 옛 자격·purpose·빈 intent 범위 거부, key/slot/자격 의미 충돌, 전체 cohort 원자성, 남은 native work, 미지원/오래된 quiescence와 device session 변경을 다룬다. commit 직후 SIGKILL은 receipt 보존과 재시작 후 Arm 거부를 확인한다.
+[phase53 기록](https://github.com/jack0682/rx_docs/blob/6111a7d1dcf33052f38c3e67c6585aec2b44df3c/references/implementation/phase53_checks.json)에 범위를 구분한다. Host 시험은 수용만으로 동작하지 않음, 명시적 Arm/새 자격의 모의 동작, 옛 자격·purpose·빈 intent 범위 거부, key/slot/자격 의미 충돌, 전체 cohort 원자성, 남은 native work, 미지원/오래된 quiescence와 device session 변경을 다룬다. commit 직후 SIGKILL은 receipt 보존과 재시작 후 Arm 거부를 확인한다.
 
 P/S mTLS 통합은 실제 P 검토 승인 view에서 **테스트 harness가 구성한** Request를 전송 전에 파일에 저장하고, Host commit 응답 유실·같은 ID 회수/재전송·충돌 거부를 검사한다. phase53에서는 이 범위였으며, 후속 phase54는 실제 P 발급/전역 활성화와 별도 모의 작업 완료까지 확장했다. 이 통합에서는 native effect가0개다. 별도 Host 단위 시험의 명시적 모의 동작은 독립 effect log로 검사한다.
 

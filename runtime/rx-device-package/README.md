@@ -1,6 +1,6 @@
 # 장비 템플릿·현장 설정·서명 패키지 작성
 
-2026-09-12. `rx-device-package`는 재사용할 장비 의미와 현장 연결 값을 분리하고, 제품 Host가 읽는 불변 DEVICE_REFERENCE 패키지로 조립한다. 현재 MELSEC Q03UDVCPU의 제한 EnsureState와 ROBOTIS position JTC 패키지를 작성한다. 아래는 MELSEC 입력 설명이며, JTC의 Template/Site·operations/outcomes·Jazzy target과 실행 제공자 미연결 경계는 [JTC 패키지 명세](../rx-host/JTC_PACKAGE.md)를 따른다. 다른 로봇·장비까지 작성할 수 있는 범용 schema로 완료 표시하지 않는다.
+2026-09-12. `rx-device-package`는 재사용할 장비 의미와 현장 연결 값을 분리하고, 제품 Host가 읽는 불변 DEVICE_REFERENCE 패키지로 조립한다. 현재 MELSEC Q03UDVCPU의 제한 EnsureState와 ROS position JTC 패키지를 작성한다. 아래는 MELSEC 입력 설명이며, JTC의 Template/Site·operations/outcomes·Jazzy target과 실행 제공자 미연결 경계는 [JTC 패키지 명세](../rx-host/JTC_PACKAGE.md)를 따른다. 다른 로봇·장비까지 작성할 수 있는 범용 schema로 완료 표시하지 않는다.
 
 이 도구는 파일만 읽고 쓴다. PLC/로봇에 연결하거나 개인키를 읽지 않으며, 서명 메시지를 외부로 보내거나 trust·qualification·운전 허가를 설치하지 않는다.
 
@@ -80,4 +80,4 @@ publication 계약과 PLC program evidence의 존재/서명을 검사하는 것�
 
 시험은 한 Template의 두 Site 재사용, 정확한 role/slot 범위, 순서 정규화, 후보 재취득·현재 key/asset/permission, 서명된 원문/profile 불일치, 실제 CLI의 조립→서명 요청→외부 test signer→봉인→검사와 no-overwrite를 다룬다. 이미지 시험은 실제 `/opt/rx/bin/rx-device-package`를 network-none/non-root/read-only root로 실행한다. 키는 테스트 harness에만 있고 제품 CLI는 signature만 받는다.
 
-실행 결과·source/image hash는 [phase59 검증 기록](../../../references/implementation/phase59_checks.json)에 둔다. 편집 UI, 일반 제조사 template registry, 자사 ROBOTIS 모델/모드별 authoring, P의 장비 검토·배포/변경·복구 흐름과 현장 인수는 남아 있다. 첫 물리 셀은 NOT_COMMISSIONED다.
+실행 결과·source/image hash는 [phase59 검증 기록](https://github.com/jack0682/rx_docs/blob/6111a7d1dcf33052f38c3e67c6585aec2b44df3c/references/implementation/phase59_checks.json)에 둔다. 편집 UI, 일반 제조사 template registry, 실제 장비·모드별 authoring, P의 장비 검토·배포/변경·복구 흐름과 현장 인수는 남아 있다. 첫 물리 셀은 NOT_COMMISSIONED다.

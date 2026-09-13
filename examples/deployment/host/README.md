@@ -1,6 +1,6 @@
 # Host 배포 입력 템플릿
 
-`rx-hostd`는 `rx-solutions` 이미지에 포함되는 Host 실행파일이다. 이 예제는 같은 이미지의 명시적인 Host mode를 선택한다. 기본 진단 mode나 모든 자사 ROS launch를 자동으로 시작하는 설정이 아니다.
+`rx-hostd`는 `rx-solutions` 이미지에 포함되는 Host 실행파일이다. 이 예제는 같은 이미지의 명시적인 Host mode를 선택한다. 기본 진단 mode나 모든 장비 ROS launch를 자동으로 시작하는 설정이 아니다.
 
 `startup.template.json`의 ID/경로/pin을 실제 검토된 값으로 채워 `config/startup.json`을 만든다. 0으로 된 hash는 유효한 설치 근거가 아니다. Binding 배열의 host/platform/cell·definition/envelope·자격·허용 intent/조건/scope는 P의 설치와 일치해야 한다. 서버 SAN은 P에서 사용하는 Host 이름과 맞아야 하고, client certificate fingerprint는 등록한 P 인증서의 DER SHA-256이다. 개인키는 owner-only 권한으로 제공한다.
 

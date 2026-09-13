@@ -12,7 +12,7 @@ from controller_manager_msgs.msg import ControllerState
 
 parser=argparse.ArgumentParser();parser.add_argument('--binary',required=True);parser.add_argument('--evidence',required=True,type=Path);a=parser.parse_args()
 DOMAIN=171
-CATALOG=hashlib.sha256((Path(__file__).resolve().parents[2]/'catalogs/robotis-support.v1.json').read_bytes()).hexdigest()
+CATALOG=hashlib.sha256((Path(__file__).resolve().parents[2]/'catalogs/device-support.v1.json').read_bytes()).hexdigest()
 os.environ['RMW_IMPLEMENTATION']='rmw_fastrtps_cpp';os.environ['ROS_AUTOMATIC_DISCOVERY_RANGE']='LOCALHOST';os.environ['ROS_LOG_DIR']='/tmp/ros-jtc-log'
 JOINTS=['joint'+str(i) for i in range(1,7)]
 rclpy.init(domain_id=DOMAIN)
@@ -21,7 +21,7 @@ state={'received':0,'accepted':0,'cancelled':0,'list_calls':0,'goals':[],'active
 def lists(_request,response):
     state['list_calls']+=1;time.sleep(state['list_delay'])
     c=ControllerState();c.name='arm_controller';c.type='joint_trajectory_controller/JointTrajectoryController';c.state='active' if state['active'] else 'inactive'
-    c.claimed_interfaces=[j+'/position' for j in JOINTS]+(['rh_r1_joint/position'] if state['extra_claim'] else [])
+    c.claimed_interfaces=[j+'/position' for j in JOINTS]+(['joint7/position'] if state['extra_claim'] else [])
     response.controller=[c];return response
 list_server=node.create_service(ListControllers,'/rx_test/controller_manager/list_controllers',lists,callback_group=group)
 def accept(request):
@@ -53,7 +53,7 @@ def goal(value=.1):
 
 class Bridge:
     def __init__(self,root,**changes):
-        config={'schema':'rx.ros-jtc-bridge.v1','catalog_sha256':CATALOG,'support_id':'OM-06','controller':'arm_controller','namespace':'/rx_test','controller_manager':'/rx_test/controller_manager','domain_id':DOMAIN,'timeout_ms':150,'capacity':32};config.update(changes)
+        config={'schema':'rx.ros-jtc-bridge.v1','catalog_sha256':CATALOG,'support_id':'SIM-JTC-6DOF','controller':'arm_controller','namespace':'/rx_test','controller_manager':'/rx_test/controller_manager','domain_id':DOMAIN,'timeout_ms':150,'capacity':32};config.update(changes)
         file=root/(uuid.uuid4().hex+'.json');file.write_text(json.dumps(config));self.log=open(root/(file.stem+'.stderr'),'w+')
         self.p=subprocess.Popen([a.binary,str(file)],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=self.log,text=True,env=os.environ.copy());self.sequence=0
         self.hello=self.read();assert self.hello['state']=='READY';self.instance=self.hello['bridge_instance']
@@ -139,19 +139,19 @@ try:
         state['cancel_delay']=.3;before=state['cancelled'];assert delayed.call('cancel',{'invocation':token})['state']=='CANCEL_UNKNOWN'
         assert delayed.call('cancel',{'invocation':token})['state']=='CANCEL_RECORDED';time.sleep(.4);assert state['cancelled']==before+1
         assert delayed.call('result',{'invocation':token})['value']['ros_goal_status']==5;state['cancel_delay']=0.;delayed.close();passed.append('lost_cancel_reply_is_retained_and_exact_cancel_is_not_resent')
-        follower=Bridge(root,support_id='OM-07');assert len(follower.hello['value']['joints'])==7 and follower.hello['value']['joints'][-1]=='rh_r1_joint';follower.close();passed.append('follower_controller_with_integrated_gripper_has_distinct_joint_set')
-        for support,controller in [('OM-04','arm_controller'),('AS-01','joint_group_impedance_controller'),('OM-06','gripper_controller')]:
+        follower=Bridge(root,support_id='SIM-JTC-7DOF');assert len(follower.hello['value']['joints'])==7 and follower.hello['value']['joints'][-1]=='joint7';follower.close();passed.append('follower_controller_with_integrated_gripper_has_distinct_joint_set')
+        for support,controller in [('SIM-LEADER','arm_controller'),('SIM-IMPEDANCE','joint_group_impedance_controller'),('SIM-JTC-6DOF','gripper_controller')]:
             cfg={'schema':'rx.ros-jtc-bridge.v1','catalog_sha256':CATALOG,'support_id':support,'controller':controller,'namespace':'/rx_test','controller_manager':'/rx_test/controller_manager','domain_id':DOMAIN,'timeout_ms':150,'capacity':32};path=root/'invalid.json';path.write_text(json.dumps(cfg));out=subprocess.run([a.binary,str(path)],capture_output=True,text=True,timeout=5);assert out.returncode!=0
         passed.append('leader_impedance_and_other_controller_types_not_mislabeled_as_jtc')
-        cfg.update(support_id='OM-06',controller='arm_controller',catalog_sha256='0'*64);path.write_text(json.dumps(cfg));out=subprocess.run([a.binary,str(path)],capture_output=True,text=True,timeout=5);assert out.returncode!=0;passed.append('catalog_source_pin_mismatch_rejected')
-        catalog=json.loads((Path(__file__).resolve().parents[2]/'catalogs/robotis-support.v1.json').read_text());declarations=[];before=state['received']
+        cfg.update(support_id='SIM-JTC-6DOF',controller='arm_controller',catalog_sha256='0'*64);path.write_text(json.dumps(cfg));out=subprocess.run([a.binary,str(path)],capture_output=True,text=True,timeout=5);assert out.returncode!=0;passed.append('catalog_source_pin_mismatch_rejected')
+        catalog=json.loads((Path(__file__).resolve().parents[2]/'catalogs/device-support.v1.json').read_text());declarations=[];before=state['received']
         for profile in catalog['profiles']:
             for controller in profile['controllers']:
                 if profile['role'] in ['MANIPULATOR','FOLLOWER','MOBILE_BASE'] and controller['plugin']=='joint_trajectory_controller/JointTrajectoryController' and controller['command_interfaces']==['position'] and controller['joint_order']:
                     candidate=Bridge(root,support_id=profile['support_id'],controller=controller['name'])
                     assert candidate.hello['value']['joints']==controller['joint_order'] and candidate.hello['value']['catalog_sha256']==CATALOG
                     candidate.close();declarations.append({'support_id':profile['support_id'],'controller':controller['name'],'joint_count':len(controller['joint_order'])})
-        assert len(declarations)==51 and state['received']==before;passed.append('all_51_catalog_jtc_declarations_select_without_sending_goals')
+        assert len(declarations)==2 and state['received']==before;passed.append('all_simulation_jtc_declarations_select_without_sending_goals')
     a.evidence.parent.mkdir(parents=True,exist_ok=True);a.evidence.write_text(json.dumps({'schema':'rx.ros-jtc-bridge-test.v1','status':'PASS','cases':passed,'catalog_declarations':declarations,'server':state,'physical_equipment_used':False,'host_native_journal_connected':False},indent=2)+'\n');print(json.dumps({'status':'PASS','cases':len(passed),'declarations':len(declarations)}))
 finally:
     executor.shutdown(timeout_sec=5);node.destroy_node();rclpy.shutdown();thread.join(timeout=5)

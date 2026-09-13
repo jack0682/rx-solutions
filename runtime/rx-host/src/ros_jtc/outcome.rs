@@ -1,4 +1,4 @@
-//! ROBOTIS JTC result meanings, supplied as data to the transport-independent platform.
+//! ROS JTC result meanings, supplied as data to the transport-independent platform.
 use super::Profile;
 use crate::Result;
 use rx_domain::types::{Integer, Name};

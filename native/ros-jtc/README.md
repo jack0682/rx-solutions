@@ -1,16 +1,16 @@
-# ROBOTIS JTC ROS 연결 계층
+# ROS JTC ROS 연결 계층
 
-2026-09-12. `rx-ros-jtc-bridge`는 ROBOTIS 지원표의 position JointTrajectoryController를 선택하여 ROS 2 action의 목표 전송·결과 조회·정확한 목표 취소를 수행한다. C++/ROS 의존성은 `rx-solutions`에 둔다. Platform core에 ROS를 추가하지 않는다.
+2026-09-12. `rx-ros-jtc-bridge`는 ROS 지원표의 position JointTrajectoryController를 선택하여 ROS 2 action의 목표 전송·결과 조회·정확한 목표 취소를 수행한다. C++/ROS 의존성은 `rx-solutions`에 둔다. Platform core에 ROS를 추가하지 않는다.
 
-**현재는 통신 bridge다.** 제품 image에 executable을 포함하며 phase61에서 [Rust NativeAdapter와 영속 원장](../../runtime/rx-host/ROBOTIS_JTC_ADAPTER.md)을 library 수준으로 연결했다. 제품 startup factory와 실제 Authority 제공자는 아직 연결하지 않았다. 기본 기동으로 실행되지 않으며, 현재 Host의 영속 native journal·qualification·grant/permit·handover·정상 종료 권위가 이 bridge까지 이어졌다고 주장하지 않는다. 실제 ROBOTIS 장비·DHI·controller_manager를 시작하거나 종료하는 코드도 없다.
+**현재는 통신 bridge다.** 제품 image에 executable을 포함하며 phase61에서 [Rust NativeAdapter와 영속 원장](../../runtime/rx-host/ROS_JTC_ADAPTER.md)을 library 수준으로 연결했다. 제품 startup factory와 실제 Authority 제공자는 아직 연결하지 않았다. 기본 기동으로 실행되지 않으며, 현재 Host의 영속 native journal·qualification·grant/permit·handover·정상 종료 권위가 이 bridge까지 이어졌다고 주장하지 않는다. 실제 ROS 장비·장비 드라이버·controller_manager를 시작하거나 종료하는 코드도 없다.
 
 ## 1. 기본 모델과 controller 선택
 
-빌드할 때 [기본 지원표](../../catalogs/robotis-support.v1.json)를 포함하고, 설정의 원본 SHA-256을 대조한다. support ID/model/controller 종류·관절 순서를 여기서 선택한다. 설정에서 관절 목록이나 plugin 종류를 임의로 덮어쓸 수 없다.
+빌드할 때 [기본 지원표](../../catalogs/device-support.v1.json)를 포함하고, 설정의 원본 SHA-256을 대조한다. support ID/model/controller 종류·관절 순서를 여기서 선택한다. 설정에서 관절 목록이나 plugin 종류를 임의로 덮어쓸 수 없다.
 
-현재 지원표에서 조건을 만족하는 선언은 **16개 지원 구성의 51개 JTC controller 선택**이다. 이는 판매 로봇 16종이나 물리 검증 완료 수가 아니다. FFW-08처럼 다른 구성 파일을 참조하는 행도 포함한다. 전체51개는 startup 선택·관절 목록을 시험했고, 실제 ROS action 교환은 OMY-F3M 형태의 모의 server에서 검사한다.
+현재 기본 카탈로그는 새로 작성한 모의 선언이다. `SIM-JTC-6DOF`와 `SIM-JTC-7DOF`의 두 position JTC를 허용하며, leader·impedance와 gripper 전용 action은 거부 시험용이다. 실제 제조사 모델의 관측·검증 자료를 승계하지 않는다.
 
-MANIPULATOR/FOLLOWER/MOBILE_BASE 역할 중 plugin이 `joint_trajectory_controller/JointTrajectoryController`이고 command interface가 position인 경우만 받는다. leader·impedance/policy 제어, gripper 전용 action, base velocity 등은 이 bridge가 지원한다고 표시하지 않는다. OMY 일반6관절과 gripper를 포함한 follower7관절은 다른 구성이다. steering 초기화 controller의 JTC 선언이 선택 가능해도 해당 기동 동작의 운전 권한까지 생기는 것은 아니다.
+MANIPULATOR/FOLLOWER/MOBILE_BASE 역할 중 plugin이 `joint_trajectory_controller/JointTrajectoryController`이고 command interface가 position인 경우만 받는다. controller 선언의 선택은 실행 권한이 아니며, Host는 SIMULATION_FIXTURE를 실제 장비 환경으로 사용하는 것을 거부한다.
 
 ## 2. 기동 설정
 
@@ -18,7 +18,7 @@ MANIPULATOR/FOLLOWER/MOBILE_BASE 역할 중 plugin이 `joint_trajectory_controll
 {
   "schema": "rx.ros-jtc-bridge.v1",
   "catalog_sha256": "<current catalog file SHA-256>",
-  "support_id": "OM-06",
+  "support_id": "SIM-JTC-6DOF",
   "controller": "arm_controller",
   "namespace": "/cell_robot",
   "controller_manager": "/cell_robot/controller_manager",
@@ -73,12 +73,12 @@ cancel은 known nonzero UUID와 timestamp0만 전송한다. cancel-all/이전 �
 
 ## 6. 종료와 후속 통합
 
-stdin EOF는 clients/context를 닫는다. goal cancel, controller stop, torque off를 자동 실행하지 않는다. 이 프로세스는 DHI/로봇 driver의 소유자가 아니므로 그 소멸자를 호출하지 않는다. 이미 실행 중인 goal은 controller에서 계속 실행될 수 있다. parent 소실·SIGTERM·강제 종료를 기계 정지나 정상 인계로 해석하지 않는다.
+stdin EOF는 clients/context를 닫는다. goal cancel, controller stop, torque off를 자동 실행하지 않는다. 이 프로세스는 장비 드라이버/로봇 driver의 소유자가 아니므로 그 소멸자를 호출하지 않는다. 이미 실행 중인 goal은 controller에서 계속 실행될 수 있다. parent 소실·SIGTERM·강제 종료를 기계 정지나 정상 인계로 해석하지 않는다.
 
-현재 Rust NativeAdapter는 영속 journal과 artifact/dispatch context를 연결했다. 다음에는 production controller generation·제어권 제공자, package/factory와 qualification/permit 구성을, 실제 관측/최종 오차와 handover/drop proof, 정상 종료/부모 소실 처리가 필요하다. gripper·leader·base·Sapiens 모드 경로와 자사 모델별 물리 검증도 남아 있다. 기본 자사5개 레포/22개 지원 구성의 의무를 줄이지 않는다.
+현재 Rust NativeAdapter는 영속 journal과 artifact/dispatch context를 연결했다. 다음에는 production controller generation·제어권 제공자, package/factory와 qualification/permit 구성을, 실제 관측/최종 오차와 handover/drop proof, 정상 종료/부모 소실 처리가 필요하다. gripper·leader·base·policy 경로와 실제 장비별 물리 검증도 남아 있다.
 
 ## 7. 검증
 
-모의 rclpy ActionServer와 실제 C++ ROS service/action clients를 사용한다. 관절/시간/허용오차/추가 field 거부, 비활성·잘못된 claim 집합, 지정 UUID·중복/경합, result UNKNOWN/abort/모순, exact cancel·cancel response와 terminal 분리, preflight deadline, IPC 세대/sequence/중복 key, 응답 유실과 후기 사실을 검사한다. 지원표51개 JTC 선언은 모두 startup 선택과 joint set을 대조하며 이 단계에서는 goal을 보내지 않는다.
+모의 rclpy ActionServer와 실제 C++ ROS service/action clients를 사용한다. 관절/시간/허용오차/추가 field 거부, 비활성·잘못된 claim 집합, 지정 UUID·중복/경합, result UNKNOWN/abort/모순, exact cancel·cancel response와 terminal 분리, preflight deadline, IPC 세대/sequence/중복 key, 응답 유실과 후기 사실을 검사한다. 현재 두 모의 JTC 선언의 startup 선택과 joint set을 대조하며 이 단계에서는 goal을 보내지 않는다.
 
-이 시험은 실제 robotis driver·실장비를 구동하지 않는다. C++ bridge는 제품 S image에 포함하되 기본 process 관리 모드가 자동으로 실행하지 않는다. 실제 결과·image/source hash와 미검증 범위는 [phase60 검증 기록](../../../references/implementation/phase60_checks.json)에 기록한다.
+이 시험은 실제 ROS driver·실장비를 구동하지 않는다. C++ bridge는 제품 S image에 포함하되 기본 process 관리 모드가 자동으로 실행하지 않는다. 과거 검증 원문은 Git 이력에 보존한다. 새 중립 fixture와 이미지의 시험은 별도 실행 결과로 확인한다.

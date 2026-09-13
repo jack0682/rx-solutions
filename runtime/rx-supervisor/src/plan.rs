@@ -1,12 +1,12 @@
 use crate::{Error, Result, model::*};
 use rx_domain::{canonical, types::*};
-use rx_solution_catalog::OwnPlatformCatalog;
+use rx_solution_catalog::DeviceCatalog;
 use std::collections::{BTreeMap, BTreeSet};
 impl Plan {
     pub fn validate(
         &self,
         programs: &BTreeMap<Name, Program>,
-        support: &OwnPlatformCatalog,
+        support: &DeviceCatalog,
     ) -> Result<Digest> {
         support
             .validate()

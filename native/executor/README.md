@@ -38,7 +38,7 @@ Expiry는 오래된 view 사용을 차단하는 경계이며 물리 정지 시�
 python3 tools/test_bt_executor.py --evidence-dir OUTPUT_DIRECTORY
 ```
 
-도구는 commit과 source 무변경을 확인하고 executor-validation Docker target을 빌드한다. 시험은 network none/read-only/cap-drop all/no-new-privileges와 읽기 전용 fixture mount에서 수행한다. **제품 두 이미지 중 하나가 아닌 검증 target**이며 자사 ROS stack/device 권한/현장 기동은 포함하지 않는다.
+도구는 commit과 source 무변경을 확인하고 executor-validation Docker target을 빌드한다. 시험은 network none/read-only/cap-drop all/no-new-privileges와 읽기 전용 fixture mount에서 수행한다. **제품 두 이미지 중 하나가 아닌 검증 target**이며 장비별 ROS stack/device 권한/현장 기동은 포함하지 않는다.
 
 검증 범위는 실제 BT engine의 네 시나리오(순서/인계, 분기/대기/개입, 병렬 불명/권한 회수, XML/큐 한도)와 Rust가 생성한5단계 예제다. P frame·완료/clearance는 합성 fixture다. 실제 P gRPC mapping·image 상주 운영·장비 qualification을 검증했다고 표현하지 않는다.
 

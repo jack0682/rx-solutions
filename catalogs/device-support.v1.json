@@ -1,0 +1,201 @@
+{
+  "schema": "rx.device-support.v1",
+  "repositories": [],
+  "profiles": [
+    {
+      "support_id": "SIM-JTC-6DOF",
+      "model": "sim-arm-6",
+      "role": "MANIPULATOR",
+      "declared_update_hz": "100",
+      "controllers": [
+        {
+          "name": "arm_controller",
+          "plugin": "joint_trajectory_controller/JointTrajectoryController",
+          "joint_order": [
+            "joint1",
+            "joint2",
+            "joint3",
+            "joint4",
+            "joint5",
+            "joint6"
+          ],
+          "command_interfaces": [
+            "position"
+          ],
+          "state_interfaces": [
+            "position",
+            "velocity"
+          ]
+        },
+        {
+          "name": "gripper_controller",
+          "plugin": "position_controllers/GripperActionController",
+          "joint_order": [
+            "joint1"
+          ],
+          "command_interfaces": [
+            "position"
+          ],
+          "state_interfaces": [
+            "position",
+            "velocity"
+          ]
+        }
+      ],
+      "sources": [],
+      "fixture_sources": [
+        {
+          "path": "catalogs/fixtures/controllers.v1.json",
+          "sha256": "353fedf33febe4579d8161fe148ce13772a8b1c0d2ad3f4efd0348391d01d1ac"
+        }
+      ],
+      "evidence_level": "SIMULATION_FIXTURE",
+      "commissioning_inputs": [
+        "native-authority",
+        "calibration",
+        "startup-effects",
+        "handover",
+        "completion-evidence"
+      ],
+      "notes": [
+        "Synthetic software fixture; never physical qualification or a manufacturer support declaration."
+      ]
+    },
+    {
+      "support_id": "SIM-JTC-7DOF",
+      "model": "sim-arm-7",
+      "role": "FOLLOWER",
+      "declared_update_hz": "100",
+      "controllers": [
+        {
+          "name": "arm_controller",
+          "plugin": "joint_trajectory_controller/JointTrajectoryController",
+          "joint_order": [
+            "joint1",
+            "joint2",
+            "joint3",
+            "joint4",
+            "joint5",
+            "joint6",
+            "joint7"
+          ],
+          "command_interfaces": [
+            "position"
+          ],
+          "state_interfaces": [
+            "position",
+            "velocity"
+          ]
+        }
+      ],
+      "sources": [],
+      "fixture_sources": [
+        {
+          "path": "catalogs/fixtures/controllers.v1.json",
+          "sha256": "353fedf33febe4579d8161fe148ce13772a8b1c0d2ad3f4efd0348391d01d1ac"
+        }
+      ],
+      "evidence_level": "SIMULATION_FIXTURE",
+      "commissioning_inputs": [
+        "native-authority",
+        "calibration",
+        "startup-effects",
+        "handover",
+        "completion-evidence"
+      ],
+      "notes": [
+        "Synthetic software fixture; never physical qualification or a manufacturer support declaration."
+      ]
+    },
+    {
+      "support_id": "SIM-LEADER",
+      "model": "sim-leader",
+      "role": "LEADER",
+      "declared_update_hz": "100",
+      "controllers": [
+        {
+          "name": "arm_controller",
+          "plugin": "joint_trajectory_controller/JointTrajectoryController",
+          "joint_order": [
+            "joint1",
+            "joint2",
+            "joint3",
+            "joint4",
+            "joint5",
+            "joint6"
+          ],
+          "command_interfaces": [
+            "position"
+          ],
+          "state_interfaces": [
+            "position",
+            "velocity"
+          ]
+        }
+      ],
+      "sources": [],
+      "fixture_sources": [
+        {
+          "path": "catalogs/fixtures/controllers.v1.json",
+          "sha256": "353fedf33febe4579d8161fe148ce13772a8b1c0d2ad3f4efd0348391d01d1ac"
+        }
+      ],
+      "evidence_level": "SIMULATION_FIXTURE",
+      "commissioning_inputs": [
+        "native-authority",
+        "calibration",
+        "startup-effects",
+        "handover",
+        "completion-evidence"
+      ],
+      "notes": [
+        "Synthetic software fixture; never physical qualification or a manufacturer support declaration."
+      ]
+    },
+    {
+      "support_id": "SIM-IMPEDANCE",
+      "model": "sim-impedance",
+      "role": "IMPEDANCE_CONTROL",
+      "declared_update_hz": "100",
+      "controllers": [
+        {
+          "name": "joint_group_impedance_controller",
+          "plugin": "simulation/ImpedanceController",
+          "joint_order": [
+            "joint1",
+            "joint2",
+            "joint3",
+            "joint4",
+            "joint5",
+            "joint6"
+          ],
+          "command_interfaces": [
+            "position"
+          ],
+          "state_interfaces": [
+            "position",
+            "velocity"
+          ]
+        }
+      ],
+      "sources": [],
+      "fixture_sources": [
+        {
+          "path": "catalogs/fixtures/controllers.v1.json",
+          "sha256": "353fedf33febe4579d8161fe148ce13772a8b1c0d2ad3f4efd0348391d01d1ac"
+        }
+      ],
+      "evidence_level": "SIMULATION_FIXTURE",
+      "commissioning_inputs": [
+        "native-authority",
+        "calibration",
+        "startup-effects",
+        "handover",
+        "completion-evidence"
+      ],
+      "notes": [
+        "Synthetic software fixture; never physical qualification or a manufacturer support declaration."
+      ]
+    }
+  ]
+}

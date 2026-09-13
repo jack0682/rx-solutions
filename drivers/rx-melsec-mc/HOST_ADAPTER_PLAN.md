@@ -84,4 +84,4 @@ AdapterFactory의 `open_passive`는 PLC 요청 쓰기·reset·servo enable을 �
 
 B/C의 필수 반례: 쓰기 ACK만 도착, completion sensor 고착, request bit 자동 해제, PLC reboot와 TCP reconnect, counter wrap, 여러 read 사이 상태 변화, native journal commit 전후 crash, Host evidence commit 전후 crash, read timeout 후 늦은 response, drop proof 소실, 보호 latch 중 진입, 모의 binding의 외부 endpoint 주입. expected result와 native write count를 서로 독립적으로 확인한다.
 
-A와 B의 제한 상태 보장 경로, C의 Host library 통합을 코드/모의 시험으로 다뤘다. D의 MELSEC signed-package startup과 native identity 공개도 구현했다. B/C의 물리적 자료 판단·전체 복구/qualification, 일반 driver의 D와 E는 미완료이며 자사 OMY/Dynamixel/ROS 기본 지원 목표도 유지한다. 미쓰비시 라이브러리 추가로 자사 지원이 완료되거나 선택 사항으로 바뀌지 않는다. 전체 구현 요구는 [추적표](../../../docs/implementation/requirements.md)를 따른다.
+A와 B의 제한 상태 보장 경로, C의 Host library 통합을 코드/모의 시험으로 다뤘다. D의 MELSEC signed-package startup과 native identity 공개도 구현했다. B/C의 물리적 자료 판단·전체 복구/qualification, 일반 driver의 D와 E는 미완료다. 이 PLC 연동은 여러 장비 연결 사례 중 하나이며 다른 장비의 qualification을 대신하지 않는다. 전체 구현 요구는 [추적표](https://github.com/jack0682/rx_docs/blob/main/docs/implementation/requirements.md)를 따른다.

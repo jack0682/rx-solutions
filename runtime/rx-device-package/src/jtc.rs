@@ -1,4 +1,4 @@
-//! ROBOTIS position JTC packages use the common authoring/signature pipeline.
+//! ROS position JTC packages use the common authoring/signature pipeline.
 use crate::*;
 pub use rx_host::ros_jtc::authoring::{ActionSlot, Assembly, Site, Template};
 use rx_host::service::jtc_package;
@@ -18,7 +18,7 @@ pub fn assemble(t: &Template, s: &Site, r: &Recipe) -> Result<Candidate> {
         ));
     }
     let a = Assembly {
-        schema: name("rx.robotis-jtc-assembly.v1"),
+        schema: name("rx.ros-jtc-assembly.v1"),
         template: t.clone(),
         site: s.clone(),
     }

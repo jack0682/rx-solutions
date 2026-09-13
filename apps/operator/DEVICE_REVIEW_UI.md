@@ -37,4 +37,4 @@ P 목록은 한 번에50개의 Summary만 반환한다. 요청자/생성 시각,
 
 실제 S JTC CLI·외부 test signer·P API를 사용해 화면에서 요청 생성, 보고서 등록, 작성자 승인 비활성, 독립 승인, 새 버전/과거 버전, 열린 창 무효화와 응답 유실 후 동일 요청 회수를 확인한다. authority 문맥 변화는 별도의 응답 주입 UI 반례로 구분한다. 실제 backend authority 파일 변경 거부는 phase65 API 검증을 유지한다.
 
-화면과 실제 결과는 [phase66 기록](../../../references/implementation/phase66_checks.json)에 연결한다. 장비 소프트웨어 승인 이후의 구성 변경·qualification과 실제 장비 검증은 다음 작업이다.
+화면과 실제 결과는 [phase66 기록](https://github.com/jack0682/rx_docs/blob/6111a7d1dcf33052f38c3e67c6585aec2b44df3c/references/implementation/phase66_checks.json)에 연결한다. 장비 소프트웨어 승인 이후의 구성 변경·qualification과 실제 장비 검증은 다음 작업이다.

@@ -16,7 +16,7 @@ run은 descriptor와 기존 DB/Host metadata/cell generation을 먼저 대조한
 
 release-owned AdapterFactory가 metadata를 검증하고 `open_passive`로 어댑터를 만든다. 이 함수는 native 움직임/토크/모드 변경을 수행하지 않아야 하며, 최초 admission 이전에 연결을 닫는 것도 물리 제어 효과가 없어야 한다. 실제 driver 초기화가 동작을 유발한다면 그 부분은 별도의 허가된 lifecycle operation으로 옮겨야 한다.
 
-현재 Builtin은 FileDevice와 검증된 DEVICE_REFERENCE 패키지의 Melsec 어댑터를 등록한다. VALIDATED_DRIVER profile/digest는 명시적으로 미지원 오류다. 자사 mandatory SDK/ROS/model 파일은 이미지에 유지하지만 개별 driver의 validation 없이 일괄 launch하거나 constructor/destructor의 물리 효과를 허용하지 않는다. 물리 운전에는 현재 process context/qualification 수용과 별도 Arm이 필요하다. 일반 driver factory와 전체 lifecycle authority는 후속이다.
+현재 Builtin은 FileDevice와 검증된 DEVICE_REFERENCE 패키지의 Melsec 어댑터를 등록한다. VALIDATED_DRIVER profile/digest는 명시적으로 미지원 오류다. 외부 장비 SDK/ROS/model은 별도 검증된 구성으로 추가하며 개별 driver의 validation 없이 일괄 launch하거나 constructor/destructor의 물리 효과를 허용하지 않는다. 물리 운전에는 현재 process context/qualification 수용과 별도 Arm이 필요하다. 일반 driver factory와 전체 lifecycle authority는 후속이다.
 
 ## 준비와 실행
 
@@ -44,7 +44,7 @@ supervisor의 control lifecycle authority/검증된 driver recipe는 아직 연�
 
 ## 검증 범위
 
-[phase55 기록](../../../references/implementation/phase55_checks.json)에 실제 결과를 보관한다. generic composition은 초기화의 no-adapter-open, 현재 프로세스 소유, 정상 종료, 유실 journal 거부, 미지원 backend·변조/unknown config 거부, drop permission 전 native owner 보존을 검사한다. gate 시험은 stop latch와 미확정 작업 보존, stable handover와 drop 허가 구별을 다룬다.
+[phase55 기록](https://github.com/jack0682/rx_docs/blob/6111a7d1dcf33052f38c3e67c6585aec2b44df3c/references/implementation/phase55_checks.json)에 실제 결과를 보관한다. generic composition은 초기화의 no-adapter-open, 현재 프로세스 소유, 정상 종료, 유실 journal 거부, 미지원 backend·변조/unknown config 거부, drop permission 전 native owner 보존을 검사한다. gate 시험은 stop latch와 미확정 작업 보존, stable handover와 drop 허가 구별을 다룬다.
 
 제품 binary/image 시험은 Linux clock·mTLS 준비·중복 owner 거부·SIGTERM/restart와 native effect0을 확인한다. 제품 Host와 P의 실제 작업 통합은 rx-hostd/Linux kernel clock으로 수행한다. 자격 발급·활성화·별도 시작·native 모의 동작1개·근거/인계·Run 완료를 확인하고, 종료 때 보관된 evidence를 발행 완료로 가정하지 않는 상태를 확인한다. 응답 유실은 테스트 클라이언트가 실제 RPC 응답을 받은 뒤 P writer로 전달하기 전에 주입하며 제품 server fault 기능을 쓰지 않는다. 제품 config에는 오류 주입/수동 clock 옵션이 없다. simulation 시험은 실제 로봇/PLC·하중/정지·지지 안전성 검증이 아니다. 첫 물리 셀은 NOT_COMMISSIONED다.
 
