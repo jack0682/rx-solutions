@@ -23,14 +23,14 @@ describe('service health presentation', () => {
   });
   it('keeps configuration and awaiting-owner states separate from fresh service reports', () => {
     expect(servicePresentation({ ...health, availability: 'WAITING_REPORT' }, true).summary).toBe(
-      '첫 상태 보고 대기',
+      'Awaiting first status report',
     );
     expect(servicePresentation({ ...health, availability: 'NOT_CONFIGURED' }, true).summary).toBe(
-      '실행 서비스 미구성',
+      'Execution service not configured',
     );
     expect(servicePresentation({ ...health, availability: 'CONTEXT_MISMATCH' }, true).current).toBe(
       false,
     );
-    expect(servicePresentation(health, true).summary).toBe('상태 보고 수신');
+    expect(servicePresentation(health, true).summary).toBe('Status report received');
   });
 });

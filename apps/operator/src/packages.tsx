@@ -47,14 +47,14 @@ type DecisionTarget = {
   decisionRevision: string | null;
 };
 const nodeLabels: Record<string, string> = {
-  SEQUENCE: '순서',
-  PARALLEL_ALL: '병렬',
-  OPERATION: '장비 작업',
-  BRANCH: '조건 분기',
-  REPEAT: '반복',
-  CALL: '하위 공정',
-  WAIT: '조건 대기',
-  INTERVENTION: '작업자 개입',
+  SEQUENCE: 'Sequence',
+  PARALLEL_ALL: 'Parallel',
+  OPERATION: 'Device operation',
+  BRANCH: 'Conditional branch',
+  REPEAT: 'Repeat',
+  CALL: 'Subworkflow',
+  WAIT: 'Wait for condition',
+  INTERVENTION: 'Operator intervention',
 };
 export function Packages({
   cell,
@@ -199,13 +199,15 @@ export function Packages({
       if (previousContext.current && previousContext.current !== ctxStamp) {
         invalidate();
         updateBuffer.current({ ...latestBuffer.current, selections: {} });
-        setNotice('셀 또는 검토 설정이 변경되었습니다. 작업 연결을 다시 확인해 주세요.');
+        setNotice(
+          'The cell or review configuration has changed. Check the operation bindings again.',
+        );
       }
       previousContext.current = ctxStamp;
       const stamp = value ? reviewStamp(value) : '';
       if (previousStamp.current && stamp !== previousStamp.current) {
         invalidate();
-        setNotice('검토 대상이 변경되었습니다. 자료를 다시 확인해 주세요.');
+        setNotice('The review target has changed. Review the evidence again.');
       }
       previousStamp.current = stamp;
       setContext(ctx);
@@ -367,7 +369,7 @@ export function Packages({
         configuration_digest: context?.configuration_digest,
         policy_generation: context?.registration?.generation,
       },
-      `${cell} 패키지 반입`,
+      `${cell} Package intake`,
     );
   }
   async function create() {
@@ -382,7 +384,7 @@ export function Packages({
         policy_generation: context?.registration?.generation,
         binding_selections: Object.fromEntries(aliases.map((k) => [k, buffer.selections[k]])),
       },
-      `${selected.title} 검토 요청`,
+      `${selected.title} Review request`,
     );
   }
   function target(choice: 'APPROVE' | 'REJECT') {
@@ -408,7 +410,7 @@ export function Packages({
       (dialog.choice === 'APPROVE' && !approved)
     ) {
       invalidate();
-      setNotice('검토 대상과 최신 상태를 다시 확인해 주세요.');
+      setNotice('Check the review target and latest state again.');
       return;
     }
     const record = {
@@ -424,29 +426,32 @@ export function Packages({
     await onSubmit(
       '/api/v1/process-review/decisions',
       record,
-      `${selected?.title ?? '패키지'} 소프트웨어 ${record.choice === 'APPROVE' ? '승인' : '반려'}`,
+      `${selected?.title ?? 'Package'} Software ${record.choice === 'APPROVE' ? 'Approve' : 'Reject'}`,
     );
   }
   const source = editableSourceSchema.safeParse(detail?.source);
   return (
-    <section className="package-workspace" hidden={!active} aria-label="패키지 검토 작업 공간">
+    <section className="package-workspace" hidden={!active} aria-label="Package review workspace">
       <div className="package-intro">
         <div>
           <p className="eyebrow">SOFTWARE REVIEW</p>
-          <h2>패키지를 검토하고 기록합니다</h2>
-          <p>반입한 장비 작업 선언과 공정 검증 자료를 확인하고 검토 기록을 관리합니다.</p>
+          <h2>Review packages and record decisions</h2>
+          <p>
+            Inspect imported device operation declarations and workflow verification evidence, and
+            manage review records.
+          </p>
         </div>
-        <span className="pill">운전 활성화 별도</span>
+        <span className="pill">Operating activation is separate</span>
       </div>
       <div className="package-toolbar">
-        <span>{fresh ? '조회된 검토 자료' : '최신 자료 확인 필요'}</span>
+        <span>{fresh ? 'Retrieved review evidence' : 'Latest evidence needs verification'}</span>
         <button onClick={() => void load()} disabled={loading}>
-          {loading ? '조회 중…' : '자료 새로고침'}
+          {loading ? 'Loading…' : 'Refresh evidence'}
         </button>
       </div>
       {(error || !fresh) && (
         <div className="notice error" role="alert">
-          {error || '최신 검토 자료를 확인해야 조작할 수 있습니다.'}
+          {error || 'Check the latest review evidence before making changes.'}
         </div>
       )}
       {notice && (
@@ -457,10 +462,12 @@ export function Packages({
       <div className="package-layout">
         <aside className="panel package-library">
           <div className="section-heading">
-            <h3>반입 기록</h3>
+            <h3>Intake records</h3>
             <span>{intakes.length}</span>
           </div>
-          {!intakes.length && <p className="muted">이 셀에 반입된 패키지가 없습니다.</p>}
+          {!intakes.length && (
+            <p className="muted">No packages have been imported into this cell.</p>
+          )}
           {intakes.map((v) => (
             <button
               className={`package-item ${v.id === buffer.selectedIntake ? 'selected' : ''}`}
@@ -512,18 +519,19 @@ export function Packages({
                 }
               }}
             >
-              반입 기록 더 보기
+              Load more intake records
             </button>
           )}
           {roles.includes('ENGINEER') && (
             <details className="package-import">
-              <summary>서명 패키지 반입</summary>
+              <summary>Import signed package</summary>
               <p className="muted">
-                설정된 서버 반입 폴더의 파일을 가져옵니다. 식별자는 서명 도구의 결과를 사용하세요.
+                Import files from the configured server intake directory. Use identifiers produced
+                by the signing tool.
               </p>
               <fieldset disabled={!canWrite}>
                 <label>
-                  반입 제목
+                  Intake title
                   <input
                     value={buffer.title}
                     onChange={(e) => patch({ title: e.target.value })}
@@ -531,7 +539,7 @@ export function Packages({
                   />
                 </label>
                 <label>
-                  반입 폴더의 상대 경로
+                  Relative path in intake directory
                   <input
                     value={buffer.path}
                     onChange={(e) => patch({ path: e.target.value })}
@@ -539,7 +547,7 @@ export function Packages({
                   />
                 </label>
                 <label>
-                  패키지 내용 식별자
+                  Package content identifier
                   <input
                     className="mono"
                     value={buffer.manifest}
@@ -548,7 +556,7 @@ export function Packages({
                   />
                 </label>
                 <label>
-                  패키지 서명 식별자
+                  Package signature identifier
                   <input
                     className="mono"
                     value={buffer.signature}
@@ -568,18 +576,18 @@ export function Packages({
                     !digest.safeParse(buffer.signature.trim()).success
                   }
                 >
-                  패키지 반입 요청
+                  Request package intake
                 </button>
               </fieldset>
-              {!context?.registration && <p>패키지 반입 서비스 설정이 필요합니다.</p>}
+              {!context?.registration && <p>Configure the package intake service first.</p>}
             </details>
           )}
         </aside>
         <div className="package-content">
           {!selected ? (
             <div className="panel empty">
-              <h3>반입 기록을 선택하세요</h3>
-              <p>패키지의 검토 요청과 자료를 확인할 수 있습니다.</p>
+              <h3>Select an intake record</h3>
+              <p>View review requests and evidence for the package.</p>
             </div>
           ) : (
             <>
@@ -593,32 +601,35 @@ export function Packages({
                 </div>
                 <dl className="facts">
                   <div>
-                    <dt>제출 계정</dt>
+                    <dt>Submitted by</dt>
                     <dd>{selected.submitted_by}</dd>
                   </div>
                   <div>
-                    <dt>패키지</dt>
+                    <dt>Package</dt>
                     <dd>{selected.manifest.package}</dd>
                   </div>
                 </dl>
                 <details>
-                  <summary>패키지 식별·선언 보기</summary>
+                  <summary>View package identity and declarations</summary>
                   <pre>{JSON.stringify(selected, null, 2)}</pre>
                 </details>
                 {selected.manifest.entry.kind === 'PROCESS' && (
                   <details className="package-create">
-                    <summary>새 검토 요청 만들기</summary>
+                    <summary>Create new review request</summary>
                     {selected.manifest.entry.kind !== 'PROCESS' ? (
-                      <p>현재 검토 도구는 공정 패키지를 지원합니다.</p>
+                      <p>The current review tool supports workflow packages.</p>
                     ) : (
                       <>
-                        <p>공정의 작업 이름을 이 셀에 등록된 장비 작업과 연결하세요.</p>
+                        <p>
+                          Bind workflow operation names to device operations registered in this
+                          cell.
+                        </p>
                         <fieldset disabled={!canWrite}>
                           {aliases.map((k) => (
                             <label key={k}>
-                              {k} 작업 연결
+                              {k} Operation bindings
                               <select
-                                aria-label={`${k} 작업 연결`}
+                                aria-label={`${k} Operation bindings`}
                                 value={buffer.selections[k] ?? ''}
                                 onChange={(e) =>
                                   patch({
@@ -626,7 +637,7 @@ export function Packages({
                                   })
                                 }
                               >
-                                <option value="">장비 작업 선택</option>
+                                <option value="">Select device operation</option>
                                 {catalog?.candidates.map((c) => (
                                   <option value={c.step} key={c.step}>
                                     {c.step} · {c.target}
@@ -642,10 +653,12 @@ export function Packages({
                               !canAct || !context?.review_authority_digest || !selectionsValid
                             }
                           >
-                            검토 요청 생성
+                            Create review request
                           </button>
                         </fieldset>
-                        {!context?.review_authority_digest && <p>검증 서명자 설정이 필요합니다.</p>}
+                        {!context?.review_authority_digest && (
+                          <p>Configure a verification signer first.</p>
+                        )}
                       </>
                     )}
                   </details>
@@ -674,7 +687,7 @@ export function Packages({
               {selected.manifest.entry.kind === 'PROCESS' && (
                 <section className="panel">
                   <div className="section-heading">
-                    <h3>검토 요청</h3>
+                    <h3>Review request</h3>
                     <span>{reviews?.reviews.length ?? 0}</span>
                   </div>
                   <div className="review-list">
@@ -690,16 +703,20 @@ export function Packages({
                           patch({ selectedReview: r.id });
                         }}
                       >
-                        <b>검토 {short(r.id)}</b>
+                        <b>Review {short(r.id)}</b>
                         <span>
-                          {r.report_revision ? `검증 자료 r${r.report_revision}` : '검증 자료 대기'}{' '}
+                          {r.report_revision
+                            ? `Verification evidence r${r.report_revision}`
+                            : 'Awaiting verification evidence'}{' '}
                           · {r.requested_by}
                         </span>
                       </button>
                     ))}
                   </div>
                   {!reviews?.reviews.length && (
-                    <p className="muted">새 검토 요청을 만들어 검증 도구에 전달하세요.</p>
+                    <p className="muted">
+                      Create a new review request and pass it to the verification tool.
+                    </p>
                   )}
                   {reviews?.next && (
                     <button
@@ -730,7 +747,7 @@ export function Packages({
                         }
                       }}
                     >
-                      검토 요청 더 보기
+                      Load more review requests
                     </button>
                   )}
                 </section>
@@ -743,12 +760,12 @@ export function Packages({
                         <p className="eyebrow">REVIEW MATERIAL</p>
                         <h3>
                           {detail.verification
-                            ? `검증 자료 r${detail.verification.revision}`
-                            : '검증 자료 대기'}
+                            ? `Verification evidence r${detail.verification.revision}`
+                            : 'Awaiting verification evidence'}
                         </h3>
                       </div>
                       <span className="pill">
-                        {detail.is_latest ? '최신 검토' : '과거 검토 · 읽기 전용'}
+                        {detail.is_latest ? 'Latest review' : 'Historical review · read only'}
                       </span>
                     </div>
                     <div className="package-actions">
@@ -760,24 +777,25 @@ export function Packages({
                           )
                         }
                       >
-                        검증 요청 내보내기
+                        Export verification request
                       </button>
                       <button
                         onClick={() =>
                           downloadJson(detail, `rx-review-material-${detail.job.request.id}.json`)
                         }
                       >
-                        검토 자료 내려받기
+                        Download review evidence
                       </button>
                     </div>
                     <p className="muted">
-                      검증 도구가 만든 자료와 별도 서명을 서버 반입 폴더에 준비한 뒤 등록하세요.
+                      Place the evidence from the verification tool and its detached signature in
+                      the server intake directory, then register them.
                     </p>
                     <details className="package-report">
-                      <summary>서명된 검증 자료 등록</summary>
+                      <summary>Register signed verification evidence</summary>
                       <fieldset disabled={!canWrite || !detail.is_latest}>
                         <label>
-                          검증 자료 상대 경로
+                          Verification evidence relative path
                           <input
                             value={buffer.reportPath}
                             onChange={(e) => patch({ reportPath: e.target.value })}
@@ -785,7 +803,7 @@ export function Packages({
                           />
                         </label>
                         <label>
-                          검증 보고서 식별자
+                          Verification report identifier
                           <input
                             className="mono"
                             value={buffer.reportDigest}
@@ -804,7 +822,7 @@ export function Packages({
                                 directory: buffer.reportPath.trim(),
                                 report_digest: buffer.reportDigest.trim(),
                               },
-                              `${selected.title} 검증 자료 등록`,
+                              `${selected.title} Register verification evidence`,
                             )
                           }
                           disabled={
@@ -814,14 +832,14 @@ export function Packages({
                             !digest.safeParse(buffer.reportDigest.trim()).success
                           }
                         >
-                          검증 자료 등록 요청
+                          Request verification evidence registration
                         </button>
                       </fieldset>
                     </details>
                     {detail.latest_report_revision && (
                       <div className="review-history">
                         <label>
-                          확인할 검증 버전
+                          Verification version to view
                           <input
                             inputMode="numeric"
                             maxLength={20}
@@ -840,7 +858,7 @@ export function Packages({
                             setHistory(historyInput);
                           }}
                         >
-                          과거 버전 보기
+                          View historical version
                         </button>
                         <button
                           onClick={() => {
@@ -849,14 +867,14 @@ export function Packages({
                             setHistoryInput('');
                           }}
                         >
-                          최신 검토 보기
+                          View latest review
                         </button>
                       </div>
                     )}
                     {!detail.context_current && (
                       <div className="notice error">
-                        검토 당시의 구성 또는 검증 정책과 현재 문맥이 다릅니다. 새 검토가
-                        필요합니다.
+                        The current context differs from the configuration or verification policy
+                        used for the review. A new review is required.
                       </div>
                     )}
                     {detail.verification && (
@@ -866,11 +884,11 @@ export function Packages({
                         >
                           <b>
                             {detail.verification.ready_for_software_approval
-                              ? '소프트웨어 검토 자료 준비됨'
-                              : '검증 결과 확인 필요'}
+                              ? 'Software review evidence ready'
+                              : 'Verification results need review'}
                           </b>
                           <span>
-                            서명자 {detail.verification.signature.key} · 검토 식별{' '}
+                            Signer {detail.verification.signature.key} · review identifier{' '}
                             {short(detail.verification.review_digest)}
                           </span>
                         </div>
@@ -886,7 +904,7 @@ export function Packages({
                         ))}
                         {source.success && (
                           <div className="review-flow">
-                            <h4>공정 원문 · {source.data.process}</h4>
+                            <h4>Workflow source · {source.data.process}</h4>
                             {source.data.flows.map((f, i) => (
                               <div key={f.id}>
                                 <b>{f.id}</b>
@@ -896,11 +914,11 @@ export function Packages({
                                     key={`${f.id}-${j}`}
                                   >
                                     <span>{String(j + 1).padStart(2, '0')}</span>
-                                    <strong>{r.nodeId || '표시 한도'}</strong>
+                                    <strong>{r.nodeId || 'Display limit'}</strong>
                                     <small>
                                       {r.problem ??
                                         nodeLabels[String(f.nodes[r.nodeIndex]?.body.kind)] ??
-                                        '정의 확인'}
+                                        'Check definition'}
                                     </small>
                                   </div>
                                 ))}
@@ -909,21 +927,24 @@ export function Packages({
                           </div>
                         )}
                         <details>
-                          <summary>원문과 조건 전체 보기</summary>
+                          <summary>View full source and conditions</summary>
                           <pre>{JSON.stringify(detail.source, null, 2)}</pre>
                         </details>
                         <details>
-                          <summary>컴파일 결과 전체 보기</summary>
+                          <summary>View full compiled result</summary>
                           <pre>{JSON.stringify(detail.resolved, null, 2)}</pre>
                         </details>
                         {detail.job.device_context && (
                           <p>
-                            장비 변경 후보를 검토 중입니다. 현재 셀 설정은 바뀌지 않았으며, 적용 전
-                            장비 연결과 운전 조건 검증이 필요합니다.
+                            Reviewing a device change candidate. The current cell configuration is
+                            unchanged. Device bindings and operating conditions must be verified
+                            before application.
                           </p>
                         )}
                         <details>
-                          <summary>셀 작업 연결과 검증 근거 전체 보기</summary>
+                          <summary>
+                            View all cell operation bindings and verification evidence
+                          </summary>
                           <pre>
                             {JSON.stringify(
                               {
@@ -943,33 +964,35 @@ export function Packages({
                   {detail.verification && (
                     <section className="panel review-decision">
                       <p className="eyebrow">REVIEW DECISION</p>
-                      <h3>이 검토 버전에 결정을 남깁니다</h3>
+                      <h3>Record a decision for this review version</h3>
                       <p>
-                        소프트웨어 검토 결정입니다. 실제 장비 운전과 활성화는 별도로 확인합니다.
+                        This is a software review decision. Physical device operation and activation
+                        require separate checks.
                       </p>
                       {detail.decision && (
                         <div className="inset">
                           <b>
                             {detail.approval_matches_current_review
-                              ? '이 버전에 소프트웨어 승인 기록이 있습니다'
-                              : '이전 검토 결정 기록'}
+                              ? 'Software approval is recorded for this version'
+                              : 'Previous review decision record'}
                           </b>
                           <p>
-                            {detail.decision.choice === 'APPROVE' ? '승인' : '반려'} · 검증 자료 r
-                            {detail.decision.report_revision} · {detail.decision.decided_by}
+                            {detail.decision.choice === 'APPROVE' ? 'Approve' : 'Reject'} ·
+                            verification evidence r{detail.decision.report_revision} ·{' '}
+                            {detail.decision.decided_by}
                           </p>
                           <p>{detail.decision.note}</p>
                         </div>
                       )}
                       {!roles.includes('VERIFIER') ? (
                         <p className="muted">
-                          검토자 권한이 있는 계정으로 승인 또는 반려할 수 있습니다.
+                          An account with verifier authority can approve or reject this review.
                         </p>
                       ) : (
                         <>
                           <fieldset disabled={!canWrite || !detail.is_latest}>
                             <label>
-                              검토 의견
+                              Review note
                               <textarea
                                 value={buffer.note}
                                 onChange={(e) => patch({ note: e.target.value })}
@@ -982,13 +1005,14 @@ export function Packages({
                                 checked={acknowledged}
                                 onChange={(e) => setChecked(e.target.checked ? stamp : '')}
                               />
-                              원문·컴파일 결과·셀 연결과 이 검토 버전을 확인했습니다.
+                              I have reviewed the source, compiled result, cell bindings, and this
+                              review version.
                             </label>
                           </fieldset>
                           {principal === detail.job.submitted_by && (
                             <p className="muted">
-                              제출 계정은 자기 패키지를 승인할 수 없습니다. 다른 검토자 계정이
-                              필요합니다.
+                              The submitter cannot approve their own package. Another verifier
+                              account is required.
                             </p>
                           )}
                           <div className="package-actions">
@@ -997,7 +1021,7 @@ export function Packages({
                               disabled={!approved || !acknowledged || !buffer.note.trim()}
                               onClick={() => target('APPROVE')}
                             >
-                              소프트웨어 검토 승인
+                              Approve software review
                             </button>
                             <button
                               disabled={
@@ -1005,7 +1029,7 @@ export function Packages({
                               }
                               onClick={() => target('REJECT')}
                             >
-                              검토 반려
+                              Reject review
                             </button>
                           </div>
                         </>
@@ -1020,20 +1044,24 @@ export function Packages({
       </div>
       <dialog ref={dialogRef} onCancel={invalidate} className="review-confirm">
         <p className="eyebrow">CONFIRM REVIEW TARGET</p>
-        <h2>{dialog?.choice === 'APPROVE' ? '소프트웨어 검토 승인' : '검토 반려'}</h2>
+        <h2>{dialog?.choice === 'APPROVE' ? 'Approve software review' : 'Reject review'}</h2>
         <p>
-          {selected?.title} · 검증 자료 r{dialog?.revision}
+          {selected?.title} · verification evidence r{dialog?.revision}
         </p>
         <p className="mono">{dialog?.digest}</p>
-        <p>현재 표시된 검토 자료에 이 결정을 기록합니다. 장비 동작은 시작하지 않습니다.</p>
+        <p>
+          Record this decision for the displayed review evidence. This does not start device motion.
+        </p>
         <div className="package-actions">
-          <button onClick={invalidate}>돌아가기</button>
+          <button onClick={invalidate}>Back</button>
           <button
             className="primary"
             onClick={() => void decide()}
             disabled={!canAct || !acknowledged}
           >
-            {dialog?.choice === 'APPROVE' ? '이 버전 승인 기록' : '이 버전 반려 기록'}
+            {dialog?.choice === 'APPROVE'
+              ? 'Record approval for this version'
+              : 'Record rejection for this version'}
           </button>
         </div>
       </dialog>

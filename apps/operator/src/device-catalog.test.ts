@@ -8,7 +8,7 @@ const object = { manifest: hash, signature: hash };
 const intake = {
   id,
   cell: 'cell/a',
-  title: '장비',
+  title: 'Device',
   object,
   device_catalog: reference,
   configuration_digest: hash,

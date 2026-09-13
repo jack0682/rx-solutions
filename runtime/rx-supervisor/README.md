@@ -1,72 +1,72 @@
-# 솔루션 프로세스 관리 초안
+# Solutions process management draft
 
-2026-09-11. `rx-supervisor`와 `rx-solutionsd`를 추가했다. 선택한 프로그램의 기동·관측·종료를 별도 S 저장소에 기록하고, 프로세스의 생존과 RX 운전 준비를 구별한다. 이 단계의 제품 recipe는 **읽기 전용 상태 서비스 하나**이며, 실제 장비 driver/controller의 lifecycle authority 연결은 후속이다.
+2026-09-11. Added `rx-supervisor` and `rx-solutionsd`. They record startup, observation and shutdown of selected programs in a separate S store, distinguishing process liveness from RX operating readiness. The product recipe at this stage is **one read-only status service**; lifecycle authority integration for actual device drivers/controllers remains future work.
 
-## 레포·제품 경계
+## Repository and product boundary
 
-관리 모듈은 `rx-solutions` 안에 있으며 같은 이미지에 포함된다. 기본 카탈로그는 모의 장비 선언이며 외부 장비 의존성은 개별 연결 때 추가한다. 프로그램 기동은 모든 모델의 launch를 일괄 실행하지 않는다. 선택 profile ID가 카탈로그에 존재하는지 확인하지만, 그 사실로 해당 모델의 제어 준비나 실물 검증을 선언하지 않는다.
+The management module resides in `rx-solutions` and is included in the same image. The default catalog contains simulated device declarations; external device dependencies are added during individual integration. Program startup does not collectively launch all models. It checks that the selected profile ID exists in the catalog but does not thereby declare control readiness or physical validation for that model.
 
-P의 run/operation/qualification/dispatch permit를 이 저장소로 복제하지 않는다. 제어 프로세스의 실제 시작·종료는 기존 P/Host 권한과 검증된 현장 절차에 연결돼야 한다. `LifecycleAuthority`는 그 연결을 위한 포트이며 제품 기본 `SoftwareOnly`는 제어 효과가 있는 프로그램을 거부한다. 시험용 authority는 명시적 모의 backend에서만 사용한다.
+P run/operation/qualification/dispatch permits are not replicated into this store. Actual start/stop of control processes must connect to existing P/Host authority and validated site procedures. `LifecycleAuthority` is the port for that connection; the product default `SoftwareOnly` rejects programs with control effects. Test authority is used only with explicit simulated backends.
 
-## 계획과 프로그램 recipe
+## Plans and program recipes
 
-사이트 계획은 process ID, release program ID, 허용된 parameter, dependency, 기동/종료 timeout, restart limit/backoff를 지정한다. 실행 파일·script 경로·임의 argv·환경 변수·효과 분류를 사이트 입력으로 받지 않는다. 현재 `rx/status-http` recipe는 고정 Python interpreter와 RX 상태 script, 제한된 bind/port만 받는다.
+Site plans specify process ID, release program ID, allowed parameters, dependencies, startup/shutdown timeouts and restart limit/backoff. Site inputs do not supply executable/script paths, arbitrary argv, environment variables or effect classifications. The current `rx/status-http` recipe accepts only a fixed Python interpreter, RX status script and restricted bind/port.
 
-프로그램과 효과 분류는 release-owned catalog의 책임이다. 실행 파일과 관련 파일의 SHA-256을 확인한다. 계획 digest는 원본 계획뿐 아니라 선택 프로그램의 실제 실행 정의·파일 digest·효과 분류와 선택 장비 profile에 결합한다. 같은 저장 계획에 바뀐 프로그램을 몰래 적용하지 않는다.
+Programs and effect classifications belong to the release-owned catalog. Executable and related-file SHA-256 values are checked. The plan digest binds not only the original plan but selected programs' actual execution definitions/file digests/effect classifications and selected device profiles. A changed program is not silently applied to the same saved plan.
 
-기동 의존성은 최대 32개 프로그램의 DAG다. 누락/중복/순환과 허용되지 않은 인자·profile을 거부한다. 기동/종료 timeout은 현재 100–30000 ms, software restart limit은 0–3으로 제한한다. 이 범위는 관리 소프트웨어의 입력 범위이며 모든 제어기의 안전한 시간 값이라는 뜻이 아니다. 제어 효과 프로그램은 자동 restart limit 0만 허용한다.
+Startup dependencies form a DAG of at most 32 programs. Missing/duplicate/cyclic dependencies and disallowed arguments/profiles are rejected. Startup/shutdown timeouts are currently limited to 100–30000 ms and software restart limits to 0–3. These are management software input ranges, not universally safe values for all controllers. Programs with control effects permit only automatic restart limit 0.
 
-프로그램 파일의 검증과 실제 exec 사이의 무결성은 읽기 전용 release image와 신뢰하는 host OS를 전제로 한다. 이 단계에서 일반 writable 실행 경로의 원자적 fexecve나 적대적인 host 관리자에 대한 방어를 구현했다고 주장하지 않는다.
+Integrity between program-file verification and actual exec assumes a read-only release image and trusted host OS. This stage does not claim atomic fexecve for generic writable executable paths or defenses against hostile host administrators.
 
-## 영속 상태와 OS 실행 경계
+## Durable state and OS execution boundary
 
-| 상태 | 의미 |
+| State | Meaning |
 |---|---|
-| PENDING | 아직 기동 의도를 기록하지 않음 |
-| PREPARED | 고정 instance ID와 기동 의도를 기록 |
-| SPAWN_ENTERED | OS 실행 경계 진입을 먼저 기록. 이것만으로 프로세스가 생성됐다고 확정하지 않음 |
-| STARTING | 현재 owner가 실제 Child handle/PID를 얻음 |
-| PROCESS_READY | 지정한 process probe를 확인. Control prepared나 qualification은 아님 |
-| UNREADY | 기동 확인 기한 초과. 프로세스는 살아 있을 수 있음 |
-| STOP_REQUESTED | 허용된 종료 의도를 기록. 실제 종료는 아직 별도 |
-| EXITED | 현재 owner가 실제 OS 종료를 관측 |
-| SKIPPED | 종료 요청 전에 기동되지 않았음 |
-| START_FAILED | backend가 실행되지 않았음을 확인한 실패 |
-| UNKNOWN | 실행/소유 연속성을 확인하지 못함. 재실행과 저장된 PID의 신호 전송 금지 |
+| PENDING | Startup intent not yet recorded |
+| PREPARED | Fixed instance ID and startup intent recorded |
+| SPAWN_ENTERED | OS execution-boundary entry recorded first. This alone does not confirm process creation |
+| STARTING | Current owner acquired an actual Child handle/PID |
+| PROCESS_READY | Designated process probe confirmed. Not Control prepared or qualification |
+| UNREADY | Startup confirmation deadline exceeded. Process may still be alive |
+| STOP_REQUESTED | Authorized stop intent recorded. Actual exit remains separate |
+| EXITED | Current owner observed actual OS exit |
+| SKIPPED | Not started before stop request |
+| START_FAILED | Failure in which backend confirmed execution did not occur |
+| UNKNOWN | Execution/ownership continuity unconfirmed. Re-execution and signaling stored PIDs prohibited |
 
-전용 SQLite store와 단일 writer lock을 사용한다. 다른 용도의 기존 entity/event가 있는 store를 새 supervisor 저장소로 주장하지 않는다. transaction callback 안에서 프로그램을 실행하지 않는다.
+Uses a dedicated SQLite store and single-writer lock. A store with existing entities/events for other purposes is not claimed as a new supervisor store. Programs are not executed inside transaction callbacks.
 
-PREPARED와 SPAWN_ENTERED를 먼저 commit하고 권한을 재검사한 뒤 OS backend로 진입한다. backend는 파일 검증·argument 준비 뒤 exec 직전에 authority를 다시 확인한다. 실제 기동 후 상태 저장에 실패했더라도 같은 살아 있는 owner가 보유한 Child handle로만 기록을 보완하며 다시 spawn하지 않는다.
+PREPARED and SPAWN_ENTERED are committed first, authority is rechecked, and then the OS backend is entered. After file verification and argument preparation, the backend rechecks authority immediately before exec. Even if state persistence fails after actual startup, records are supplemented only through the Child handle held by the same live owner; no respawn occurs.
 
-SPAWN_ENTERED를 저장했지만 실행 진입 응답이 불명확하거나 manager가 재시작해 handle을 잃으면 UNKNOWN이다. backend의 ‘실행 안 됨’과 ‘실행 여부 불명’도 구분한다. 저장된 PID만으로 새 owner가 기존 프로세스를 채택하거나 종료하지 않는다.
+If SPAWN_ENTERED was stored but the execution-entry response is unclear, or the manager restarts and loses its handle, the state is UNKNOWN. Backend “not executed” and “execution unknown” are also distinguished. A new owner does not adopt or terminate an existing process from a stored PID alone.
 
-## readiness·의존성·종료
+## Readiness, dependencies and shutdown
 
-일반 alive probe는 프로세스 생존만 확인한다. 현재 HTTP 상태 서비스는 생성한 instance ID를 child 환경에 넣고 응답의 같은 ID를 확인한다. 다른 프로세스가 같은 포트에서 응답해도 준비 완료로 인정하지 않는다. dependency는 process probe를 만족한 뒤 시작하며, 그 probe를 물리적 장비 조건으로 사용하지 않는다.
+A generic alive probe confirms only process liveness. The current HTTP status service passes the generated instance ID in the child environment and verifies the same ID in responses. Another process responding on the same port does not count as ready. Dependencies start after satisfying the process probe; that probe is not used as a physical equipment condition.
 
-종료 요청은 메모리에서도 먼저 latch해 저장 실패 후 새 프로세스가 계속 시작되지 않게 한다. 의존 프로세스를 먼저 정리하고 provider를 종료한다. 종료 전후에 authority를 확인하며 제어 효과 프로그램은 허가가 없으면 유지한다. timeout만으로 제어 프로세스를 강제 종료하지 않는다.
+Stop requests first latch in memory as well, preventing continued new process startup after persistence failure. Dependent processes are cleaned up before providers. Authority is checked before/after shutdown, and control-effect programs are retained without permission. A timeout alone does not force termination of a control process.
 
-Non-actuating 프로그램은 허용된 정상 종료 뒤 timeout이 지나면 강제 종료할 수 있다. OS backend는 자신이 소유한 Child handle을 확인하고 신호를 전송한다. 다른 owner의 PID 파일을 읽어 kill하는 기능은 없다. stdout/stderr는 instance별 파일이며 제어 프로세스의 부모 종료를 입력 EOF 기반 종료 명령으로 사용하지 않는다.
+Non-actuating programs may be force-terminated after timeout following authorized normal shutdown. The OS backend verifies its owned Child handle before signaling. It cannot read another owner's PID file and kill that process. stdout/stderr are per-instance files; parent termination of a control process is not used as an input-EOF shutdown command.
 
-관측한 EXITED의 저장에 실패하면 동일 Child의 종료 관측을 다시 저장할 수 있다. EXITED가 확정 저장된 뒤에는 종료된 handle과 타이머를 회수해 반복된 정상 재활성화가 메모리 객체를 계속 쌓지 않게 한다. 정상 종료 의도도 없는 예상 밖 종료는 오류로 남고, non-actuating 프로그램에 한해 지정된 추가 기동 횟수와 backoff가 적용된다. 제어 프로그램 재활성화는 별도 절차가 필요하다. 기동 probe timeout 이후 살아 있는 프로세스를 자동 성공으로 바꾸지 않는다.
+If persisting observed EXITED fails, the same Child's exit observation can be recorded again. Once EXITED is definitively persisted, exited handles and timers are reclaimed so repeated normal reactivation does not continually accumulate memory objects. Unexpected exit without normal stop intent remains an error; only non-actuating programs receive configured additional starts and backoff. Control program reactivation requires a separate procedure. A process still alive after startup-probe timeout is not automatically converted to success.
 
-## 실행 방법과 현재 이미지 경로
+## Invocation and current image paths
 
-기본 이미지 entrypoint의 `serve`/`inspect`는 기존 읽기 전용 진단 경로다. 새 관리 경로는 다음처럼 명시적으로 선택한다.
+Default image entrypoint `serve`/`inspect` retain existing read-only diagnostics. Select the new management path explicitly as follows.
 
 ```text
 /opt/rx/entrypoint.sh supervise /config/solutions-startup.json
 /opt/rx/bin/rx-solutionsd inspect /config/solutions-startup.json
 ```
 
-[예제 계획](../../examples/deployment/solutions-startup.json)은 `SIM-JTC-6DOF`를 참조하지만 읽기 전용 상태 HTTP 프로그램만 시작한다. controller/로봇 Host를 시작하지 않으며 control_prepared와 physical_shutdown_assessed는 false다.
+The [example plan](../../examples/deployment/solutions-startup.json) references `SIM-JTC-6DOF` but starts only the read-only status HTTP program. It starts no controller/robot Host; control_prepared and physical_shutdown_assessed are false.
 
-state_subdirectory는 `/var/lib/rx-solutions` 아래의 제한된 상대 경로다. directory와 DB/lock symlink를 거부한다. P의 DB를 volume으로 제공하지 않는다. 명령 인자/프로그램 경로와 state 경로는 서로 다른 검증을 거친다.
+state_subdirectory is a restricted relative path under `/var/lib/rx-solutions`. Directory and DB/lock symlinks are rejected. P DB must not be supplied as a volume. Command arguments/program paths and state paths undergo different validation.
 
-정상 종료 기록은 다음 `run`에서 자동 지우지 않는다. 모든 프로세스가 확인된 terminal 상태이고 전체 계획이 non-actuating일 때만 명시적 `rx-solutionsd activate CONFIG`로 software 계획을 다시 준비할 수 있다. 강제 종료 뒤 UNKNOWN인 계획은 이 경로로도 재활성화할 수 없다.
+Normal shutdown records are not automatically erased by the next `run`. Only when all processes are in confirmed terminal states and the full plan is non-actuating may explicit `rx-solutionsd activate CONFIG` prepare the software plan again. A plan left UNKNOWN after forced termination cannot be reactivated through this path either.
 
-## 검증과 아직 필요한 연결
+## Verification and connections still needed
 
-시험은 기동 commit 전/후 장애, actual spawn 뒤 저장 실패, 불명 backend 결과, supervisor 재시작, 종료 권한 상실, 제어 프로세스의 강제 종료 거부, 저장 실패 중 stop latch, 종료 관측 재저장, dependency 순서와 제한된 software 재기동을 확인한다. 별도 실제 무동작 HTTP child로 instance-correlated readiness, 잘못된 응답과 파일 변조, owned process 종료도 확인한다.
+Tests check failures before/after startup commit, persistence failure after actual spawn, unknown backend results, supervisor restart, loss of shutdown authority, rejection of force termination for control processes, stop latch during storage failure, exit-observation repersistence, dependency ordering and bounded software restart. A separate actual non-actuating HTTP child also checks instance-correlated readiness, incorrect responses/file tampering and owned-process shutdown.
 
-실제 ROS/driver/BT 프로세스에 대한 release recipe·device/network 권한·P/Host lifecycle permit 검증, native 종료/지지 이관 증거, 재시작 후 process adoption·부재 증명과 전체 설치/업데이트 supervisor는 미완료다. 준비된 포트나 모의 authority를 그 검증의 대체물로 세지 않는다. 현재 상태 출력은 stdout/저장소이며 P 운영 화면과의 관리 명령·상태 연결도 후속이다. 첫 물리 셀은 NOT_COMMISSIONED다.
+Release recipes, device/network permissions and P/Host lifecycle permit validation for actual ROS/driver/BT processes, native shutdown/support handover evidence, process adoption/proof of absence after restart and the full installation/update supervisor remain incomplete. Prepared ports or simulated authority do not count as substitutes for that validation. Current state output is stdout/storage; management command/status integration with the P operations UI also remains future work. The first physical cell is NOT_COMMISSIONED.
