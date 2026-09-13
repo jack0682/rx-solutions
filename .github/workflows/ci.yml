@@ -95,7 +95,7 @@ jobs:
       - run: npm run build
 
   ci:
-    name: CI
+    name: ${{ github.event_name == 'pull_request' && 'CI' || 'Branch CI' }}
     if: ${{ always() }}
     needs: [repository, rust, operator]
     runs-on: ubuntu-24.04
