@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from './schema-runtime';
 import { count, digest, downloadJson, type Intake } from './package-schema';
 const artifact = z.object({ sha256: digest, schema_id: z.string(), size_bytes: count });
 const signed = z

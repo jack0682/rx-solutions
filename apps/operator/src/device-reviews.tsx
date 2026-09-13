@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { z } from 'zod';
+import { z } from './schema-runtime';
 import { api, explain } from './api';
 import {
   downloadJson,

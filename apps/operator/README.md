@@ -67,3 +67,5 @@ Engineer/Verifier는 공정 초안을 조회하고 Engineer는 새 초안·노�
 # 제품 이미지의 앱 제공
 
 phase73의 [두 이미지·직접 단말 HTTPS 제공](DELIVERY.md)이 개발 서버와 별도로 연결됐다. 실제 제공·파일 검증·mTLS 브라우저 시험과 남은 StartRun/실행기 배정 범위는 해당 문서를 따른다.
+
+구성 화면의 Host 복구 연결은 현재 ReleaseManager/등록 단말의 제안·검토·승인, 기존 Fence 진행과 알려진 operation의 수신/결과 조회를 연결한다. 서버가 반환한 digest와 전체 셀 revision을 보존하고, 제안/승인 전 원래 key/body를 sessionStorage에 기록한다. 응답 유실·새로고침 뒤 같은 요청을 회수하며, 기존 기록 목록은 저장된 UUID가 없는 새 화면에서도 찾을 수 있다. RECOVERY_ONLY는 운전용 등록·grant·자격·Arm·Run 재개를 복원하지 않는다. Host Inspect의 적용 receipt 부재를 현재 연결 실패로 표시하지 않는다. 실제 시험 범위는 rx_docs의 단계별 evidence를 따른다.

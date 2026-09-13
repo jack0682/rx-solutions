@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from './schema-runtime';
 const counter = z
   .string()
   .regex(/^(0|[1-9][0-9]{0,19})$/)

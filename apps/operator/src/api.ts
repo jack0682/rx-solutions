@@ -74,6 +74,11 @@ const messages: Record<string, string> = {
   MANDATE_REVOKED: '현재 실행 상태에서는 새 시작을 요청할 수 없습니다.',
   STALE_EPOCH: '운전 세대가 변경되었습니다. 현재 상태를 다시 조회하세요.',
   BUDGET_EXHAUSTED: '허용된 시도 예산을 모두 사용했습니다.',
+  HOST_RECOVERY_NOT_CONFIGURED: '이 설치의 Host 복구 조회 연결 설정이 필요합니다.',
+  HOST_RECOVERY_UNAVAILABLE: 'Host 복구 연결의 응답을 확인할 수 없습니다.',
+  HOST_RECOVERY_INVALID_READ:
+    'Host의 현재 연결 근거를 확인할 수 없습니다. 현재 기록을 다시 조회하세요.',
+  HOST_RECOVERY_BUSY: 'Host 복구 확인 요청이 진행 중입니다. 현재 기록을 다시 조회하세요.',
 };
 export function explain(error: unknown) {
   if (error instanceof ApiFailure && error.code === 'CONNECTION_LOST' && error.unknownOutcome)

@@ -23,7 +23,7 @@ import {
   type ReviewReceipt,
 } from './package-schema';
 import type { Pending } from './schema';
-import { z } from 'zod';
+import { z } from './schema-runtime';
 import {
   correlateDeviceCatalog,
   DeviceCatalogPanel,

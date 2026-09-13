@@ -1,5 +1,5 @@
 import { serviceHealthSchema } from './service-health-schema';
-import { z } from 'zod';
+import { z } from './schema-runtime';
 const count = z
   .string()
   .regex(/^(0|[1-9][0-9]{0,19})$/)
