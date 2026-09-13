@@ -67,6 +67,24 @@ package 검토 승인, P artifact admission·활성화, 완전한 device/site co
 
 P/S의 로컬 trust policy 취득은 SDK `rx-package::policy`를 공유한다. P의 별도 보관 경계와 오프라인 도구는 [STORE.md](https://github.com/jack0682/rx-platform/blob/codex/initial-draft/crates/rx-package/STORE.md)에 설명한다. P 보관 성공은 이 crate의 공정 의미 재검증이나 사용자/셀 승인으로 승격되지 않는다.
 
+## Investigation 절차 작성과 외부 서명
+
+```text
+rx-process-package investigation-assemble INPUT_JSON NEW_CANDIDATE_DIRECTORY
+rx-process-package investigation-request PROCEDURE_JSON KEY_ID NEW_REQUEST_FILE
+rx-process-package investigation-seal PROCEDURE_JSON SIGNATURE_JSON PUBLIC_KEY_HEX NEW_OUTPUT_DIRECTORY
+```
+
+이 경로는 shared `investigation::Procedure`를 검증하는 독립 문서 도구다. 기존 PackageKind를 확장하거나 investigation을 Process package로 포장하지 않는다. 절차의 액션·scope·역할 등 의미 검증은 shared contract를 그대로 사용한다.
+
+- `investigation-assemble`은 bounded strict JSON 입력을 decode/validate하고 새 디렉터리에 canonical `procedure.json` 하나만 쓴다. 결과는 서명 없는 후보이며 `signature_verified=false`, `usage_authorized=false`다.
+- `investigation-request`는 assemble이 만든 정확한 canonical bytes를 읽고 key ID와 procedure에 결합한 shared contract의 signing message를 만든다. 파일은 `{schema,key,procedure,message_digest,message_hex}`이며 schema는 `rx.investigation-signing-request.v1`이다. 외부 signer에 전달할 입력만 기록하며 private key 입력·서명 생성·외부 전송은 없다.
+- `investigation-seal`은 정확한 canonical procedure와 strict `SignatureEnvelope {key,signature}`를 읽는다. 64자리 lowercase hex 공개키로 실제 Ed25519 detached message를 검증한 뒤 `<procedure.sha256>.json`과 `<procedure.sha256>.sig.json` 두 파일을 새 디렉터리에 게시한다. procedure 파일은 검증한 원문 bytes 그대로다. key ID도 signing message에 결합되므로 다른 alias로 envelope를 바꾸면 실패한다.
+
+`PUBLIC_KEY_HEX`는 **서명 수학 검증에만** 사용한다. CLI가 받은 키를 P 배포 policy의 trusted key로 등록하거나, signer 역할·현재 cell의 절차 사용·case·운전 조건을 승인하지 않는다. seal의 stdout은 `SIGNATURE_VERIFIED_NOT_AUTHORIZED`, `signature_verified=true`, `deployment_policy_verified=false`, `usage_authorized=false`와 `public_key_check=SIGNATURE_VALIDITY_ONLY`를 명시한다. P의 독립 trust 정책과 실제 사용 시 권한·조건 검사는 별도다.
+
+입력은 기존 bounded trust/relative-file primitive로 읽으며 unknown/duplicate JSON 필드·불일치 서명·변조·비정규 procedure bytes를 거부한다. 디렉터리 출력은 기존 `publish_files`의 no-replace publication을 사용하고 서명 요청 파일도 create-new만 허용한다. 기존 파일/디렉터리·symlink를 덮어쓰지 않는다. 어느 명령도 Runtime API, planner 또는 native 동작을 호출하지 않는다.
+
 ## 검토 자료 출력
 
 `validator-identity`, `review PACKAGE POLICY REQUEST OUT`, `review-signing-request REPORT KEY_ID OUT`을 제공한다. 실제 signed package를 compile_verified로 검사해 canonical 검토/결과 자료를 만들고 외부 서명자가 정확한 bytes에 서명하도록 한다. 서명 서비스/개인키는 포함하지 않는다. P의 독립 검사와 승인 범위는 [공정 검토](https://github.com/jack0682/rx-platform/blob/codex/initial-draft/crates/rx-application/PROCESS_REVIEW.md)를 참조한다.

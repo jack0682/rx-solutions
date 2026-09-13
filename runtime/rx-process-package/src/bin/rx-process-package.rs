@@ -17,6 +17,18 @@ fn main() {
 fn run() -> Result<()> {
     let args = std::env::args().skip(1).collect::<Vec<_>>();
     match args.first().map(String::as_str) {
+        Some("investigation-assemble") if args.len()==3=>{
+            let procedure=rx_process_package::investigation::assemble(Path::new(&args[1]),Path::new(&args[2]))?;
+            output_json(&serde_json::json!({"status":"UNSIGNED_INVESTIGATION_PROCEDURE","procedure":procedure,"signature_verified":false,"deployment_policy_verified":false,"usage_authorized":false}))
+        },
+        Some("investigation-request") if args.len()==4=>{
+            let request=rx_process_package::investigation::signing_request(Path::new(&args[1]),Name::new(&args[2])?,Path::new(&args[3]))?;
+            output_json(&serde_json::json!({"status":"SIGNATURE_REQUIRED","procedure":request.procedure,"signature_verified":false,"deployment_policy_verified":false,"usage_authorized":false}))
+        },
+        Some("investigation-seal") if args.len()==5=>{
+            let procedure=rx_process_package::investigation::seal(Path::new(&args[1]),Path::new(&args[2]),&args[3],Path::new(&args[4]))?;
+            output_json(&serde_json::json!({"status":"SIGNATURE_VERIFIED_NOT_AUTHORIZED","procedure":procedure,"signature_verified":true,"deployment_policy_verified":false,"usage_authorized":false,"public_key_check":"SIGNATURE_VALIDITY_ONLY"}))
+        },
         Some("validator-identity") if args.len()==1=>output_json(&serde_json::json!({"validator_digest":rx_process_package::review::validator_digest(),"scope":"PROCESS_PACKAGE_SOFTWARE"})),
         Some("review") if args.len()==5=>{
             let request:rx_process_contract::package_review::Request=trust::read(Path::new(&args[3]))?;
@@ -55,6 +67,6 @@ fn run() -> Result<()> {
             }
             output_json(&serde_json::json!({"status":"CONTENT_VERIFIED_NOT_QUALIFIED","manifest_digest":package.digest(),"process":process.process,"package_digest":process.package_digest}))
         },
-        _=>Err("usage: rx-process-package validator-identity | review PACKAGE POLICY REQUEST OUT | review-signing-request REPORT KEY_ID OUT_FILE | assemble BUNDLE RECIPE OUT | request CANDIDATE KEY_ID OUT_FILE | seal CANDIDATE SIGNATURE POLICY OUT | verify PACKAGE POLICY | compile PACKAGE POLICY OUT".into()),
+        _=>Err("usage: rx-process-package investigation-assemble INPUT_JSON OUT_DIR | investigation-request PROCEDURE_JSON KEY_ID OUT_FILE | investigation-seal PROCEDURE_JSON SIGNATURE_JSON PUBLIC_KEY_HEX OUT_DIR | validator-identity | review PACKAGE POLICY REQUEST OUT | review-signing-request REPORT KEY_ID OUT_FILE | assemble BUNDLE RECIPE OUT | request CANDIDATE KEY_ID OUT_FILE | seal CANDIDATE SIGNATURE POLICY OUT | verify PACKAGE POLICY | compile PACKAGE POLICY OUT".into()),
     }
 }
