@@ -1,5 +1,5 @@
-# 로컬 개발용 자료
+# Local development materials
 
-`cell-demo.json`은 화면/API 연결을 위한 **미검증 모의 셀 구성**이다. 실제 장비·공정 패키지가 아니며 SHA-256 값은 존재하는 artifact의 hash가 아닌 명시적 placeholder다. Host 등록·장비 드라이버·완료 증거·운전 자격을 제공하지 않는다.
+`cell-demo.json` is an **unvalidated simulated cell configuration** for connecting the UI and API. It is not a physical device or process package, and its SHA-256 values are explicit placeholders rather than hashes of existing artifacts. It supplies no Host registration, device driver, completion evidence, or operating qualification.
 
-로컬 서비스의 `POST /api/v1/cells`로 등록하면 검증 대기 상태가 된다. 제품 패키지 입력 또는 첫 레이저 현장 설정으로 사용하지 않는다. 네모엔지니어링 현장의 Q03UDVCPU, 로봇·그리퍼·지그·신호표와 관계없는 모의 시험 자료다.
+Registration through the local service's `POST /api/v1/cells` leaves it awaiting validation. Do not use it as product package input or configuration for the first laser site. It is simulation test data unrelated to the Nemo Engineering site's Q03UDVCPU, robot, gripper, fixture, or signal table.

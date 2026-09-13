@@ -29,8 +29,8 @@ mTLS/gRPC and platform outbox/evidence exchange are connected. Complete native c
 
 SDK sources are exported and hash-pinned from rx-platform; rx-application is intentionally excluded. Edit the producer, regenerate the SDK and reverify. Do not modify the vendored sdk directory directly.
 
-[Host 공정 구성 문맥과 receipt](PROCESS_CONFIGURATION.md)는 전체 관리 셀의 fence·현재 Binding·quiescence를 확인하고 공정 문맥을 영속 기록한다. 적용 뒤에는 unqualified gate를 유지하며 native 설정 변경/운전 자격을 주장하지 않는다.
+[Host process configuration context and receipts](PROCESS_CONFIGURATION.md) check the fences, current Bindings and quiescence of every managed cell and durably record the process context. After application, the gate remains unqualified; this does not claim native configuration changes or operating qualification.
 
-[Host 자격 수용과 별도 시작](QUALIFICATION_ACCEPTANCE.md)은 exact cohort/문맥/세대·자격 의미를 원자적으로 보관한다. 수용 자체는 block 해제나 native 동작이 아니며 P 전역 활성화는 후속이다.
+[Host qualification acceptance and separate start](QUALIFICATION_ACCEPTANCE.md) atomically retain the exact cohort, context, generation and qualification semantics. Acceptance itself neither clears a block nor performs a native action; global activation by P is a subsequent step.
 
-[제품 Host 실행파일·기동/종료](HOST_SERVICE.md)는 `/opt/rx/bin/rx-hostd`와 solutions image의 명시적 `host` mode를 제공한다. FILE_SIMULATION backend를 실제 Linux clock으로 실행하며 physical driver는 검증된 factory 등록 전 거부한다.
+[Product Host executable and startup/shutdown](HOST_SERVICE.md) provide `/opt/rx/bin/rx-hostd` and the explicit `host` mode of the solutions image. The FILE_SIMULATION backend runs with the actual Linux clock; physical drivers are rejected until registered through a validated factory.

@@ -1,7 +1,7 @@
-# 기본 의존성과 선택 장비 소스
+# Core dependencies and optional device sources
 
-기본 솔루션 이미지는 ROS Jazzy, 일반 JointTrajectoryController 통신, BehaviorTree.CPP 및 RX 실행파일과 운영 앱으로 구성한다. 특정 제조사 SDK·bringup·정책모델은 기본 의존성이 아니다.
+The default solutions image contains ROS Jazzy, generic JointTrajectoryController communication, BehaviorTree.CPP, RX executables, and the operator application. Vendor-specific SDKs, bringup stacks, and policy models are not core dependencies.
 
-`native-stack.lock.json`은 ROS base image digest와 의존성 범위를 기록한다. `native.repos`의 외부 장비 저장소 목록은 현재 비어 있다. 장비를 추가할 때 저장소별 불변 Git commit과 필요한 자산의 실제 SHA-256을 기록하고 별도 qualification을 수행한다. 저장소에 포함됐다는 사실은 운전 권한이 아니다.
+`native-stack.lock.json` records the ROS base image digest and dependency scope. The external device repository list in `native.repos` is currently empty. Adding a device requires recording an immutable Git commit for each repository and the actual SHA-256 of required assets, followed by separate qualification. Inclusion in a repository does not grant operating authority.
 
-선택 소스의 materialization은 `tools/prepare_native_sources.py`와 `tools/native_source_inventory.py`로 검사할 수 있다. 현재 기본 이미지는 이 외부 소스 context를 요구하지 않는다. 구체 빌드·진단 경계와 재현성 한계는 [Native image](NATIVE_IMAGE.md)를 따른다.
+Materialization of optional sources can be checked with `tools/prepare_native_sources.py` and `tools/native_source_inventory.py`. The current default image does not require this external source context. See [Native image](NATIVE_IMAGE.md) for the specific build and diagnostic boundaries and reproducibility limitations.

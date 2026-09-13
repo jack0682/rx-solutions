@@ -16,7 +16,7 @@ describe('process draft preview and identity', () => {
     });
     expect(previewRows(source, 0, 32).length).toBeLessThanOrEqual(33);
     source.flows[0].nodes[0].body.children = ['n0'];
-    expect(previewRows(source, 0)[1].problem).toContain('순환');
+    expect(previewRows(source, 0)[1].problem).toContain('Cycle');
   });
   it('keeps array order while ignoring JSON object key order for receipt correlation', () => {
     expect(stableDocument({ b: 2, a: [1, 2] })).toBe(stableDocument({ a: [1, 2], b: 2 }));

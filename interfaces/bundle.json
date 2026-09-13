@@ -1,7 +1,7 @@
 {
   "files": {
-    "cell_operations_manifest.json": "0c167639b3d048f6717819f9cc9b92bba8c3a11a4c41c7068d3a04c44e7be0ea",
-    "contracts_manifest.json": "3499dff92023509d4daaded3bb9d89a822c948a9b2c025e954262c9bef9d5afe",
+    "cell_operations_manifest.json": "5e75ab4d3d72d4b22082003dbec5e2ca54562cc4302d2e306b07ce64d215d71b",
+    "contracts_manifest.json": "d32519ffd33cc02f5e6f82406ad2fe253421527dc047b807c11beb11a8f7583c",
     "rx/cell/v1/cell.proto": "79471c513559c862f8461de355e7dc7f79bbe6907f94d2c5d518b234b7013b83",
     "rx/contract/v1/contract.proto": "35f0aee44287f4f0914487f16fbd4efda963c314ac440b17438014ee44f27626",
     "rx/executor/assignment/v1/assignment.proto": "1a325f6094e6e65f43b69cc5d28822deb9cac452ea82bf1a04a743ae5b364f48",

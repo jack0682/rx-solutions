@@ -1,12 +1,12 @@
-# ROS JTC 작성 예제 — SIMULATION
+# ROS JTC authoring example — SIMULATION
 
-catalog SIM-JTC-6DOF/arm_controller를 선택하는 작성 입력이다. calibration.bin/tool.bin은 TEST ONLY 문자열이며 실물 측정·기구 적합성 자료가 아니다. 좌표·관절 목표와 domain171은 모의 시험용이다. 패키지 서명, 운영 trust, 운전 자격은 포함하지 않는다.
+Authoring input that selects catalog SIM-JTC-6DOF/arm_controller. calibration.bin/tool.bin contain TEST ONLY strings; they are not physical measurements or evidence of mechanical compatibility. Coordinates, joint targets, and domain171 are for simulation tests. Package signatures, operational trust, and operating qualification are not included.
 
 ```text
 rx-device-package template-digest template.json
 rx-device-package assemble template.json site.json recipe.json /absolute/new/candidate
 ```
 
-site.json은 template의 의미 digest와 artifact bytes의 SHA-256을 참조한다. Template 변경 후에는 도구로 새 digest를 구해야 한다. 조립은 ROS/장비에 연결하지 않는다. 게시에는 외부 서명과 해당 publisher/권한/asset을 확인하는 별도 정책이 필요하다.
+site.json references the template's semantic digest and the SHA-256 of artifact bytes. After changing the template, obtain a new digest with the tool. Assembly does not connect to ROS or devices. Publication requires an external signature and a separate policy that verifies the relevant publisher, authority, and assets.
 
-현재 제품 Host의 JTC 실행 제공자는 미연결이다. 패키지를 만들거나 init을 수행해도 장비를 구동할 수 없다. [JTC 패키지 구조·Host 경계](../../../runtime/rx-host/JTC_PACKAGE.md)를 따른다.
+The current product Host has no connected JTC execution provider. Creating a package or performing init cannot drive a device. Follow the [JTC package structure and Host boundary](../../../runtime/rx-host/JTC_PACKAGE.md).

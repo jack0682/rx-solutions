@@ -1,7 +1,7 @@
 """Real package/review API browser harness. Only generated test identities and signed fixtures."""
 import argparse,os,shlex,socket,subprocess,sys,tempfile
 from pathlib import Path
-p=argparse.ArgumentParser();p.add_argument('--evidence-dir',type=Path,required=True);args=p.parse_args()
+p=argparse.ArgumentParser();p.add_argument('--server-runner',type=Path,default=Path(__file__).with_name('with_servers.py'));p.add_argument('--evidence-dir',type=Path,required=True);args=p.parse_args()
 project=Path(__file__).resolve().parents[1]
 # apps/operator -> rx-solutions/apps -> rx-solutions -> rx_ws
 ws=project.parents[2];platform=ws/'rx-platform';solutions=ws/'rx-solutions'
@@ -14,7 +14,7 @@ binary=platform/'target/debug/rx-platform-local';tool=solutions/'target/debug/rx
 with tempfile.TemporaryDirectory(prefix='rx-package-browser-') as temporary:
  fixture=Path(temporary)/'fixture';env=dict(os.environ,RX_PACKAGE_BROWSER_FIXTURE=str(fixture),RX_PROCESS_PACKAGE_BIN=str(tool))
  subprocess.run([str(platform/'tools/cargo'),'test','-p','rx-api','--test','http','export_operator_package_fixture','--locked','--','--ignored','--exact'],cwd=platform,env=env,check=True,capture_output=True)
- helper='/Users/ojaehong/.codex/skills/webapp-testing/scripts/with_server.py'
+ helper=str(args.server_runner.resolve())
  command=[sys.executable,helper,'--server',shlex.join([str(binary),'serve',str(fixture/'installation'),'127.0.0.1:8080','http://127.0.0.1:5173']),'--port','8080','--server',shlex.join(['npm','--prefix',str(project),'run','dev']),'--port','5173','--',sys.executable,str(project/'tests/browser_packages.py')]
  env.update(RX_BROWSER_PACKAGE_FIXTURE=str(fixture),RX_PACKAGE_EVIDENCE=str(args.evidence_dir.resolve()),RX_PLATFORM_REPO=str(platform))
  result=subprocess.run(command,env=env,capture_output=True,text=True)

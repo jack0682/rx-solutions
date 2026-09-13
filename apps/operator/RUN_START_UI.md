@@ -1,69 +1,67 @@
-# 운영자 실행 시작 연결
+# Operator run-start integration
 
-기존 실행 준비·실행 목록에 정확한 실행 선택, 명시적인 생산 소재 시도 수량,
-시작 전 조회·확인창, StartRun 접수 및 시작 시도 조회를 연결한다.
-기존 화면의 구성·CSS·동일 origin API·HttpOnly cookie·직접 단말 mTLS 경계를 유지한다.
-브라우저에 Host/Executor credential이나 native 제어 경로를 추가하지 않는다.
+The existing run preparation and run list now connect exact run selection, an explicit production material attempt count, pre-start queries and a confirmation dialog, StartRun acceptance, and start-attempt inspection.
+The existing layout, CSS, same-origin API, HttpOnly cookies, and direct-terminal mTLS boundary remain in place.
+The browser receives no Host/Executor credentials or native control path.
 
-## 실제 API와 화면 의미
+## Actual APIs and UI semantics
 
 - `GET /api/v1/run/start-context?cell=...&run=...&purpose=PRODUCTION&budget_limit=2`:
-  선택한 실행의 현재 revision·구성·예산과 읽기 시점의 차단 이유를 확인한다.
-  수량은 문자열 Counter이고 양의 정수만 허용한다. 기존 예산은 고정한다.
-  읽기 검사 통과는 자격 생성이나 운전 허가가 아니다.
-- `POST /api/v1/runs/start`: 기존 `{request_key, command: StartRun}` 계약을 그대로 사용한다.
-  확인창에서 cell/run revision·envelope·수량을 고정한다. 배경 조회가 달라지면
-  재검토가 필요하며 검토한 요청을 새 revision으로 자동 변경하지 않는다.
+  inspect the selected run's current revision, configuration, budget, and blocking reasons at read time.
+  The count is a string Counter and must be a positive integer. An existing budget is fixed.
+  Passing read checks does not establish qualification or operating permission.
+- `POST /api/v1/runs/start`: uses the existing `{request_key, command: StartRun}` contract unchanged.
+  The confirmation dialog fixes cell/run revisions, envelope, and count. A changed background read
+  requires renewed review; the reviewed request is not silently updated to a new revision.
 - `GET /api/v1/run/start-attempt?cell=...&run=...&id=...`:
-  저장된 PENDING/ARMING/STARTED/REJECTED와 현재 Run을 조회한다.
-  Host ACK 개수로 STARTED를 추론하지 않는다. ELAPSED/CLOCK_CHANGED는 별도 시간 상태이며
-  ARMING을 REJECTED로 바꾸거나 자동 재시작하지 않는다.
+  inspect the stored PENDING/ARMING/STARTED/REJECTED state and the current Run.
+  Do not infer STARTED from the number of Host ACKs. ELAPSED and CLOCK_CHANGED are separate time states;
+  they do not turn ARMING into REJECTED or trigger an automatic restart.
 
-새 실행 준비 응답은 생성한 정확한 Run을 선택하는 데 사용한다. 시작 준비 상태와 revision은
-별도 현재 조회로 확인한다. 기존 실행도 목록에서 명시적으로 선택할 수 있다.
-수량 입력의 초기값은 비어 있으며, 가장 최근 실행을 자동 선택하거나 자동 시작하지 않는다.
-이미 확인한 시작 시도는 동일 설치·계정에서 그 정확한 실행으로 돌아간다.
+The response to new-run preparation selects the exact Run that was created. Read the current state separately to verify start readiness and revision. Existing runs can also be explicitly selected from the list.
+The count input starts empty. The most recent run is neither automatically selected nor automatically started.
+A previously verified start attempt returns to that exact run under the same installation and account.
 
-## 응답 상관과 복구
+## Response correlation and recovery
 
-기존 pending 저장소에 `/api/v1/runs/start`와 검토한 셀 문맥을 추가한다.
-송신 전에 원래 UUID key·본문·principal·installation·store generation·셀/epoch/구성
-문맥을 sessionStorage에 저장한다. 미확정 요청이 있으면 다른 mutation을 막는다.
-응답 유실·reload 후 기존 ‘같은 요청 확인’ 버튼은 저장된 key와 본문을 그대로 보낸다.
-다른 계정·설치·복원 세대에서는 그 요청을 회수하지 않는다.
+The existing pending store includes `/api/v1/runs/start` and the reviewed cell context.
+Before sending, sessionStorage records the original UUID key, body, principal, installation, store generation,
+and cell/epoch/configuration context. An unresolved request blocks other mutations.
+After response loss or reload, **Check original request** resends the stored key and body unchanged.
+The request is not recovered under a different account, installation, or restore generation.
 
-기존 StartAttempt POST receipt에는 envelope/purpose/budget이 없으므로,
-cell/run/actor/검토한 revision/epoch/scope를 먼저 검증하고 같은 attempt ID의 GET에서
-Run envelope/recipe/purpose/budget까지 대조한 뒤 pending을 해제한다.
-GET 실패나 상관 불일치는 원래 요청을 미확정으로 보존한다. pending 해제 전 확인한
-시도 ID와 원래 요청을 별도 sessionStorage 조회 표식에 보관하여 reload 뒤에도 GET으로
-상태를 확인한다. 이 표식은 운전 권한이나 별도 업무 원장이 아니다.
+The existing StartAttempt POST receipt does not contain envelope, purpose, or budget.
+First validate cell, run, actor, reviewed revision, epoch, and scope; then compare the Run envelope, recipe,
+purpose, and budget in the GET for the same attempt ID before clearing pending state.
+A GET failure or correlation mismatch preserves the original request as unresolved. Before clearing pending state,
+store the verified attempt ID and original request in a separate sessionStorage inspection marker so that GET
+can retrieve the state after reload. This marker is neither operating authority nor a separate business ledger.
 
-일반 상태 polling은 GET만 사용한다. 마지막 성공 조회 후 10초 또는 조회 오류이면
-이전 기록임을 표시하고 새 시작 요청을 차단한다. 확정적인 최초 거부 후에는 새 문맥을
-읽고 다시 검토해야 한다. 이미 미확정인 요청의 후속 거부는 최초 미처리의 증거로 삼지 않는다.
+Normal state polling uses GET only. A query error or ten seconds since the last successful read marks the
+record as historical and blocks new start requests. After a definitive initial rejection, fetch a fresh context
+and review again. A later rejection of an already unresolved request is not evidence that the initial request was unprocessed.
 
-현재 실행 상태는 최신 overview의 선택 Run 상태를 표시한다. 시작 시도 GET이 10초 이내라도
-installation/store generation/runtime boot/clock 또는 현재 Run revision·상태가 일치하지
-않으면 즉시 마지막 조회 기록으로 낮춘다. 따라서 운전 보류·재시작으로 갱신된 실행 상태를
-이전 STARTED/EXECUTING 조회가 덮어쓰지 않는다. 후속 GET 실패도 이 판정을 되돌리지 않는다.
-각 Host ACK는 해당 host_boots 값과 일치해야 하며 STARTED는 정확한 전체 Host 확인이 필요하다.
-ARMING은 올바른 일부/전체 ACK가 있어도 시작 확정으로 승격하지 않는다.
+The current run state is the selected Run state from the latest overview. Even if the start-attempt GET is less
+than ten seconds old, a mismatch in installation, store generation, runtime boot, clock, or the current Run revision
+or state immediately downgrades it to the last retrieved record. An older STARTED/EXECUTING read therefore cannot
+overwrite run state updated by an operation hold or restart. A subsequent GET failure does not reverse that judgment.
+Each Host ACK must match its `host_boots` value, and STARTED requires confirmation from the exact complete Host set.
+ARMING is not promoted to confirmed start merely because some or all valid ACKs are present.
 
-## 구현 및 검증 경계
+## Implementation and verification boundary
 
-- `run-start-schema.ts`: DTO 검사, 요청/응답 상관, 확인 내용 고정, 시작 시도 조회 표식.
-- `run-start.tsx`: 기존 공통 컴포넌트 스타일을 사용하는 선택·수량·검토·상태 화면.
-- `run-start-schema.test.ts`: 잘못된 Counter/상태/설치/Run/attempt·구성/예산,
-  응답 유실 후 원래 key/body 회수, 버전 변경 시 재검토, Host ACK와 기한 경과 반례.
+- `run-start-schema.ts`: DTO validation, request/response correlation, fixed confirmation content, and start-attempt inspection markers.
+- `run-start.tsx`: selection, count, review, and status screens using the existing shared component styles.
+- `run-start-schema.test.ts`: invalid Counters, states, installations, Runs, attempts, configurations, and budgets;
+  recovery of the original key/body after response loss; renewed review after version changes; Host ACK and deadline counterexamples.
 
-사람용 소재별 production 집계 API/화면은 이번 범위에 없다.
-기존 overview의 Run 상태·예산 사용량과 작업 결과·자원 인계를 각각 표시하며,
-예산 소비나 일부 작업 목록을 완료 소재 수·양품 수로 해석하지 않는다.
-sessionStorage는 같은 탭 reload 복구를 지원하며 브라우저 종료·새 탭·장치 교체를
-포괄하는 영속 클라이언트 복구는 별도 범위다.
-실장비 미등록 여부와 현재 등록 단말은 실제 조회값으로 표시한다.
-화면 연결 자체는 실장비 운전 자격·실물 시험 완료를 뜻하지 않는다.
+A human-facing per-material production aggregation API or screen is outside this scope.
+The existing overview displays Run state, budget usage, operation outcomes, and resource handover separately.
+Budget consumption and partial operation lists must not be interpreted as completed material counts or good-part counts.
+sessionStorage supports recovery after reload in the same tab. Durable client recovery across browser closure,
+new tabs, or device replacement is a separate scope.
+Physical-equipment registration status and the current registered terminal come from actual read values.
+Connecting the UI does not establish physical operating qualification or completion of physical tests.
 
-검증 실행은 전체 소스 동결 후 통합 담당자가 수행한다:
-`npm run typecheck`, `npm test`, `npm run format:check`, `npm run build` 및 등록 단말 브라우저 인수.
+After all source changes are frozen, the integration owner runs:
+`npm run typecheck`, `npm test`, `npm run format:check`, `npm run build`, and registered-terminal browser acceptance.

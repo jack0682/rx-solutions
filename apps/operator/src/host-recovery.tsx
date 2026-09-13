@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { api, explain } from './api';
-import { short, text } from './labels';
+import { count, short, text } from './labels';
 import { stableDocument } from './draft-schema';
 import type { CellOverview, Overview, Pending } from './schema';
 import {
@@ -21,19 +21,19 @@ import {
 } from './host-recovery-schema';
 
 const phases = {
-  PROPOSED: '승인 전 제안',
-  FENCING: '기존 운전 권한 차단 확인 중',
-  RECOVERY_ONLY: '복구 조회 연결',
-  ATTENTION: '담당자 확인 필요',
+  PROPOSED: 'Proposal awaiting approval',
+  FENCING: 'Verifying fencing of prior operating authority',
+  RECOVERY_ONLY: 'Recovery inspection binding',
+  ATTENTION: 'Responsible operator review required',
 };
 const blockers: Record<string, string> = {
-  BASELINE_MISSING: '원래 연결 근거 없음',
-  REGISTRATION_MISSING: '원래 Host 등록 없음',
-  IDENTITY_CHANGED: '연결 대상 식별 정보 변경',
-  RESTART_ORIGIN_MISSING: '재시작 차단 근거 없음',
-  LIVE_AUTHORITY: '기존 실행 또는 운전 권한 남음',
-  TOO_MANY_OPERATIONS: '확인 대상 작업 수 범위 초과',
-  FENCE_CANDIDATES_AMBIGUOUS: '원래 차단 요청을 하나로 확인할 수 없음',
+  BASELINE_MISSING: 'Original binding evidence unavailable',
+  REGISTRATION_MISSING: 'Original Host registration unavailable',
+  IDENTITY_CHANGED: 'Binding target identity changed',
+  RESTART_ORIGIN_MISSING: 'Restart block evidence unavailable',
+  LIVE_AUTHORITY: 'Prior execution or operating authority remains',
+  TOO_MANY_OPERATIONS: 'Number of operations to inspect exceeds the limit',
+  FENCE_CANDIDATES_AMBIGUOUS: 'Cannot identify a unique original fence request',
 };
 
 function Scope({ context }: { context: RecoveryContext }) {
@@ -42,9 +42,9 @@ function Scope({ context }: { context: RecoveryContext }) {
       <table>
         <thead>
           <tr>
-            <th>영향 셀</th>
-            <th>기록 버전</th>
-            <th>현재 차단</th>
+            <th>Affected cell</th>
+            <th>Record revision</th>
+            <th>Current blocks</th>
           </tr>
         </thead>
         <tbody>
@@ -52,13 +52,15 @@ function Scope({ context }: { context: RecoveryContext }) {
             <tr key={name}>
               <td>
                 {name}
-                {context.host_cells.includes(name) ? ' · Host 연결 셀' : ' · 공유 영향 셀'}
+                {context.host_cells.includes(name)
+                  ? ' · Host-connected cell'
+                  : ' · shared affected cell'}
               </td>
               <td>r{cut.revision}</td>
               <td>
                 {cut.blocks.length
                   ? cut.blocks.map((block) => text(block.reason)).join(', ')
-                  : '기록 없음'}
+                  : 'No record'}
               </td>
             </tr>
           ))}
@@ -71,33 +73,38 @@ export function RecoveryEvidence({ binding }: { binding: RecoveryView['view']['b
   const readEvidence = binding.last_read ?? binding.proposal_read;
   return (
     <>
-      <h4>마지막 Host 관측</h4>
+      <h4>Last Host observation</h4>
       {readEvidence.configuration.receipt === null ? (
-        <p>이번 조회에는 적용 수신 기록이 포함되지 않았습니다.</p>
+        <p>This query did not include an application receipt.</p>
       ) : !readEvidence.configuration.context_matches_current_host ? (
         <p className="notice">
-          동봉된 적용 수신 기록과 현재 Host 상태의 일치가 확인되지 않았습니다.
+          The included application receipt has not been confirmed to match the current Host state.
         </p>
       ) : null}
       {binding.phase === 'ATTENTION' && (
         <p className="notice">
-          확인 필요 상태에서 보관된 관측입니다. 현재 연결의 근거로 사용하지 않습니다.
+          This observation was stored in a state requiring review. It is not evidence for the
+          current binding.
         </p>
       )}
       {Object.entries(readEvidence.cells).map(([name, read]) => (
         <div key={name}>
           <b>
-            {name} · {read.snapshot.sources_available ? '저장된 관측 있음' : '관측 소스 조회 불가'}
+            {name} ·{' '}
+            {read.snapshot.sources_available
+              ? 'Stored observation available'
+              : 'Observation source unavailable'}
           </b>
           <p className="muted">
-            {read.snapshot.observations.length}개 관측 · 현재 운전 조건 충족을 뜻하지 않습니다.
+            {count(read.snapshot.observations.length, 'observation')} · this does not establish that
+            current operating conditions are met.
           </p>
           {read.snapshot.observations.map((o) => (
             <p key={o.source}>
               {o.source} · {stableDocument(o.value)} ·
               {o.quality_good && o.origin_age_bounded && !o.disputed
-                ? ' 저장된 품질 필드 확인'
-                : ' 품질·시각·상충 확인 필요'}
+                ? ' Review stored quality fields'
+                : ' Quality, time, and conflicts need verification'}
             </p>
           ))}
         </div>
@@ -239,7 +246,9 @@ export function HostRecovery({
   useEffect(() => {
     if (review && review.fingerprint !== confirmationToken(review.request.route)) {
       setReview(null);
-      setReviewMessage('검토한 연결 문맥이 변경되었습니다. 현재 기록을 다시 검토하세요.');
+      setReviewMessage(
+        'The reviewed binding context has changed. Review the current records again.',
+      );
     }
   }, [data.snapshot_id, context, detail, host, review]);
   useEffect(() => {
@@ -382,34 +391,38 @@ export function HostRecovery({
       if (hostRef.current === requestedHost)
         setErrors((old) => ({
           ...old,
-          action: `${explain(error)} 결과를 확인할 수 없습니다. 실패나 미실행으로 판단하지 마세요.`,
+          action: `${explain(error)} The outcome cannot be verified. Do not infer failure or non-execution.`,
         }));
     }
   }
   return (
-    <section className="panel records" aria-label="Host 복구 조회 연결">
+    <section className="panel records" aria-label="Host recovery inspection binding">
       <div className="section-heading">
         <div>
           <p className="eyebrow">HOST RECOVERY</p>
-          <h2>Host 복구 조회 연결</h2>
+          <h2>Host recovery inspection binding</h2>
         </div>
         <button onClick={() => setReload((v) => v + 1)} disabled={!readable}>
-          현재 기록 다시 조회
+          Refresh current records
         </button>
       </div>
       <p className="muted">
-        기존 연결 근거와 영향 범위를 확인해 복구 조회 통신을 연결합니다. 운전 재개는 별도 승인이
-        필요합니다.
+        Check existing binding evidence and affected scope to establish recovery inspection
+        communication. Resuming operation requires separate approval.
       </p>
-      {!role && <p className="notice">등록 단말에서 배포 담당자 권한으로 확인할 수 있습니다.</p>}
+      {!role && (
+        <p className="notice">
+          Use a registered terminal with release manager authority to review this binding.
+        </p>
+      )}
       <label>
-        현재 셀의 Host 선택
+        Select a Host in the current cell
         <select
           value={host}
           disabled={working || !!review}
           onChange={(e) => setHostChoice(e.target.value)}
         >
-          <option value="">확인할 Host를 선택하세요</option>
+          <option value="">Select a Host to inspect</option>
           {cell.cell.value.hosts.map((name) => (
             <option key={name}>{name}</option>
           ))}
@@ -424,10 +437,11 @@ export function HostRecovery({
           )}
           {currentContext && (
             <>
-              <h3>현재 연결 문맥</h3>
+              <h3>Current binding context</h3>
               {!contextCurrent && (
                 <p className="notice">
-                  현재 설치 또는 셀 기록과 다릅니다. 이전 기록으로 표시하며 새 요청은 차단됩니다.
+                  This differs from the current installation or cell records. It is shown as
+                  historical, and new requests are blocked.
                 </p>
               )}
               <Scope context={currentContext.context} />
@@ -442,7 +456,8 @@ export function HostRecovery({
                 </ul>
               ) : (
                 <p className="muted">
-                  이 읽기에서 기록된 차단 사유가 없습니다. 제안·승인 때 현재 조건을 다시 검사합니다.
+                  No blocking reasons were recorded in this read. Current conditions are checked
+                  again at proposal and approval.
                 </p>
               )}
               <button
@@ -450,13 +465,14 @@ export function HostRecovery({
                 disabled={!canPropose}
                 onClick={() => void openReview('propose')}
               >
-                복구 연결 제안 검토
+                Review recovery binding proposal
               </button>
             </>
           )}
-          <h3>저장된 복구 기록</h3>
+          <h3>Stored recovery records</h3>
           <p className="muted">
-            다른 배포 담당자가 남긴 기록도 대상과 내용을 확인한 뒤 검토할 수 있습니다.
+            You can review records created by another release manager after checking their targets
+            and contents.
           </p>
           {errors.list && (
             <p className="error" role="alert">
@@ -467,11 +483,11 @@ export function HostRecovery({
             <table>
               <thead>
                 <tr>
-                  <th>기록</th>
-                  <th>기준 셀</th>
-                  <th>제안자</th>
-                  <th>저장 상태</th>
-                  <th>검토</th>
+                  <th>Record</th>
+                  <th>Anchor cell</th>
+                  <th>Proposed by</th>
+                  <th>Stored state</th>
+                  <th>Review</th>
                 </tr>
               </thead>
               <tbody>
@@ -489,7 +505,7 @@ export function HostRecovery({
                           setQuery(null);
                         }}
                       >
-                        기록 열기
+                        Open record
                       </button>
                     </td>
                   </tr>
@@ -498,38 +514,41 @@ export function HostRecovery({
             </table>
           </div>
           {!items.length && !errors.list && (
-            <p className="muted">아직 조회된 복구 기록이 없습니다.</p>
+            <p className="muted">No recovery records have been retrieved yet.</p>
           )}
           {next && (
             <button disabled={paging || !readable} onClick={() => void more()}>
-              다음 기록 보기
+              Load next records
             </button>
           )}
           {errors.detail && (
             <p className="error" role="alert">
-              {errors.detail} 마지막 조회 기록입니다.
+              {errors.detail} This is the last retrieved record.
             </p>
           )}
           {binding && currentDetail && (
             <article className="inset">
               <h3>{phases[binding.phase]}</h3>
               <p className="mono">
-                기록 {binding.id} · r{binding.revision}
+                Record {binding.id} · r{binding.revision}
               </p>
-              <p>운전 재개 승인 필요 · 이 연결에는 작업 실행 권한이 없습니다.</p>
+              <p>
+                Approval to resume operation is required · this binding has no task execution
+                authority.
+              </p>
               <p className="muted">
                 {detailCurrent
-                  ? '현재 셀 기록과 대조했습니다.'
-                  : '현재 설치·셀 문맥과 다른 이전 기록입니다.'}{' '}
+                  ? 'Checked against the current cell records.'
+                  : 'This historical record differs from the current installation and cell context.'}{' '}
                 {currentDetail.view.current
-                  ? '마지막 읽기에서 복구 조회 연결을 확인했습니다.'
-                  : '복구 조회 연결의 현재성을 다시 확인해야 합니다.'}
+                  ? 'The recovery inspection binding was verified in the last read.'
+                  : 'The freshness of the recovery inspection binding needs to be checked again.'}
               </p>
               {!sameOrigin && (
                 <p>
-                  기준 셀 {binding.context.origin}에서 승인 내용을 검토하세요.
+                  Anchor cell {binding.context.origin}: review the approval details in this cell.
                   <button onClick={() => onSelectCell(binding.context.origin)} disabled={working}>
-                    기준 셀 열기
+                    Open anchor cell
                   </button>
                 </p>
               )}
@@ -546,22 +565,22 @@ export function HostRecovery({
               )}
               {binding.detail && (
                 <details>
-                  <summary>기록된 확인 사유</summary>
+                  <summary>Recorded reasons for review</summary>
                   <p className="muted">{binding.detail}</p>
                 </details>
               )}
-              <h4>승인에 포함되는 동작</h4>
+              <h4>Actions included in approval</h4>
               <p>
-                기존 요청 번호로 운전 권한 차단을 확인하고, 저장된 원래 작업의 수신 기록과 관측을
-                조회합니다.
+                Verify fencing of operating authority using the existing request key, and inspect
+                receipts and observations for the stored original operations.
               </p>
               <div className="table-scroll">
                 <table>
                   <thead>
                     <tr>
-                      <th>Host 연결 셀</th>
-                      <th>원래 차단 요청</th>
-                      <th>확인 상태</th>
+                      <th>Host-connected cells</th>
+                      <th>Original fence request</th>
+                      <th>Verification state</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -571,10 +590,10 @@ export function HostRecovery({
                         <td className="mono">{fence.task.request}</td>
                         <td>
                           {fence.phase === 'ACKNOWLEDGED'
-                            ? '차단 수신 확인 기록'
+                            ? 'Fence receipt confirmation'
                             : fence.phase === 'SEND_ENTERED'
-                              ? '송신 진입 · 수신 확인 필요'
-                              : '전달 전'}
+                              ? 'Dispatch entered · receipt verification required'
+                              : 'Not sent'}
                         </td>
                       </tr>
                     ))}
@@ -586,17 +605,19 @@ export function HostRecovery({
                 disabled={!canApprove}
                 onClick={() => void openReview('approve')}
               >
-                {binding.approved_by ? '같은 기록의 승인 다시 검토' : '복구 조회 연결 승인 검토'}
+                {binding.approved_by
+                  ? 'Review approval for this record again'
+                  : 'Review recovery inspection binding approval'}
               </button>
               <button disabled={!canAdvance} onClick={() => void action()}>
-                승인한 차단 요청 진행·연결 확인
+                Advance approved fence request and check binding
               </button>
               <p className="muted">
-                읽기의 유효시간이 짧아도 승인 버튼을 급히 누를 필요는 없습니다. 서버가 새 읽기와
-                현재 권한·범위를 다시 검사합니다.
+                There is no need to rush approval before the read expires. The server obtains a
+                fresh read and rechecks current authority and scope.
               </p>
               <RecoveryEvidence binding={binding} />
-              <h4>원래 작업 기록 조회</h4>
+              <h4>Inspect original operation records</h4>
               {Object.values(binding.context.operations).map((operation) => (
                 <p key={operation.operation}>
                   <span className="mono">{operation.operation}</span> · {operation.cell}{' '}
@@ -604,34 +625,38 @@ export function HostRecovery({
                     disabled={!canAdvance || binding.phase === 'FENCING'}
                     onClick={() => void action(operation.operation)}
                   >
-                    원래 수신·관측 조회
+                    Inspect original receipts and observations
                   </button>
                 </p>
               ))}
               {!Object.keys(binding.context.operations).length && (
-                <p className="muted">이 복구 기록에 연결된 원래 작업이 없습니다.</p>
+                <p className="muted">
+                  No original operations are associated with this recovery record.
+                </p>
               )}
               {query?.binding === binding.id && (
                 <div className="notice" role="status">
-                  <b>작업 조회 결과</b>
+                  <b>Operation inspection results</b>
                   <p className="mono">{query.operation}</p>
                   <p>
                     {query.receipt
-                      ? `저장된 수신 단계 · ${query.receipt.state}`
-                      : '원래 수신 기록을 아직 확인하지 못했습니다.'}
+                      ? `Stored receipt stage · ${query.receipt.state}`
+                      : 'The original receipt has not been verified yet.'}
                   </p>
                   <p>
-                    관측 {query.evidence.length}개 · 전체 근거가 확인된 상태는 아닙니다. 빈 결과로
-                    실패·미실행을 판단하지 않습니다.
+                    Observations: {count(query.evidence.length, 'item')} · the complete evidence has
+                    not been verified. Empty results do not establish failure or non-execution.
                   </p>
                   <p>
                     {query.lookup === 'UNAVAILABLE'
-                      ? '원래 기록 조회 연결을 확인할 수 없습니다.'
+                      ? 'Cannot verify the original record inspection connection.'
                       : query.lookup === 'UNSUPPORTED'
-                        ? '이 연결에서 추가 조회를 지원하지 않습니다.'
-                        : '원래 기록 조회 결과를 표시합니다.'}
+                        ? 'This binding does not support further inspection.'
+                        : 'Displaying original record inspection results.'}
                   </p>
-                  {query.publication_required && <p>수집된 기록의 반영 확인이 필요합니다.</p>}
+                  {query.publication_required && (
+                    <p>Verify that the collected records have been applied.</p>
+                  )}
                 </div>
               )}
             </article>
@@ -674,24 +699,24 @@ export function HostRecovery({
           <p className="eyebrow">REVIEW RECOVERY CONNECTION</p>
           <h2 id="host-recovery-confirm">
             {review?.request.route === '/api/v1/host-recoveries'
-              ? '이 연결의 복구를 제안할까요?'
-              : '이 범위의 복구 조회 연결을 승인할까요?'}
+              ? 'Propose recovery for this binding?'
+              : 'Approve the recovery inspection binding for this scope?'}
           </h2>
           {review && (
             <>
               <p>
-                {review.scope.host} · 기준 셀 {review.scope.origin}
+                {review.scope.host} · anchor cell {review.scope.origin}
               </p>
               <Scope context={review.scope} />
               <p>
-                기존 차단 요청과 원래 작업 기록 조회만 연결합니다. 운전 재개는 별도 승인이
-                필요합니다.
+                Connect only the existing fence request and original operation record inspection.
+                Resuming operation requires separate approval.
               </p>
             </>
           )}
           <div className="dialog-actions">
             <button type="button" disabled={working} onClick={() => setReview(null)}>
-              돌아가기
+              Back
             </button>
             <button
               className="primary"
@@ -701,10 +726,10 @@ export function HostRecovery({
               }
             >
               {working
-                ? '요청 중…'
+                ? 'Requesting…'
                 : review?.request.route === '/api/v1/host-recoveries'
-                  ? '검토한 연결 제안'
-                  : '검토한 범위 승인'}
+                  ? 'Submit reviewed binding proposal'
+                  : 'Approve reviewed scope'}
             </button>
           </div>
         </form>
