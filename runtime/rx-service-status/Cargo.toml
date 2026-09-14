@@ -8,7 +8,7 @@ publish.workspace = true
 [dependencies]
 rx-domain = {path="../../sdk/crates/rx-domain"}
 serde = {version="1",features=["derive"]}
-sha2 = "0.10"
+sha2 = "0.11"
 thiserror = "2"
 uuid = {version="1",features=["v4"]}
 
