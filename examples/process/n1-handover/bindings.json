@@ -1,0 +1,134 @@
+{
+  "place": {
+    "host": "HOST-IN",
+    "intent": {
+      "kind": "FINITE_ACTION",
+      "target": "IN-01",
+      "profile_digest": "0101010101010101010101010101010101010101010101010101010101010101",
+      "site_config_digest": "0202020202020202020202020202020202020202020202020202020202020202",
+      "calibration_digests": [],
+      "resource_set": [
+        "IN-01",
+        "BAY-01",
+        "PKG-01/HG-01"
+      ],
+      "execution_timeout_ms": "5000",
+      "prepare_validity_ms": "1000",
+      "completion_rule": "simulation/completed",
+      "cancel_rule": "simulation/cancel",
+      "body": {
+        "program": {
+          "program": {
+            "sha256": "0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b",
+            "schema_id": "rx.development.placeholder.v1",
+            "size_bytes": "1"
+          },
+          "parameter_set": {
+            "sha256": "1515151515151515151515151515151515151515151515151515151515151515",
+            "schema_id": "rx.development.placeholder.v1",
+            "size_bytes": "1"
+          }
+        }
+      }
+    }
+  },
+  "receiver-hold": {
+    "host": "HOST-OUT",
+    "intent": {
+      "kind": "FINITE_ACTION",
+      "target": "OUT-01",
+      "profile_digest": "0101010101010101010101010101010101010101010101010101010101010101",
+      "site_config_digest": "0202020202020202020202020202020202020202020202020202020202020202",
+      "calibration_digests": [],
+      "resource_set": [
+        "OUT-01",
+        "BAY-01",
+        "PKG-01/HG-01",
+        "TRAY-01"
+      ],
+      "execution_timeout_ms": "5000",
+      "prepare_validity_ms": "1000",
+      "completion_rule": "simulation/completed",
+      "cancel_rule": "simulation/cancel",
+      "body": {
+        "program": {
+          "program": {
+            "sha256": "0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c",
+            "schema_id": "rx.development.placeholder.v1",
+            "size_bytes": "1"
+          },
+          "parameter_set": {
+            "sha256": "1616161616161616161616161616161616161616161616161616161616161616",
+            "schema_id": "rx.development.placeholder.v1",
+            "size_bytes": "1"
+          }
+        }
+      }
+    }
+  },
+  "sender-release": {
+    "host": "HOST-IN",
+    "intent": {
+      "kind": "FINITE_ACTION",
+      "target": "IN-01",
+      "profile_digest": "0101010101010101010101010101010101010101010101010101010101010101",
+      "site_config_digest": "0202020202020202020202020202020202020202020202020202020202020202",
+      "calibration_digests": [],
+      "resource_set": [
+        "IN-01",
+        "BAY-01",
+        "PKG-01/HG-01"
+      ],
+      "execution_timeout_ms": "5000",
+      "prepare_validity_ms": "1000",
+      "completion_rule": "simulation/completed",
+      "cancel_rule": "simulation/cancel",
+      "body": {
+        "program": {
+          "program": {
+            "sha256": "0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a",
+            "schema_id": "rx.development.placeholder.v1",
+            "size_bytes": "1"
+          },
+          "parameter_set": {
+            "sha256": "1414141414141414141414141414141414141414141414141414141414141414",
+            "schema_id": "rx.development.placeholder.v1",
+            "size_bytes": "1"
+          }
+        }
+      }
+    }
+  },
+  "withdraw": {
+    "host": "HOST-IN",
+    "intent": {
+      "kind": "FINITE_ACTION",
+      "target": "IN-01",
+      "profile_digest": "0101010101010101010101010101010101010101010101010101010101010101",
+      "site_config_digest": "0202020202020202020202020202020202020202020202020202020202020202",
+      "calibration_digests": [],
+      "resource_set": [
+        "IN-01",
+        "BAY-01"
+      ],
+      "execution_timeout_ms": "5000",
+      "prepare_validity_ms": "1000",
+      "completion_rule": "simulation/completed",
+      "cancel_rule": "simulation/cancel",
+      "body": {
+        "program": {
+          "program": {
+            "sha256": "0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d",
+            "schema_id": "rx.development.placeholder.v1",
+            "size_bytes": "1"
+          },
+          "parameter_set": {
+            "sha256": "1717171717171717171717171717171717171717171717171717171717171717",
+            "schema_id": "rx.development.placeholder.v1",
+            "size_bytes": "1"
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,54 @@
+{
+  "schema": "rx.process-source.v1",
+  "process": "example/N1-command-prefix",
+  "entry": "command-prefix",
+  "conditions": {},
+  "flows": [
+    {
+      "id": "command-prefix",
+      "root": "command-prefix-boundary",
+      "nodes": [
+        {
+          "id": "command-prefix-boundary",
+          "body": {
+            "kind": "SEQUENCE",
+            "children": [
+              "place",
+              "receiver-hold",
+              "sender-release",
+              "withdraw"
+            ]
+          }
+        },
+        {
+          "id": "place",
+          "body": {
+            "kind": "OPERATION",
+            "binding": "place"
+          }
+        },
+        {
+          "id": "receiver-hold",
+          "body": {
+            "kind": "OPERATION",
+            "binding": "receiver-hold"
+          }
+        },
+        {
+          "id": "sender-release",
+          "body": {
+            "kind": "OPERATION",
+            "binding": "sender-release"
+          }
+        },
+        {
+          "id": "withdraw",
+          "body": {
+            "kind": "OPERATION",
+            "binding": "withdraw"
+          }
+        }
+      ]
+    }
+  ]
+}
