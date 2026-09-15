@@ -1,0 +1,4799 @@
+{
+  "schema": "rx.jtc-controller-validation.v1",
+  "status": "PASS",
+  "observed_at": "2026-09-15T22:34:27.045668+00:00",
+  "controller": "joint_trajectory_controller/JointTrajectoryController",
+  "hardware": "mock_components/GenericSystem",
+  "physical_qualification": "NOT_PERFORMED",
+  "catalog_level": "SIMULATION_FIXTURE",
+  "commissioning": "NOT_COMMISSIONED",
+  "authority_provider": "NONE_IN_BRIDGE_TEST; HOST_UnavailableAuthority_UNCHANGED",
+  "n1_operations_executed": [],
+  "p_admission_or_host_journal_exercised": false,
+  "bridge_config": {
+    "schema": "rx.ros-jtc-bridge.v1",
+    "catalog_sha256": "669aaf825d542bf3173ab49072350b488e2f71826dfd9492e006d059a3c2ccbd",
+    "support_id": "SIM-JTC-6DOF",
+    "controller": "arm_controller",
+    "namespace": "/rx_test",
+    "controller_manager": "/rx_test/controller_manager",
+    "domain_id": 171,
+    "timeout_ms": 150,
+    "capacity": 32
+  },
+  "bridge_sha256": "7bf3cde7367e0923246f3f58647ea9006a24bf731066ae24056e13caa8aeb601",
+  "input_sha256": {
+    "run.py": "de647663e6dd66d42dbae4d4af38d48244ed3047548bd0e6627336dbc71918e5",
+    "controllers.yaml": "03ee78c1413fc509f37ef151d78c55ebbb8007f7071012a6157a78a53a4def33",
+    "mock.urdf": "382cdd08f9b113b5e9688478e247e86787d871edd82ea34597b45bfba6da5704",
+    "goal.json": "ee5895ff22feda5bc7b7aee2a9c88c96ae24b73f9d7aa7856a1ef7f931d3f89d"
+  },
+  "loaded_plugin_sha256": {
+    "/opt/ros/jazzy/lib/libjoint_trajectory_controller.so": "a9d89bc89d745383354a429e7895b9418a8ff71cfa96012e82c1f18a497364f1",
+    "/opt/ros/jazzy/lib/libmock_components.so": "c242d333834d02d31aec91b94cad206a905324826e67048a98a2474447d09e07"
+  },
+  "manager_argv": [
+    "/opt/ros/jazzy/lib/controller_manager/ros2_control_node",
+    "--ros-args",
+    "-r",
+    "__ns:=/rx_test",
+    "--params-file",
+    "/opt/rx/validation/n5/controllers.yaml"
+  ],
+  "manager_exit": 0,
+  "commands": [
+    {
+      "argv": [
+        "ros2",
+        "run",
+        "controller_manager",
+        "spawner",
+        "arm_controller",
+        "--inactive",
+        "--controller-manager",
+        "/rx_test/controller_manager",
+        "--param-file",
+        "/opt/rx/validation/n5/controllers.yaml"
+      ],
+      "returncode": 0,
+      "stdout": "",
+      "stderr": "[INFO] [1789511658.410954755] [spawner_arm_controller]: waiting for service /rx_test/controller_manager/list_controllers to become available...\n[INFO] [1789511658.751900088] [spawner_arm_controller]: Loaded arm_controller\n"
+    },
+    {
+      "argv": [
+        "ros2",
+        "control",
+        "list_controllers",
+        "-c",
+        "/rx_test/controller_manager",
+        "--verbose"
+      ],
+      "returncode": 0,
+      "stdout": "arm_controller joint_trajectory_controller/JointTrajectoryController  inactive\n\tupdate_rate: 100 Hz\n\tis_async: False\n\tclaimed interfaces:\n\trequired command interfaces:\n\t\tjoint1/position\n\t\tjoint2/position\n\t\tjoint3/position\n\t\tjoint4/position\n\t\tjoint5/position\n\t\tjoint6/position\n\trequired state interfaces:\n\t\tjoint1/position\n\t\tjoint1/velocity\n\t\tjoint2/position\n\t\tjoint2/velocity\n\t\tjoint3/position\n\t\tjoint3/velocity\n\t\tjoint4/position\n\t\tjoint4/velocity\n\t\tjoint5/position\n\t\tjoint5/velocity\n\t\tjoint6/position\n\t\tjoint6/velocity\n\tchained to interfaces:\n\texported reference interfaces:\n\texported state interfaces:\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "ros2",
+        "control",
+        "set_controller_state",
+        "arm_controller",
+        "active",
+        "-c",
+        "/rx_test/controller_manager"
+      ],
+      "returncode": 0,
+      "stdout": "Successfully activated arm_controller\n",
+      "stderr": "[INFO] [1789511661.311761173] [_ros2cli_117]: waiting for service /rx_test/controller_manager/list_controllers to become available...\n"
+    },
+    {
+      "argv": [
+        "ros2",
+        "control",
+        "list_controllers",
+        "-c",
+        "/rx_test/controller_manager",
+        "--verbose"
+      ],
+      "returncode": 0,
+      "stdout": "arm_controller joint_trajectory_controller/JointTrajectoryController  active\n\tupdate_rate: 100 Hz\n\tis_async: False\n\tclaimed interfaces:\n\t\tjoint1/position\n\t\tjoint2/position\n\t\tjoint3/position\n\t\tjoint4/position\n\t\tjoint5/position\n\t\tjoint6/position\n\trequired command interfaces:\n\t\tjoint1/position\n\t\tjoint2/position\n\t\tjoint3/position\n\t\tjoint4/position\n\t\tjoint5/position\n\t\tjoint6/position\n\trequired state interfaces:\n\t\tjoint1/position\n\t\tjoint1/velocity\n\t\tjoint2/position\n\t\tjoint2/velocity\n\t\tjoint3/position\n\t\tjoint3/velocity\n\t\tjoint4/position\n\t\tjoint4/velocity\n\t\tjoint5/position\n\t\tjoint5/velocity\n\t\tjoint6/position\n\t\tjoint6/velocity\n\tchained to interfaces:\n\texported reference interfaces:\n\texported state interfaces:\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "ros2",
+        "control",
+        "list_hardware_components",
+        "-c",
+        "/rx_test/controller_manager"
+      ],
+      "returncode": 0,
+      "stdout": "Hardware Component 1\n\tname: N5GenericSystem\n\ttype: system\n\tplugin name: mock_components/GenericSystem\n\tstate: id=3 label=active\n\tread/write rate: 100 Hz\n\tis_async: False\n\tcommand interfaces\n\t\tjoint6/position [available] [claimed]\n\t\tjoint3/position [available] [claimed]\n\t\tjoint2/position [available] [claimed]\n\t\tjoint5/position [available] [claimed]\n\t\tjoint4/position [available] [claimed]\n\t\tjoint1/position [available] [claimed]\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "ros2",
+        "control",
+        "list_hardware_interfaces",
+        "-c",
+        "/rx_test/controller_manager"
+      ],
+      "returncode": 0,
+      "stdout": "command interfaces\n\tjoint1/position [available] [claimed]\n\tjoint2/position [available] [claimed]\n\tjoint3/position [available] [claimed]\n\tjoint4/position [available] [claimed]\n\tjoint5/position [available] [claimed]\n\tjoint6/position [available] [claimed]\nstate interfaces\n\tjoint1/position\n\tjoint1/velocity\n\tjoint2/position\n\tjoint2/velocity\n\tjoint3/position\n\tjoint3/velocity\n\tjoint4/position\n\tjoint4/velocity\n\tjoint5/position\n\tjoint5/velocity\n\tjoint6/position\n\tjoint6/velocity\n",
+      "stderr": "[INFO] [1789511664.626257591] [_ros2cli_159]: waiting for service /rx_test/controller_manager/list_hardware_interfaces to become available...\n"
+    },
+    {
+      "argv": [
+        "ros2",
+        "control",
+        "set_controller_state",
+        "arm_controller",
+        "inactive",
+        "-c",
+        "/rx_test/controller_manager"
+      ],
+      "returncode": 0,
+      "stdout": "Successfully deactivated arm_controller\n",
+      "stderr": "[INFO] [1789511666.359022175] [_ros2cli_188]: waiting for service /rx_test/controller_manager/list_controllers to become available...\n"
+    }
+  ],
+  "exchanges": [
+    {
+      "bridge": "first",
+      "hello": {
+        "bridge_instance": "1cd05c1d-9c73-406d-a1fb-0fa5ab3952a1",
+        "clock_id": "linux-boottime/a708f259-d733-4833-b8c4-4227c652bba7",
+        "fault": null,
+        "schema": "rx.ros-jtc-reply.v1",
+        "sequence": null,
+        "state": "READY",
+        "ticks_ns": "71846739474780",
+        "value": {
+          "action": "/rx_test/arm_controller/follow_joint_trajectory",
+          "catalog_sha256": "669aaf825d542bf3173ab49072350b488e2f71826dfd9492e006d059a3c2ccbd",
+          "controller": "arm_controller",
+          "controller_generation_known": false,
+          "joints": [
+            "joint1",
+            "joint2",
+            "joint3",
+            "joint4",
+            "joint5",
+            "joint6"
+          ],
+          "model": "sim-arm-6",
+          "support_id": "SIM-JTC-6DOF",
+          "unqualified_declaration_only": true
+        }
+      }
+    },
+    {
+      "bridge": "first",
+      "request": {
+        "schema": "rx.ros-jtc-request.v1",
+        "bridge_instance": "1cd05c1d-9c73-406d-a1fb-0fa5ab3952a1",
+        "sequence": "1",
+        "expires_at_ns": "71847639618405",
+        "command": "inspect",
+        "body": {}
+      },
+      "response": {
+        "bridge_instance": "1cd05c1d-9c73-406d-a1fb-0fa5ab3952a1",
+        "clock_id": "linux-boottime/a708f259-d733-4833-b8c4-4227c652bba7",
+        "fault": "ROS service unavailable before deadline",
+        "schema": "rx.ros-jtc-reply.v1",
+        "sequence": "1",
+        "state": "RPC_UNKNOWN",
+        "ticks_ns": "71846890447655",
+        "value": null
+      }
+    },
+    {
+      "bridge": "first",
+      "request": {
+        "schema": "rx.ros-jtc-request.v1",
+        "bridge_instance": "1cd05c1d-9c73-406d-a1fb-0fa5ab3952a1",
+        "sequence": "2",
+        "expires_at_ns": "71847891069947",
+        "command": "inspect",
+        "body": {}
+      },
+      "response": {
+        "bridge_instance": "1cd05c1d-9c73-406d-a1fb-0fa5ab3952a1",
+        "clock_id": "linux-boottime/a708f259-d733-4833-b8c4-4227c652bba7",
+        "fault": "ROS service unavailable before deadline",
+        "schema": "rx.ros-jtc-reply.v1",
+        "sequence": "2",
+        "state": "RPC_UNKNOWN",
+        "ticks_ns": "71847141569822",
+        "value": null
+      }
+    },
+    {
+      "bridge": "first",
+      "request": {
+        "schema": "rx.ros-jtc-request.v1",
+        "bridge_instance": "1cd05c1d-9c73-406d-a1fb-0fa5ab3952a1",
+        "sequence": "3",
+        "expires_at_ns": "71848141965780",
+        "command": "inspect",
+        "body": {}
+      },
+      "response": {
+        "bridge_instance": "1cd05c1d-9c73-406d-a1fb-0fa5ab3952a1",
+        "clock_id": "linux-boottime/a708f259-d733-4833-b8c4-4227c652bba7",
+        "fault": "ROS service unavailable before deadline",
+        "schema": "rx.ros-jtc-reply.v1",
+        "sequence": "3",
+        "state": "RPC_UNKNOWN",
+        "ticks_ns": "71847395882905",
+        "value": null
+      }
+    },
+    {
+      "bridge": "first",
+      "request": {
+        "schema": "rx.ros-jtc-request.v1",
+        "bridge_instance": "1cd05c1d-9c73-406d-a1fb-0fa5ab3952a1",
+        "sequence": "4",
+        "expires_at_ns": "71848399658239",
+        "command": "inspect",
+        "body": {}
+      },
+      "response": {
+        "bridge_instance": "1cd05c1d-9c73-406d-a1fb-0fa5ab3952a1",
+        "clock_id": "linux-boottime/a708f259-d733-4833-b8c4-4227c652bba7",
+        "fault": null,
+        "schema": "rx.ros-jtc-reply.v1",
+        "sequence": "4",
+        "state": "OBSERVED",
+        "ticks_ns": "71847600820364",
+        "value": {
+          "cancel_service_ready": true,
+          "controller_generation_known": false,
+          "controllers": [
+            {
+              "claimed_interfaces": [],
+              "is_chained": false,
+              "name": "arm_controller",
+              "state": "inactive",
+              "type": "joint_trajectory_controller/JointTrajectoryController"
+            }
+          ],
+          "observed_end_ns": "71847600805364",
+          "observed_start_ns": "71847499792030",
+          "physical_readiness_proven": false,
+          "result_service_ready": true,
+          "selected_matches": false,
+          "send_service_ready": true
+        }
+      }
+    },
+    {
+      "bridge": "first",
+      "request": {
+        "schema": "rx.ros-jtc-request.v1",
+        "bridge_instance": "1cd05c1d-9c73-406d-a1fb-0fa5ab3952a1",
+        "sequence": "5",
+        "expires_at_ns": "71848501086780",
+        "command": "send",
+        "body": {
+          "operation": "4c3f1f2e-93a3-4a7f-be8d-7859f2dfc685",
+          "invocation": "a0db9614-c558-4d49-822b-afab16018f51",
+          "goal": {
+            "joints": [
+              "joint1",
+              "joint2",
+              "joint3",
+              "joint4",
+              "joint5",
+              "joint6"
+            ],
+            "points": [
+              {
+                "positions": [
+                  0.1,
+                  0.1,
+                  0.1,
+                  0.1,
+                  0.1,
+                  0.1
+                ],
+                "velocities": [],
+                "accelerations": [],
+                "time_ns": "100000000"
+              }
+            ],
+            "path_tolerance": [
+              {
+                "name": "joint1",
+                "position": 0.1,
+                "velocity": 0.1,
+                "acceleration": 0.1
+              },
+              {
+                "name": "joint2",
+                "position": 0.1,
+                "velocity": 0.1,
+                "acceleration": 0.1
+              },
+              {
+                "name": "joint3",
+                "position": 0.1,
+                "velocity": 0.1,
+                "acceleration": 0.1
+              },
+              {
+                "name": "joint4",
+                "position": 0.1,
+                "velocity": 0.1,
+                "acceleration": 0.1
+              },
+              {
+                "name": "joint5",
+                "position": 0.1,
+                "velocity": 0.1,
+                "acceleration": 0.1
+              },
+              {
+                "name": "joint6",
+                "position": 0.1,
+                "velocity": 0.1,
+                "acceleration": 0.1
+              }
+            ],
+            "goal_tolerance": [
+              {
+                "name": "joint1",
+                "position": 0.1,
+                "velocity": 0.1,
+                "acceleration": 0.1
+              },
+              {
+                "name": "joint2",
+                "position": 0.1,
+                "velocity": 0.1,
+                "acceleration": 0.1
+              },
+              {
+                "name": "joint3",
+                "position": 0.1,
+                "velocity": 0.1,
+                "acceleration": 0.1
+              },
+              {
+                "name": "joint4",
+                "position": 0.1,
+                "velocity": 0.1,
+                "acceleration": 0.1
+              },
+              {
+                "name": "joint5",
+                "position": 0.1,
+                "velocity": 0.1,
+                "acceleration": 0.1
+              },
+              {
+                "name": "joint6",
+                "position": 0.1,
+                "velocity": 0.1,
+                "acceleration": 0.1
+              }
+            ],
+            "goal_time_ns": "100000000"
+          }
+        }
+      },
+      "response": {
+        "bridge_instance": "1cd05c1d-9c73-406d-a1fb-0fa5ab3952a1",
+        "clock_id": "linux-boottime/a708f259-d733-4833-b8c4-4227c652bba7",
+        "fault": "active controller/type/claimed interfaces differ",
+        "schema": "rx.ros-jtc-reply.v1",
+        "sequence": "5",
+        "state": "REJECTED",
+        "ticks_ns": "71847601598739",
+        "value": null
+      }
+    },
+    {
+      "bridge": "first",
+      "request": {
+        "schema": "rx.ros-jtc-request.v1",
+        "bridge_instance": "1cd05c1d-9c73-406d-a1fb-0fa5ab3952a1",
+        "sequence": "6",
+        "expires_at_ns": "71852918442199",
+        "command": "inspect",
+        "body": {}
+      },
+      "response": {
+        "bridge_instance": "1cd05c1d-9c73-406d-a1fb-0fa5ab3952a1",
+        "clock_id": "linux-boottime/a708f259-d733-4833-b8c4-4227c652bba7",
+        "fault": null,
+        "schema": "rx.ros-jtc-reply.v1",
+        "sequence": "6",
+        "state": "OBSERVED",
+        "ticks_ns": "71852019263324",
+        "value": {
+          "cancel_service_ready": true,
+          "controller_generation_known": false,
+          "controllers": [
+            {
+              "claimed_interfaces": [
+                "joint1/position",
+                "joint2/position",
+                "joint3/position",
+                "joint4/position",
+                "joint5/position",
+                "joint6/position"
+              ],
+              "is_chained": false,
+              "name": "arm_controller",
+              "state": "active",
+              "type": "joint_trajectory_controller/JointTrajectoryController"
+            }
+          ],
+          "observed_end_ns": "71852019242907",
+          "observed_start_ns": "71852018622574",
+          "physical_readiness_proven": false,
+          "result_service_ready": true,
+          "selected_matches": true,
+          "send_service_ready": true
+        }
+      }
+    },
+    {
+      "bridge": "first",
+      "request": {
+        "schema": "rx.ros-jtc-request.v1",
+        "bridge_instance": "1cd05c1d-9c73-406d-a1fb-0fa5ab3952a1",
+        "sequence": "7",
+        "expires_at_ns": "71852923788657",
+        "command": "send",
+        "body": {
+          "operation": "0f054b54-d106-4678-b846-af58c50d8f29",
+          "invocation": "9e2329e7-4606-4322-a791-afbbe394d649",
+          "goal": {
+            "joints": [
+              "joint6",
+              "joint5",
+              "joint4",
+              "joint3",
+              "joint2",
+              "joint1"
+            ],
+            "points": [
+              {
+                "positions": [
+                  0.1,
+                  0.1,
+                  0.1,
+                  0.1,
+                  0.1,
+                  0.1
+                ],
+                "velocities": [],
+                "accelerations": [],
+                "time_ns": "100000000"
+              }
+            ],
+            "path_tolerance": [
+              {
+                "name": "joint1",
+                "position": 0.1,
+                "velocity": 0.1,
+                "acceleration": 0.1
+              },
+              {
+                "name": "joint2",
+                "position": 0.1,
+                "velocity": 0.1,
+                "acceleration": 0.1
+              },
+              {
+                "name": "joint3",
+                "position": 0.1,
+                "velocity": 0.1,
+                "acceleration": 0.1
+              },
+              {
+                "name": "joint4",
+                "position": 0.1,
+                "velocity": 0.1,
+                "acceleration": 0.1
+              },
+              {
+                "name": "joint5",
+                "position": 0.1,
+                "velocity": 0.1,
+                "acceleration": 0.1
+              },
+              {
+                "name": "joint6",
+                "position": 0.1,
+                "velocity": 0.1,
+                "acceleration": 0.1
+              }
+            ],
+            "goal_tolerance": [
+              {
+                "name": "joint1",
+                "position": 0.1,
+                "velocity": 0.1,
+                "acceleration": 0.1
+              },
+              {
+                "name": "joint2",
+                "position": 0.1,
+                "velocity": 0.1,
+                "acceleration": 0.1
+              },
+              {
+                "name": "joint3",
+                "position": 0.1,
+                "velocity": 0.1,
+                "acceleration": 0.1
+              },
+              {
+                "name": "joint4",
+                "position": 0.1,
+                "velocity": 0.1,
+                "acceleration": 0.1
+              },
+              {
+                "name": "joint5",
+                "position": 0.1,
+                "velocity": 0.1,
+                "acceleration": 0.1
+              },
+              {
+                "name": "joint6",
+                "position": 0.1,
+                "velocity": 0.1,
+                "acceleration": 0.1
+              }
+            ],
+            "goal_time_ns": "100000000"
+          }
+        }
+      },
+      "response": {
+        "bridge_instance": "1cd05c1d-9c73-406d-a1fb-0fa5ab3952a1",
+        "clock_id": "linux-boottime/a708f259-d733-4833-b8c4-4227c652bba7",
+        "fault": "catalog joint order differs",
+        "schema": "rx.ros-jtc-reply.v1",
+        "sequence": "7",
+        "state": "REJECTED",
+        "ticks_ns": "71852024451824",
+        "value": null
+      }
+    },
+    {
+      "bridge": "first",
+      "request": {
+        "schema": "rx.ros-jtc-request.v1",
+        "bridge_instance": "1cd05c1d-9c73-406d-a1fb-0fa5ab3952a1",
+        "sequence": "8",
+        "expires_at_ns": "71852924542616",
+        "command": "send",
+        "body": {
+          "operation": "7cad9942-288a-44d4-9be4-8c638698d0cc",
+          "invocation": "dffe392e-f97e-4362-a04e-e1d923c0ff53",
+          "goal": {
+            "joints": [
+              "joint1",
+              "joint2",
+              "joint3",
+              "joint4",
+              "joint5",
+              "joint6"
+            ],
+            "points": [
+              {
+                "positions": [
+                  0.1,
+                  0.1,
+                  0.1,
+                  0.1,
+                  0.1,
+                  0.1
+                ],
+                "velocities": [],
+                "accelerations": [],
+                "time_ns": "100000000"
+              }
+            ],
+            "path_tolerance": [
+              {
+                "name": "joint1",
+                "position": 0.1,
+                "velocity": 0.1,
+                "acceleration": 0.1
+              },
+              {
+                "name": "joint2",
+                "position": 0.1,
+                "velocity": 0.1,
+                "acceleration": 0.1
+              },
+              {
+                "name": "joint3",
+                "position": 0.1,
+                "velocity": 0.1,
+                "acceleration": 0.1
+              },
+              {
+                "name": "joint4",
+                "position": 0.1,
+                "velocity": 0.1,
+                "acceleration": 0.1
+              },
+              {
+                "name": "joint5",
+                "position": 0.1,
+                "velocity": 0.1,
+                "acceleration": 0.1
+              },
+              {
+                "name": "joint6",
+                "position": 0.1,
+                "velocity": 0.1,
+                "acceleration": 0.1
+              }
+            ],
+            "goal_tolerance": [
+              {
+                "name": "joint1",
+                "position": 0.1,
+                "velocity": 0.1,
+                "acceleration": 0.1
+              },
+              {
+                "name": "joint2",
+                "position": 0.1,
+                "velocity": 0.1,
+                "acceleration": 0.1
+              },
+              {
+                "name": "joint3",
+                "position": 0.1,
+                "velocity": 0.1,
+                "acceleration": 0.1
+              },
+              {
+                "name": "joint4",
+                "position": 0.1,
+                "velocity": 0.1,
+                "acceleration": 0.1
+              },
+              {
+                "name": "joint5",
+                "position": 0.1,
+                "velocity": 0.1,
+                "acceleration": 0.1
+              },
+              {
+                "name": "joint6",
+                "position": 0.1,
+                "velocity": 0.1,
+                "acceleration": 0.1
+              }
+            ],
+            "goal_time_ns": "100000000"
+          }
+        }
+      },
+      "response": {
+        "bridge_instance": "1cd05c1d-9c73-406d-a1fb-0fa5ab3952a1",
+        "clock_id": "linux-boottime/a708f259-d733-4833-b8c4-4227c652bba7",
+        "fault": null,
+        "schema": "rx.ros-jtc-reply.v1",
+        "sequence": "8",
+        "state": "SEND_RECORDED",
+        "ticks_ns": "71852025766699",
+        "value": {
+          "accepted": true,
+          "captured_at_ns": "71852025763366",
+          "entered_at_ns": "71852025054657",
+          "goal_id": "dffe392e-f97e-4362-a04e-e1d923c0ff53",
+          "stamp_nanosec": 0,
+          "stamp_sec": 0,
+          "state": "ACCEPTED"
+        }
+      }
+    },
+    {
+      "bridge": "first",
+      "request": {
+        "schema": "rx.ros-jtc-request.v1",
+        "bridge_instance": "1cd05c1d-9c73-406d-a1fb-0fa5ab3952a1",
+        "sequence": "9",
+        "expires_at_ns": "71852925849157",
+        "command": "send",
+        "body": {
+          "operation": "7cad9942-288a-44d4-9be4-8c638698d0cc",
+          "invocation": "dffe392e-f97e-4362-a04e-e1d923c0ff53",
+          "goal": {
+            "joints": [
+              "joint1",
+              "joint2",
+              "joint3",
+              "joint4",
+              "joint5",
+              "joint6"
+            ],
+            "points": [
+              {
+                "positions": [
+                  0.1,
+                  0.1,
+                  0.1,
+                  0.1,
+                  0.1,
+                  0.1
+                ],
+                "velocities": [],
+                "accelerations": [],
+                "time_ns": "100000000"
+              }
+            ],
+            "path_tolerance": [
+              {
+                "name": "joint1",
+                "position": 0.1,
+                "velocity": 0.1,
+                "acceleration": 0.1
+              },
+              {
+                "name": "joint2",
+                "position": 0.1,
+                "velocity": 0.1,
+                "acceleration": 0.1
+              },
+              {
+                "name": "joint3",
+                "position": 0.1,
+                "velocity": 0.1,
+                "acceleration": 0.1
+              },
+              {
+                "name": "joint4",
+                "position": 0.1,
+                "velocity": 0.1,
+                "acceleration": 0.1
+              },
+              {
+                "name": "joint5",
+                "position": 0.1,
+                "velocity": 0.1,
+                "acceleration": 0.1
+              },
+              {
+                "name": "joint6",
+                "position": 0.1,
+                "velocity": 0.1,
+                "acceleration": 0.1
+              }
+            ],
+            "goal_tolerance": [
+              {
+                "name": "joint1",
+                "position": 0.1,
+                "velocity": 0.1,
+                "acceleration": 0.1
+              },
+              {
+                "name": "joint2",
+                "position": 0.1,
+                "velocity": 0.1,
+                "acceleration": 0.1
+              },
+              {
+                "name": "joint3",
+                "position": 0.1,
+                "velocity": 0.1,
+                "acceleration": 0.1
+              },
+              {
+                "name": "joint4",
+                "position": 0.1,
+                "velocity": 0.1,
+                "acceleration": 0.1
+              },
+              {
+                "name": "joint5",
+                "position": 0.1,
+                "velocity": 0.1,
+                "acceleration": 0.1
+              },
+              {
+                "name": "joint6",
+                "position": 0.1,
+                "velocity": 0.1,
+                "acceleration": 0.1
+              }
+            ],
+            "goal_time_ns": "100000000"
+          }
+        }
+      },
+      "response": {
+        "bridge_instance": "1cd05c1d-9c73-406d-a1fb-0fa5ab3952a1",
+        "clock_id": "linux-boottime/a708f259-d733-4833-b8c4-4227c652bba7",
+        "fault": null,
+        "schema": "rx.ros-jtc-reply.v1",
+        "sequence": "9",
+        "state": "SEND_RECORDED",
+        "ticks_ns": "71852025940449",
+        "value": {
+          "accepted": true,
+          "captured_at_ns": "71852025763366",
+          "entered_at_ns": "71852025054657",
+          "goal_id": "dffe392e-f97e-4362-a04e-e1d923c0ff53",
+          "stamp_nanosec": 0,
+          "stamp_sec": 0,
+          "state": "ACCEPTED"
+        }
+      }
+    },
+    {
+      "bridge": "first",
+      "request": {
+        "schema": "rx.ros-jtc-request.v1",
+        "bridge_instance": "1cd05c1d-9c73-406d-a1fb-0fa5ab3952a1",
+        "sequence": "10",
+        "expires_at_ns": "71852925975407",
+        "command": "result",
+        "body": {
+          "invocation": "dffe392e-f97e-4362-a04e-e1d923c0ff53"
+        }
+      },
+      "response": {
+        "bridge_instance": "1cd05c1d-9c73-406d-a1fb-0fa5ab3952a1",
+        "clock_id": "linux-boottime/a708f259-d733-4833-b8c4-4227c652bba7",
+        "fault": null,
+        "schema": "rx.ros-jtc-reply.v1",
+        "sequence": "10",
+        "state": "RESULT_CAPTURED",
+        "ticks_ns": "71852126259741",
+        "value": {
+          "captured_at_ns": "71852126254491",
+          "controller_error_code": 0,
+          "controller_error_string": "Goal successfully reached!",
+          "controller_generation_known": false,
+          "goal_id": "dffe392e-f97e-4362-a04e-e1d923c0ff53",
+          "known_to_bridge": true,
+          "query_started_at_ns": "71852026011032",
+          "ros_goal_status": 4
+        }
+      }
+    },
+    {
+      "bridge": "first",
+      "request": {
+        "schema": "rx.ros-jtc-request.v1",
+        "bridge_instance": "1cd05c1d-9c73-406d-a1fb-0fa5ab3952a1",
+        "sequence": "11",
+        "expires_at_ns": "71853026417949",
+        "command": "send",
+        "body": {
+          "operation": "a8106381-2868-43d5-a8f4-b79d0625d603",
+          "invocation": "864531b0-8dfc-470c-b4b2-9a68e05fbd65",
+          "goal": {
+            "joints": [
+              "joint1",
+              "joint2",
+              "joint3",
+              "joint4",
+              "joint5",
+              "joint6"
+            ],
+            "points": [
+              {
+                "positions": [
+                  0.3,
+                  0.3,
+                  0.3,
+                  0.3,
+                  0.3,
+                  0.3
+                ],
+                "velocities": [],
+                "accelerations": [],
+                "time_ns": "4000000000"
+              }
+            ],
+            "path_tolerance": [
+              {
+                "name": "joint1",
+                "position": 0.1,
+                "velocity": 0.1,
+                "acceleration": 0.1
+              },
+              {
+                "name": "joint2",
+                "position": 0.1,
+                "velocity": 0.1,
+                "acceleration": 0.1
+              },
+              {
+                "name": "joint3",
+                "position": 0.1,
+                "velocity": 0.1,
+                "acceleration": 0.1
+              },
+              {
+                "name": "joint4",
+                "position": 0.1,
+                "velocity": 0.1,
+                "acceleration": 0.1
+              },
+              {
+                "name": "joint5",
+                "position": 0.1,
+                "velocity": 0.1,
+                "acceleration": 0.1
+              },
+              {
+                "name": "joint6",
+                "position": 0.1,
+                "velocity": 0.1,
+                "acceleration": 0.1
+              }
+            ],
+            "goal_tolerance": [
+              {
+                "name": "joint1",
+                "position": 0.1,
+                "velocity": 0.1,
+                "acceleration": 0.1
+              },
+              {
+                "name": "joint2",
+                "position": 0.1,
+                "velocity": 0.1,
+                "acceleration": 0.1
+              },
+              {
+                "name": "joint3",
+                "position": 0.1,
+                "velocity": 0.1,
+                "acceleration": 0.1
+              },
+              {
+                "name": "joint4",
+                "position": 0.1,
+                "velocity": 0.1,
+                "acceleration": 0.1
+              },
+              {
+                "name": "joint5",
+                "position": 0.1,
+                "velocity": 0.1,
+                "acceleration": 0.1
+              },
+              {
+                "name": "joint6",
+                "position": 0.1,
+                "velocity": 0.1,
+                "acceleration": 0.1
+              }
+            ],
+            "goal_time_ns": "100000000"
+          }
+        }
+      },
+      "response": {
+        "bridge_instance": "1cd05c1d-9c73-406d-a1fb-0fa5ab3952a1",
+        "clock_id": "linux-boottime/a708f259-d733-4833-b8c4-4227c652bba7",
+        "fault": null,
+        "schema": "rx.ros-jtc-reply.v1",
+        "sequence": "11",
+        "state": "SEND_RECORDED",
+        "ticks_ns": "71852126995283",
+        "value": {
+          "accepted": true,
+          "captured_at_ns": "71852126990866",
+          "entered_at_ns": "71852126751158",
+          "goal_id": "864531b0-8dfc-470c-b4b2-9a68e05fbd65",
+          "stamp_nanosec": 0,
+          "stamp_sec": 0,
+          "state": "ACCEPTED"
+        }
+      }
+    },
+    {
+      "bridge": "first",
+      "request": {
+        "schema": "rx.ros-jtc-request.v1",
+        "bridge_instance": "1cd05c1d-9c73-406d-a1fb-0fa5ab3952a1",
+        "sequence": "12",
+        "expires_at_ns": "71853087948158",
+        "command": "cancel",
+        "body": {
+          "invocation": "864531b0-8dfc-470c-b4b2-9a68e05fbd65"
+        }
+      },
+      "response": {
+        "bridge_instance": "1cd05c1d-9c73-406d-a1fb-0fa5ab3952a1",
+        "clock_id": "linux-boottime/a708f259-d733-4833-b8c4-4227c652bba7",
+        "fault": null,
+        "schema": "rx.ros-jtc-reply.v1",
+        "sequence": "12",
+        "state": "CANCEL_RESPONSE",
+        "ticks_ns": "71852188424033",
+        "value": {
+          "captured_at_ns": "71852188420449",
+          "entered_at_ns": "71852188026199",
+          "goals_canceling": [
+            "864531b0-8dfc-470c-b4b2-9a68e05fbd65"
+          ],
+          "return_code": 0,
+          "state": "RESPONSE",
+          "terminal_stop_proven": false
+        }
+      }
+    },
+    {
+      "bridge": "first",
+      "request": {
+        "schema": "rx.ros-jtc-request.v1",
+        "bridge_instance": "1cd05c1d-9c73-406d-a1fb-0fa5ab3952a1",
+        "sequence": "13",
+        "expires_at_ns": "71853088486408",
+        "command": "result",
+        "body": {
+          "invocation": "864531b0-8dfc-470c-b4b2-9a68e05fbd65"
+        }
+      },
+      "response": {
+        "bridge_instance": "1cd05c1d-9c73-406d-a1fb-0fa5ab3952a1",
+        "clock_id": "linux-boottime/a708f259-d733-4833-b8c4-4227c652bba7",
+        "fault": null,
+        "schema": "rx.ros-jtc-reply.v1",
+        "sequence": "13",
+        "state": "RESULT_CAPTURED",
+        "ticks_ns": "71852227854158",
+        "value": {
+          "captured_at_ns": "71852227848449",
+          "controller_error_code": 0,
+          "controller_error_string": "",
+          "controller_generation_known": false,
+          "goal_id": "864531b0-8dfc-470c-b4b2-9a68e05fbd65",
+          "known_to_bridge": true,
+          "query_started_at_ns": "71852188523741",
+          "ros_goal_status": 5
+        }
+      }
+    },
+    {
+      "bridge": "restarted",
+      "hello": {
+        "bridge_instance": "96ee0a19-7b5e-4c63-a13b-0ffe8a3f84e9",
+        "clock_id": "linux-boottime/a708f259-d733-4833-b8c4-4227c652bba7",
+        "fault": null,
+        "schema": "rx.ros-jtc-reply.v1",
+        "sequence": null,
+        "state": "READY",
+        "ticks_ns": "71852368970324",
+        "value": {
+          "action": "/rx_test/arm_controller/follow_joint_trajectory",
+          "catalog_sha256": "669aaf825d542bf3173ab49072350b488e2f71826dfd9492e006d059a3c2ccbd",
+          "controller": "arm_controller",
+          "controller_generation_known": false,
+          "joints": [
+            "joint1",
+            "joint2",
+            "joint3",
+            "joint4",
+            "joint5",
+            "joint6"
+          ],
+          "model": "sim-arm-6",
+          "support_id": "SIM-JTC-6DOF",
+          "unqualified_declaration_only": true
+        }
+      }
+    },
+    {
+      "bridge": "restarted",
+      "request": {
+        "schema": "rx.ros-jtc-request.v1",
+        "bridge_instance": "96ee0a19-7b5e-4c63-a13b-0ffe8a3f84e9",
+        "sequence": "1",
+        "expires_at_ns": "71853269094616",
+        "command": "inspect",
+        "body": {}
+      },
+      "response": {
+        "bridge_instance": "96ee0a19-7b5e-4c63-a13b-0ffe8a3f84e9",
+        "clock_id": "linux-boottime/a708f259-d733-4833-b8c4-4227c652bba7",
+        "fault": "ROS service unavailable before deadline",
+        "schema": "rx.ros-jtc-reply.v1",
+        "sequence": "1",
+        "state": "RPC_UNKNOWN",
+        "ticks_ns": "71852519388366",
+        "value": null
+      }
+    },
+    {
+      "bridge": "restarted",
+      "request": {
+        "schema": "rx.ros-jtc-request.v1",
+        "bridge_instance": "96ee0a19-7b5e-4c63-a13b-0ffe8a3f84e9",
+        "sequence": "2",
+        "expires_at_ns": "71853519537491",
+        "command": "inspect",
+        "body": {}
+      },
+      "response": {
+        "bridge_instance": "96ee0a19-7b5e-4c63-a13b-0ffe8a3f84e9",
+        "clock_id": "linux-boottime/a708f259-d733-4833-b8c4-4227c652bba7",
+        "fault": null,
+        "schema": "rx.ros-jtc-reply.v1",
+        "sequence": "2",
+        "state": "OBSERVED",
+        "ticks_ns": "71852620119408",
+        "value": {
+          "cancel_service_ready": true,
+          "controller_generation_known": false,
+          "controllers": [
+            {
+              "claimed_interfaces": [
+                "joint1/position",
+                "joint2/position",
+                "joint3/position",
+                "joint4/position",
+                "joint5/position",
+                "joint6/position"
+              ],
+              "is_chained": false,
+              "name": "arm_controller",
+              "state": "active",
+              "type": "joint_trajectory_controller/JointTrajectoryController"
+            }
+          ],
+          "observed_end_ns": "71852620093741",
+          "observed_start_ns": "71852619593699",
+          "physical_readiness_proven": false,
+          "result_service_ready": true,
+          "selected_matches": true,
+          "send_service_ready": true
+        }
+      }
+    },
+    {
+      "bridge": "restarted",
+      "request": {
+        "schema": "rx.ros-jtc-request.v1",
+        "bridge_instance": "96ee0a19-7b5e-4c63-a13b-0ffe8a3f84e9",
+        "sequence": "3",
+        "expires_at_ns": "71853520340574",
+        "command": "result",
+        "body": {
+          "invocation": "864531b0-8dfc-470c-b4b2-9a68e05fbd65"
+        }
+      },
+      "response": {
+        "bridge_instance": "96ee0a19-7b5e-4c63-a13b-0ffe8a3f84e9",
+        "clock_id": "linux-boottime/a708f259-d733-4833-b8c4-4227c652bba7",
+        "fault": null,
+        "schema": "rx.ros-jtc-reply.v1",
+        "sequence": "3",
+        "state": "RESULT_CAPTURED",
+        "ticks_ns": "71852652477491",
+        "value": {
+          "captured_at_ns": "71852652472824",
+          "controller_error_code": 0,
+          "controller_error_string": "",
+          "controller_generation_known": false,
+          "goal_id": "864531b0-8dfc-470c-b4b2-9a68e05fbd65",
+          "known_to_bridge": false,
+          "query_started_at_ns": "71852620384866",
+          "ros_goal_status": 5
+        }
+      }
+    },
+    {
+      "bridge": "restarted",
+      "request": {
+        "schema": "rx.ros-jtc-request.v1",
+        "bridge_instance": "96ee0a19-7b5e-4c63-a13b-0ffe8a3f84e9",
+        "sequence": "4",
+        "expires_at_ns": "71853552545533",
+        "command": "cancel",
+        "body": {
+          "invocation": "864531b0-8dfc-470c-b4b2-9a68e05fbd65"
+        }
+      },
+      "response": {
+        "bridge_instance": "96ee0a19-7b5e-4c63-a13b-0ffe8a3f84e9",
+        "clock_id": "linux-boottime/a708f259-d733-4833-b8c4-4227c652bba7",
+        "fault": "cannot cancel an unowned goal",
+        "schema": "rx.ros-jtc-reply.v1",
+        "sequence": "4",
+        "state": "REJECTED",
+        "ticks_ns": "71852652609991",
+        "value": null
+      }
+    },
+    {
+      "bridge": "restarted",
+      "request": {
+        "schema": "rx.ros-jtc-request.v1",
+        "bridge_instance": "96ee0a19-7b5e-4c63-a13b-0ffe8a3f84e9",
+        "sequence": "5",
+        "expires_at_ns": "71854670498158",
+        "command": "inspect",
+        "body": {}
+      },
+      "response": {
+        "bridge_instance": "96ee0a19-7b5e-4c63-a13b-0ffe8a3f84e9",
+        "clock_id": "linux-boottime/a708f259-d733-4833-b8c4-4227c652bba7",
+        "fault": null,
+        "schema": "rx.ros-jtc-reply.v1",
+        "sequence": "5",
+        "state": "OBSERVED",
+        "ticks_ns": "71853771094117",
+        "value": {
+          "cancel_service_ready": true,
+          "controller_generation_known": false,
+          "controllers": [
+            {
+              "claimed_interfaces": [],
+              "is_chained": false,
+              "name": "arm_controller",
+              "state": "inactive",
+              "type": "joint_trajectory_controller/JointTrajectoryController"
+            }
+          ],
+          "observed_end_ns": "71853771081158",
+          "observed_start_ns": "71853770629867",
+          "physical_readiness_proven": false,
+          "result_service_ready": true,
+          "selected_matches": false,
+          "send_service_ready": true
+        }
+      }
+    },
+    {
+      "bridge": "restarted",
+      "request": {
+        "schema": "rx.ros-jtc-request.v1",
+        "bridge_instance": "96ee0a19-7b5e-4c63-a13b-0ffe8a3f84e9",
+        "sequence": "6",
+        "expires_at_ns": "71854671444867",
+        "command": "send",
+        "body": {
+          "operation": "7736372d-b1d9-4174-8a1c-5283d49425a3",
+          "invocation": "4b7d110a-ecf1-4aa3-bf8b-8678a8147dd2",
+          "goal": {
+            "joints": [
+              "joint1",
+              "joint2",
+              "joint3",
+              "joint4",
+              "joint5",
+              "joint6"
+            ],
+            "points": [
+              {
+                "positions": [
+                  0.1,
+                  0.1,
+                  0.1,
+                  0.1,
+                  0.1,
+                  0.1
+                ],
+                "velocities": [],
+                "accelerations": [],
+                "time_ns": "100000000"
+              }
+            ],
+            "path_tolerance": [
+              {
+                "name": "joint1",
+                "position": 0.1,
+                "velocity": 0.1,
+                "acceleration": 0.1
+              },
+              {
+                "name": "joint2",
+                "position": 0.1,
+                "velocity": 0.1,
+                "acceleration": 0.1
+              },
+              {
+                "name": "joint3",
+                "position": 0.1,
+                "velocity": 0.1,
+                "acceleration": 0.1
+              },
+              {
+                "name": "joint4",
+                "position": 0.1,
+                "velocity": 0.1,
+                "acceleration": 0.1
+              },
+              {
+                "name": "joint5",
+                "position": 0.1,
+                "velocity": 0.1,
+                "acceleration": 0.1
+              },
+              {
+                "name": "joint6",
+                "position": 0.1,
+                "velocity": 0.1,
+                "acceleration": 0.1
+              }
+            ],
+            "goal_tolerance": [
+              {
+                "name": "joint1",
+                "position": 0.1,
+                "velocity": 0.1,
+                "acceleration": 0.1
+              },
+              {
+                "name": "joint2",
+                "position": 0.1,
+                "velocity": 0.1,
+                "acceleration": 0.1
+              },
+              {
+                "name": "joint3",
+                "position": 0.1,
+                "velocity": 0.1,
+                "acceleration": 0.1
+              },
+              {
+                "name": "joint4",
+                "position": 0.1,
+                "velocity": 0.1,
+                "acceleration": 0.1
+              },
+              {
+                "name": "joint5",
+                "position": 0.1,
+                "velocity": 0.1,
+                "acceleration": 0.1
+              },
+              {
+                "name": "joint6",
+                "position": 0.1,
+                "velocity": 0.1,
+                "acceleration": 0.1
+              }
+            ],
+            "goal_time_ns": "100000000"
+          }
+        }
+      },
+      "response": {
+        "bridge_instance": "96ee0a19-7b5e-4c63-a13b-0ffe8a3f84e9",
+        "clock_id": "linux-boottime/a708f259-d733-4833-b8c4-4227c652bba7",
+        "fault": "active controller/type/claimed interfaces differ",
+        "schema": "rx.ros-jtc-reply.v1",
+        "sequence": "6",
+        "state": "REJECTED",
+        "ticks_ns": "71853771807950",
+        "value": null
+      }
+    }
+  ],
+  "action_feedback": [
+    {
+      "received_boottime_ns": "71852079242407",
+      "invocation": "dffe392e-f97e-4362-a04e-e1d923c0ff53",
+      "message": {
+        "header": {
+          "stamp": {
+            "sec": 1789511665,
+            "nanosec": 61182300
+          },
+          "frame_id": ""
+        },
+        "joint_names": [
+          "joint1",
+          "joint2",
+          "joint3",
+          "joint4",
+          "joint5",
+          "joint6"
+        ],
+        "desired": {
+          "positions": [
+            0.04000716599999995,
+            0.04000716599999995,
+            0.04000716599999995,
+            0.04000716599999995,
+            0.04000716599999995,
+            0.04000716599999995
+          ],
+          "velocities": [
+            1.0000000000000009,
+            1.0000000000000009,
+            1.0000000000000009,
+            1.0000000000000009,
+            1.0000000000000009,
+            1.0000000000000009
+          ],
+          "accelerations": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "effort": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 40007166
+          }
+        },
+        "actual": {
+          "positions": [
+            0.04011849999999995,
+            0.04011849999999995,
+            0.04011849999999995,
+            0.04011849999999995,
+            0.04011849999999995,
+            0.04011849999999995
+          ],
+          "velocities": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "accelerations": [],
+          "effort": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 40007375
+          }
+        },
+        "error": {
+          "positions": [
+            -0.00011133400000007398,
+            -0.00011133400000007398,
+            -0.00011133400000007398,
+            -0.00011133400000007398,
+            -0.00011133400000007398,
+            -0.00011133400000007398
+          ],
+          "velocities": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "accelerations": [],
+          "effort": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_joint_names": [],
+        "multi_dof_desired": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_actual": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_error": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        }
+      }
+    },
+    {
+      "received_boottime_ns": "71852180989533",
+      "invocation": "864531b0-8dfc-470c-b4b2-9a68e05fbd65",
+      "message": {
+        "header": {
+          "stamp": {
+            "sec": 1789511665,
+            "nanosec": 161098842
+          },
+          "frame_id": ""
+        },
+        "joint_names": [
+          "joint1",
+          "joint2",
+          "joint3",
+          "joint4",
+          "joint5",
+          "joint6"
+        ],
+        "desired": {
+          "positions": [
+            0.10196489374999981,
+            0.10196489374999981,
+            0.10196489374999981,
+            0.10196489374999981,
+            0.10196489374999981,
+            0.10196489374999981
+          ],
+          "velocities": [
+            0.050000000000000044,
+            0.050000000000000044,
+            0.050000000000000044,
+            0.050000000000000044,
+            0.050000000000000044,
+            0.050000000000000044
+          ],
+          "accelerations": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "effort": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 39297875
+          }
+        },
+        "actual": {
+          "positions": [
+            0.1020177333499998,
+            0.1020177333499998,
+            0.1020177333499998,
+            0.1020177333499998,
+            0.1020177333499998,
+            0.1020177333499998
+          ],
+          "velocities": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "accelerations": [],
+          "effort": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 39298292
+          }
+        },
+        "error": {
+          "positions": [
+            -5.2839599999909836e-05,
+            -5.2839599999909836e-05,
+            -5.2839599999909836e-05,
+            -5.2839599999909836e-05,
+            -5.2839599999909836e-05,
+            -5.2839599999909836e-05
+          ],
+          "velocities": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "accelerations": [],
+          "effort": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_joint_names": [],
+        "multi_dof_desired": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_actual": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_error": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        }
+      }
+    }
+  ],
+  "controller_state_samples": [
+    {
+      "received_boottime_ns": "71853439971450",
+      "message": {
+        "header": {
+          "stamp": {
+            "sec": 1789511666,
+            "nanosec": 431165967
+          },
+          "frame_id": ""
+        },
+        "joint_names": [
+          "joint1",
+          "joint2",
+          "joint3",
+          "joint4",
+          "joint5",
+          "joint6"
+        ],
+        "reference": {
+          "positions": [
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981
+          ],
+          "velocities": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "accelerations": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "effort": [],
+          "time_from_start": {
+            "sec": 1,
+            "nanosec": 249796625
+          }
+        },
+        "feedback": {
+          "positions": [
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981
+          ],
+          "velocities": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "accelerations": [],
+          "effort": [],
+          "time_from_start": {
+            "sec": 1,
+            "nanosec": 249796292
+          }
+        },
+        "error": {
+          "positions": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "velocities": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "accelerations": [],
+          "effort": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "output": {
+          "positions": [
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981
+          ],
+          "velocities": [],
+          "accelerations": [],
+          "effort": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_joint_names": [],
+        "multi_dof_reference": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_feedback": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_error": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_output": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "speed_scaling_factor": 1.0
+      }
+    },
+    {
+      "received_boottime_ns": "71853450188783",
+      "message": {
+        "header": {
+          "stamp": {
+            "sec": 1789511666,
+            "nanosec": 441182509
+          },
+          "frame_id": ""
+        },
+        "joint_names": [
+          "joint1",
+          "joint2",
+          "joint3",
+          "joint4",
+          "joint5",
+          "joint6"
+        ],
+        "reference": {
+          "positions": [
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981
+          ],
+          "velocities": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "accelerations": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "effort": [],
+          "time_from_start": {
+            "sec": 1,
+            "nanosec": 259812792
+          }
+        },
+        "feedback": {
+          "positions": [
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981
+          ],
+          "velocities": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "accelerations": [],
+          "effort": [],
+          "time_from_start": {
+            "sec": 1,
+            "nanosec": 259812834
+          }
+        },
+        "error": {
+          "positions": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "velocities": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "accelerations": [],
+          "effort": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "output": {
+          "positions": [
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981
+          ],
+          "velocities": [],
+          "accelerations": [],
+          "effort": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_joint_names": [],
+        "multi_dof_reference": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_feedback": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_error": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_output": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "speed_scaling_factor": 1.0
+      }
+    },
+    {
+      "received_boottime_ns": "71853460170491",
+      "message": {
+        "header": {
+          "stamp": {
+            "sec": 1789511666,
+            "nanosec": 451126467
+          },
+          "frame_id": ""
+        },
+        "joint_names": [
+          "joint1",
+          "joint2",
+          "joint3",
+          "joint4",
+          "joint5",
+          "joint6"
+        ],
+        "reference": {
+          "positions": [
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981
+          ],
+          "velocities": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "accelerations": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "effort": [],
+          "time_from_start": {
+            "sec": 1,
+            "nanosec": 269756333
+          }
+        },
+        "feedback": {
+          "positions": [
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981
+          ],
+          "velocities": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "accelerations": [],
+          "effort": [],
+          "time_from_start": {
+            "sec": 1,
+            "nanosec": 269756792
+          }
+        },
+        "error": {
+          "positions": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "velocities": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "accelerations": [],
+          "effort": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "output": {
+          "positions": [
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981
+          ],
+          "velocities": [],
+          "accelerations": [],
+          "effort": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_joint_names": [],
+        "multi_dof_reference": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_feedback": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_error": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_output": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "speed_scaling_factor": 1.0
+      }
+    },
+    {
+      "received_boottime_ns": "71853470880950",
+      "message": {
+        "header": {
+          "stamp": {
+            "sec": 1789511666,
+            "nanosec": 461613509
+          },
+          "frame_id": ""
+        },
+        "joint_names": [
+          "joint1",
+          "joint2",
+          "joint3",
+          "joint4",
+          "joint5",
+          "joint6"
+        ],
+        "reference": {
+          "positions": [
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981
+          ],
+          "velocities": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "accelerations": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "effort": [],
+          "time_from_start": {
+            "sec": 1,
+            "nanosec": 280243667
+          }
+        },
+        "feedback": {
+          "positions": [
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981
+          ],
+          "velocities": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "accelerations": [],
+          "effort": [],
+          "time_from_start": {
+            "sec": 1,
+            "nanosec": 280243834
+          }
+        },
+        "error": {
+          "positions": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "velocities": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "accelerations": [],
+          "effort": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "output": {
+          "positions": [
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981
+          ],
+          "velocities": [],
+          "accelerations": [],
+          "effort": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_joint_names": [],
+        "multi_dof_reference": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_feedback": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_error": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_output": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "speed_scaling_factor": 1.0
+      }
+    },
+    {
+      "received_boottime_ns": "71853479979408",
+      "message": {
+        "header": {
+          "stamp": {
+            "sec": 1789511666,
+            "nanosec": 471106634
+          },
+          "frame_id": ""
+        },
+        "joint_names": [
+          "joint1",
+          "joint2",
+          "joint3",
+          "joint4",
+          "joint5",
+          "joint6"
+        ],
+        "reference": {
+          "positions": [
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981
+          ],
+          "velocities": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "accelerations": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "effort": [],
+          "time_from_start": {
+            "sec": 1,
+            "nanosec": 289737292
+          }
+        },
+        "feedback": {
+          "positions": [
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981
+          ],
+          "velocities": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "accelerations": [],
+          "effort": [],
+          "time_from_start": {
+            "sec": 1,
+            "nanosec": 289736959
+          }
+        },
+        "error": {
+          "positions": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "velocities": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "accelerations": [],
+          "effort": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "output": {
+          "positions": [
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981
+          ],
+          "velocities": [],
+          "accelerations": [],
+          "effort": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_joint_names": [],
+        "multi_dof_reference": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_feedback": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_error": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_output": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "speed_scaling_factor": 1.0
+      }
+    },
+    {
+      "received_boottime_ns": "71853490368283",
+      "message": {
+        "header": {
+          "stamp": {
+            "sec": 1789511666,
+            "nanosec": 481576925
+          },
+          "frame_id": ""
+        },
+        "joint_names": [
+          "joint1",
+          "joint2",
+          "joint3",
+          "joint4",
+          "joint5",
+          "joint6"
+        ],
+        "reference": {
+          "positions": [
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981
+          ],
+          "velocities": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "accelerations": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "effort": [],
+          "time_from_start": {
+            "sec": 1,
+            "nanosec": 300207667
+          }
+        },
+        "feedback": {
+          "positions": [
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981
+          ],
+          "velocities": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "accelerations": [],
+          "effort": [],
+          "time_from_start": {
+            "sec": 1,
+            "nanosec": 300207250
+          }
+        },
+        "error": {
+          "positions": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "velocities": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "accelerations": [],
+          "effort": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "output": {
+          "positions": [
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981
+          ],
+          "velocities": [],
+          "accelerations": [],
+          "effort": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_joint_names": [],
+        "multi_dof_reference": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_feedback": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_error": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_output": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "speed_scaling_factor": 1.0
+      }
+    },
+    {
+      "received_boottime_ns": "71853499932200",
+      "message": {
+        "header": {
+          "stamp": {
+            "sec": 1789511666,
+            "nanosec": 491164509
+          },
+          "frame_id": ""
+        },
+        "joint_names": [
+          "joint1",
+          "joint2",
+          "joint3",
+          "joint4",
+          "joint5",
+          "joint6"
+        ],
+        "reference": {
+          "positions": [
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981
+          ],
+          "velocities": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "accelerations": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "effort": [],
+          "time_from_start": {
+            "sec": 1,
+            "nanosec": 309795333
+          }
+        },
+        "feedback": {
+          "positions": [
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981
+          ],
+          "velocities": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "accelerations": [],
+          "effort": [],
+          "time_from_start": {
+            "sec": 1,
+            "nanosec": 309794834
+          }
+        },
+        "error": {
+          "positions": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "velocities": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "accelerations": [],
+          "effort": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "output": {
+          "positions": [
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981
+          ],
+          "velocities": [],
+          "accelerations": [],
+          "effort": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_joint_names": [],
+        "multi_dof_reference": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_feedback": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_error": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_output": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "speed_scaling_factor": 1.0
+      }
+    },
+    {
+      "received_boottime_ns": "71853512159616",
+      "message": {
+        "header": {
+          "stamp": {
+            "sec": 1789511666,
+            "nanosec": 503373092
+          },
+          "frame_id": ""
+        },
+        "joint_names": [
+          "joint1",
+          "joint2",
+          "joint3",
+          "joint4",
+          "joint5",
+          "joint6"
+        ],
+        "reference": {
+          "positions": [
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981
+          ],
+          "velocities": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "accelerations": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "effort": [],
+          "time_from_start": {
+            "sec": 1,
+            "nanosec": 322003875
+          }
+        },
+        "feedback": {
+          "positions": [
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981
+          ],
+          "velocities": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "accelerations": [],
+          "effort": [],
+          "time_from_start": {
+            "sec": 1,
+            "nanosec": 322003417
+          }
+        },
+        "error": {
+          "positions": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "velocities": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "accelerations": [],
+          "effort": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "output": {
+          "positions": [
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981
+          ],
+          "velocities": [],
+          "accelerations": [],
+          "effort": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_joint_names": [],
+        "multi_dof_reference": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_feedback": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_error": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_output": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "speed_scaling_factor": 1.0
+      }
+    },
+    {
+      "received_boottime_ns": "71853519953991",
+      "message": {
+        "header": {
+          "stamp": {
+            "sec": 1789511666,
+            "nanosec": 511170009
+          },
+          "frame_id": ""
+        },
+        "joint_names": [
+          "joint1",
+          "joint2",
+          "joint3",
+          "joint4",
+          "joint5",
+          "joint6"
+        ],
+        "reference": {
+          "positions": [
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981
+          ],
+          "velocities": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "accelerations": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "effort": [],
+          "time_from_start": {
+            "sec": 1,
+            "nanosec": 329800875
+          }
+        },
+        "feedback": {
+          "positions": [
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981
+          ],
+          "velocities": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "accelerations": [],
+          "effort": [],
+          "time_from_start": {
+            "sec": 1,
+            "nanosec": 329800334
+          }
+        },
+        "error": {
+          "positions": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "velocities": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "accelerations": [],
+          "effort": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "output": {
+          "positions": [
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981
+          ],
+          "velocities": [],
+          "accelerations": [],
+          "effort": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_joint_names": [],
+        "multi_dof_reference": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_feedback": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_error": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_output": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "speed_scaling_factor": 1.0
+      }
+    },
+    {
+      "received_boottime_ns": "71853530311825",
+      "message": {
+        "header": {
+          "stamp": {
+            "sec": 1789511666,
+            "nanosec": 521521551
+          },
+          "frame_id": ""
+        },
+        "joint_names": [
+          "joint1",
+          "joint2",
+          "joint3",
+          "joint4",
+          "joint5",
+          "joint6"
+        ],
+        "reference": {
+          "positions": [
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981
+          ],
+          "velocities": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "accelerations": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "effort": [],
+          "time_from_start": {
+            "sec": 1,
+            "nanosec": 340152250
+          }
+        },
+        "feedback": {
+          "positions": [
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981
+          ],
+          "velocities": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "accelerations": [],
+          "effort": [],
+          "time_from_start": {
+            "sec": 1,
+            "nanosec": 340151876
+          }
+        },
+        "error": {
+          "positions": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "velocities": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "accelerations": [],
+          "effort": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "output": {
+          "positions": [
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981
+          ],
+          "velocities": [],
+          "accelerations": [],
+          "effort": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_joint_names": [],
+        "multi_dof_reference": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_feedback": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_error": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_output": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "speed_scaling_factor": 1.0
+      }
+    },
+    {
+      "received_boottime_ns": "71853540284533",
+      "message": {
+        "header": {
+          "stamp": {
+            "sec": 1789511666,
+            "nanosec": 531519967
+          },
+          "frame_id": ""
+        },
+        "joint_names": [
+          "joint1",
+          "joint2",
+          "joint3",
+          "joint4",
+          "joint5",
+          "joint6"
+        ],
+        "reference": {
+          "positions": [
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981
+          ],
+          "velocities": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "accelerations": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "effort": [],
+          "time_from_start": {
+            "sec": 1,
+            "nanosec": 350150834
+          }
+        },
+        "feedback": {
+          "positions": [
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981
+          ],
+          "velocities": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "accelerations": [],
+          "effort": [],
+          "time_from_start": {
+            "sec": 1,
+            "nanosec": 350150292
+          }
+        },
+        "error": {
+          "positions": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "velocities": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "accelerations": [],
+          "effort": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "output": {
+          "positions": [
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981
+          ],
+          "velocities": [],
+          "accelerations": [],
+          "effort": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_joint_names": [],
+        "multi_dof_reference": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_feedback": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_error": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_output": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "speed_scaling_factor": 1.0
+      }
+    },
+    {
+      "received_boottime_ns": "71853550179617",
+      "message": {
+        "header": {
+          "stamp": {
+            "sec": 1789511666,
+            "nanosec": 541388051
+          },
+          "frame_id": ""
+        },
+        "joint_names": [
+          "joint1",
+          "joint2",
+          "joint3",
+          "joint4",
+          "joint5",
+          "joint6"
+        ],
+        "reference": {
+          "positions": [
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981
+          ],
+          "velocities": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "accelerations": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "effort": [],
+          "time_from_start": {
+            "sec": 1,
+            "nanosec": 360018875
+          }
+        },
+        "feedback": {
+          "positions": [
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981
+          ],
+          "velocities": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "accelerations": [],
+          "effort": [],
+          "time_from_start": {
+            "sec": 1,
+            "nanosec": 360018376
+          }
+        },
+        "error": {
+          "positions": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "velocities": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "accelerations": [],
+          "effort": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "output": {
+          "positions": [
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981
+          ],
+          "velocities": [],
+          "accelerations": [],
+          "effort": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_joint_names": [],
+        "multi_dof_reference": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_feedback": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_error": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_output": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "speed_scaling_factor": 1.0
+      }
+    },
+    {
+      "received_boottime_ns": "71853561079742",
+      "message": {
+        "header": {
+          "stamp": {
+            "sec": 1789511666,
+            "nanosec": 552198092
+          },
+          "frame_id": ""
+        },
+        "joint_names": [
+          "joint1",
+          "joint2",
+          "joint3",
+          "joint4",
+          "joint5",
+          "joint6"
+        ],
+        "reference": {
+          "positions": [
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981
+          ],
+          "velocities": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "accelerations": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "effort": [],
+          "time_from_start": {
+            "sec": 1,
+            "nanosec": 370828834
+          }
+        },
+        "feedback": {
+          "positions": [
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981
+          ],
+          "velocities": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "accelerations": [],
+          "effort": [],
+          "time_from_start": {
+            "sec": 1,
+            "nanosec": 370828417
+          }
+        },
+        "error": {
+          "positions": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "velocities": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "accelerations": [],
+          "effort": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "output": {
+          "positions": [
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981
+          ],
+          "velocities": [],
+          "accelerations": [],
+          "effort": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_joint_names": [],
+        "multi_dof_reference": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_feedback": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_error": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_output": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "speed_scaling_factor": 1.0
+      }
+    },
+    {
+      "received_boottime_ns": "71853571234075",
+      "message": {
+        "header": {
+          "stamp": {
+            "sec": 1789511666,
+            "nanosec": 562437259
+          },
+          "frame_id": ""
+        },
+        "joint_names": [
+          "joint1",
+          "joint2",
+          "joint3",
+          "joint4",
+          "joint5",
+          "joint6"
+        ],
+        "reference": {
+          "positions": [
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981
+          ],
+          "velocities": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "accelerations": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "effort": [],
+          "time_from_start": {
+            "sec": 1,
+            "nanosec": 381068000
+          }
+        },
+        "feedback": {
+          "positions": [
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981
+          ],
+          "velocities": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "accelerations": [],
+          "effort": [],
+          "time_from_start": {
+            "sec": 1,
+            "nanosec": 381067584
+          }
+        },
+        "error": {
+          "positions": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "velocities": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "accelerations": [],
+          "effort": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "output": {
+          "positions": [
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981
+          ],
+          "velocities": [],
+          "accelerations": [],
+          "effort": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_joint_names": [],
+        "multi_dof_reference": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_feedback": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_error": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_output": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "speed_scaling_factor": 1.0
+      }
+    },
+    {
+      "received_boottime_ns": "71853579901825",
+      "message": {
+        "header": {
+          "stamp": {
+            "sec": 1789511666,
+            "nanosec": 571105884
+          },
+          "frame_id": ""
+        },
+        "joint_names": [
+          "joint1",
+          "joint2",
+          "joint3",
+          "joint4",
+          "joint5",
+          "joint6"
+        ],
+        "reference": {
+          "positions": [
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981
+          ],
+          "velocities": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "accelerations": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "effort": [],
+          "time_from_start": {
+            "sec": 1,
+            "nanosec": 389736667
+          }
+        },
+        "feedback": {
+          "positions": [
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981
+          ],
+          "velocities": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "accelerations": [],
+          "effort": [],
+          "time_from_start": {
+            "sec": 1,
+            "nanosec": 389736209
+          }
+        },
+        "error": {
+          "positions": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "velocities": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "accelerations": [],
+          "effort": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "output": {
+          "positions": [
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981
+          ],
+          "velocities": [],
+          "accelerations": [],
+          "effort": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_joint_names": [],
+        "multi_dof_reference": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_feedback": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_error": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_output": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "speed_scaling_factor": 1.0
+      }
+    },
+    {
+      "received_boottime_ns": "71853590443075",
+      "message": {
+        "header": {
+          "stamp": {
+            "sec": 1789511666,
+            "nanosec": 581675342
+          },
+          "frame_id": ""
+        },
+        "joint_names": [
+          "joint1",
+          "joint2",
+          "joint3",
+          "joint4",
+          "joint5",
+          "joint6"
+        ],
+        "reference": {
+          "positions": [
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981
+          ],
+          "velocities": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "accelerations": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "effort": [],
+          "time_from_start": {
+            "sec": 1,
+            "nanosec": 400306042
+          }
+        },
+        "feedback": {
+          "positions": [
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981
+          ],
+          "velocities": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "accelerations": [],
+          "effort": [],
+          "time_from_start": {
+            "sec": 1,
+            "nanosec": 400305667
+          }
+        },
+        "error": {
+          "positions": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "velocities": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "accelerations": [],
+          "effort": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "output": {
+          "positions": [
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981
+          ],
+          "velocities": [],
+          "accelerations": [],
+          "effort": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_joint_names": [],
+        "multi_dof_reference": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_feedback": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_error": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_output": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "speed_scaling_factor": 1.0
+      }
+    },
+    {
+      "received_boottime_ns": "71853602274200",
+      "message": {
+        "header": {
+          "stamp": {
+            "sec": 1789511666,
+            "nanosec": 593427967
+          },
+          "frame_id": ""
+        },
+        "joint_names": [
+          "joint1",
+          "joint2",
+          "joint3",
+          "joint4",
+          "joint5",
+          "joint6"
+        ],
+        "reference": {
+          "positions": [
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981
+          ],
+          "velocities": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "accelerations": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "effort": [],
+          "time_from_start": {
+            "sec": 1,
+            "nanosec": 412058792
+          }
+        },
+        "feedback": {
+          "positions": [
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981
+          ],
+          "velocities": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "accelerations": [],
+          "effort": [],
+          "time_from_start": {
+            "sec": 1,
+            "nanosec": 412058292
+          }
+        },
+        "error": {
+          "positions": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "velocities": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "accelerations": [],
+          "effort": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "output": {
+          "positions": [
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981
+          ],
+          "velocities": [],
+          "accelerations": [],
+          "effort": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_joint_names": [],
+        "multi_dof_reference": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_feedback": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_error": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_output": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "speed_scaling_factor": 1.0
+      }
+    },
+    {
+      "received_boottime_ns": "71853609998825",
+      "message": {
+        "header": {
+          "stamp": {
+            "sec": 1789511666,
+            "nanosec": 601143759
+          },
+          "frame_id": ""
+        },
+        "joint_names": [
+          "joint1",
+          "joint2",
+          "joint3",
+          "joint4",
+          "joint5",
+          "joint6"
+        ],
+        "reference": {
+          "positions": [
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981
+          ],
+          "velocities": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "accelerations": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "effort": [],
+          "time_from_start": {
+            "sec": 1,
+            "nanosec": 419774459
+          }
+        },
+        "feedback": {
+          "positions": [
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981
+          ],
+          "velocities": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "accelerations": [],
+          "effort": [],
+          "time_from_start": {
+            "sec": 1,
+            "nanosec": 419774084
+          }
+        },
+        "error": {
+          "positions": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "velocities": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "accelerations": [],
+          "effort": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "output": {
+          "positions": [
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981
+          ],
+          "velocities": [],
+          "accelerations": [],
+          "effort": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_joint_names": [],
+        "multi_dof_reference": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_feedback": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_error": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_output": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "speed_scaling_factor": 1.0
+      }
+    },
+    {
+      "received_boottime_ns": "71853620068325",
+      "message": {
+        "header": {
+          "stamp": {
+            "sec": 1789511666,
+            "nanosec": 611171217
+          },
+          "frame_id": ""
+        },
+        "joint_names": [
+          "joint1",
+          "joint2",
+          "joint3",
+          "joint4",
+          "joint5",
+          "joint6"
+        ],
+        "reference": {
+          "positions": [
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981
+          ],
+          "velocities": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "accelerations": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "effort": [],
+          "time_from_start": {
+            "sec": 1,
+            "nanosec": 429801959
+          }
+        },
+        "feedback": {
+          "positions": [
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981
+          ],
+          "velocities": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "accelerations": [],
+          "effort": [],
+          "time_from_start": {
+            "sec": 1,
+            "nanosec": 429801542
+          }
+        },
+        "error": {
+          "positions": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "velocities": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "accelerations": [],
+          "effort": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "output": {
+          "positions": [
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981
+          ],
+          "velocities": [],
+          "accelerations": [],
+          "effort": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_joint_names": [],
+        "multi_dof_reference": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_feedback": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_error": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_output": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "speed_scaling_factor": 1.0
+      }
+    },
+    {
+      "received_boottime_ns": "71853631576450",
+      "message": {
+        "header": {
+          "stamp": {
+            "sec": 1789511666,
+            "nanosec": 622698634
+          },
+          "frame_id": ""
+        },
+        "joint_names": [
+          "joint1",
+          "joint2",
+          "joint3",
+          "joint4",
+          "joint5",
+          "joint6"
+        ],
+        "reference": {
+          "positions": [
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981
+          ],
+          "velocities": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "accelerations": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "effort": [],
+          "time_from_start": {
+            "sec": 1,
+            "nanosec": 441329417
+          }
+        },
+        "feedback": {
+          "positions": [
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981
+          ],
+          "velocities": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "accelerations": [],
+          "effort": [],
+          "time_from_start": {
+            "sec": 1,
+            "nanosec": 441328959
+          }
+        },
+        "error": {
+          "positions": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "velocities": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "accelerations": [],
+          "effort": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "output": {
+          "positions": [
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981,
+            0.10246489374999981
+          ],
+          "velocities": [],
+          "accelerations": [],
+          "effort": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_joint_names": [],
+        "multi_dof_reference": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_feedback": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_error": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "multi_dof_output": {
+          "transforms": [],
+          "velocities": [],
+          "accelerations": [],
+          "time_from_start": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "speed_scaling_factor": 1.0
+      }
+    }
+  ],
+  "controller_manager_log": "[INFO] [1789511657.928363713] [rx_test.controller_manager]: Using Steady (Monotonic) clock for triggering controller manager cycles.\n[INFO] [1789511657.930658713] [rx_test.controller_manager]: Subscribing to '/rx_test/robot_description' topic for robot description.\n[INFO] [1789511657.930687421] [rx_test.controller_manager]: update rate is 100 Hz\n[INFO] [1789511657.930690463] [rx_test.controller_manager]: Overruns handling is : enabled\n[INFO] [1789511657.930692546] [rx_test.controller_manager]: Spawning controller_manager RT thread with scheduler priority: 50\n[WARN] [1789511657.930828963] [rx_test.controller_manager]: Could not enable FIFO RT scheduling policy: with error number <1>(Operation not permitted). See [https://control.ros.org/master/doc/ros2_control/controller_manager/doc/userdoc.html] for details on how to enable realtime scheduling.\n[INFO] [1789511658.133700922] [rx_test.controller_manager]: Received robot description from topic.\n[INFO] [1789511658.133736463] [rx_test.controller_manager]: Enforcing command limits is disabled. Command limits from URDF will be ignored.\n[INFO] [1789511658.134991422] [rx_test.controller_manager]: Loading hardware 'N5GenericSystem' \n[INFO] [1789511658.135185338] [rx_test.controller_manager]: Loaded hardware 'N5GenericSystem' from plugin 'mock_components/GenericSystem'\n[INFO] [1789511658.135239797] [rx_test.controller_manager]: Initialize hardware 'N5GenericSystem' \n[INFO] [1789511658.140558713] [rx_test.controller_manager]: Successful initialization of hardware 'N5GenericSystem'\n[INFO] [1789511658.140674172] [rx_test.controller_manager]: Activating component 'N5GenericSystem'.\n[INFO] [1789511658.140917297] [resource_manager]: 'configure' hardware 'N5GenericSystem' \n[INFO] [1789511658.140949213] [resource_manager]: Successful 'configure' of hardware 'N5GenericSystem'\n[INFO] [1789511658.140955713] [resource_manager]: 'activate' hardware 'N5GenericSystem' \n[INFO] [1789511658.140964588] [resource_manager]: Successful 'activate' of hardware 'N5GenericSystem'\n[INFO] [1789511658.141099922] [rx_test.controller_manager]: Registering statistics for : N5GenericSystem\n[INFO] [1789511658.142059297] [rx_test.controller_manager]: Resource Manager has been successfully initialized. Starting Controller Manager services...\n[INFO] [1789511658.743920088] [rx_test.controller_manager]: Loading controller : 'arm_controller' of type 'joint_trajectory_controller/JointTrajectoryController'\n[INFO] [1789511658.743962338] [rx_test.controller_manager]: Loading controller 'arm_controller'\n[INFO] [1789511658.746316755] [rx_test.controller_manager]: Controller 'arm_controller' node arguments: --ros-args --params-file /opt/rx/validation/n5/controllers.yaml \n[INFO] [1789511658.752403172] [rx_test.controller_manager]: Configuring controller: 'arm_controller'\n[INFO] [1789511658.752702463] [rx_test.arm_controller]: No specific joint names are used for command interfaces. Using 'joints' parameter.\n[INFO] [1789511658.752726338] [rx_test.arm_controller]: Command interfaces are [position] and state interfaces are [position velocity].\n[INFO] [1789511658.752740505] [rx_test.arm_controller]: Using 'splines' interpolation method.\n[INFO] [1789511658.756575213] [rx_test.arm_controller]: Action status changes will be monitored at 20.00 Hz.\n[INFO] [1789511658.758567755] [rx_test.arm_controller]: Setting initial scaling factor to 1.000000\n[INFO] [1789511658.758577130] [rx_test.arm_controller]: No scaling interface set. This controller will not read speed scaling from the hardware.\n[INFO] [1789511662.070768215] [rx_test.controller_manager]: Activating controllers: [ arm_controller ]\n[INFO] [1789511662.086975673] [rx_test.controller_manager]: Activated controllers: [ arm_controller ]\n[INFO] [1789511662.087011215] [rx_test.controller_manager]: Successfully switched controllers!\n[INFO] [1789511665.016960383] [rx_test.arm_controller]: Received new action goal\n[INFO] [1789511665.017063050] [rx_test.arm_controller]: Accepted new action goal\n[INFO] [1789511665.111466800] [rx_test.arm_controller]: Goal reached, success!\n[INFO] [1789511665.118269300] [rx_test.arm_controller]: Received new action goal\n[INFO] [1789511665.118312883] [rx_test.arm_controller]: Accepted new action goal\n[INFO] [1789511665.179665258] [rx_test.arm_controller]: Got request to cancel goal\n[INFO] [1789511665.179698342] [rx_test.arm_controller]: Canceling active action goal because cancel callback received.\n[INFO] [1789511666.611875259] [rx_test.controller_manager]: Deactivating controllers: [ arm_controller ]\n[INFO] [1789511666.622885009] [rx_test.controller_manager]: Deactivated controllers: [ arm_controller ]\n[INFO] [1789511666.622907009] [rx_test.controller_manager]: Successfully switched controllers!\n[INFO] [1789511666.878215759] [rclcpp]: signal_handler(SIGINT/SIGTERM)\n[INFO] [1789511666.878307467] [rx_test.controller_manager]: Shutdown request received....\n[INFO] [1789511666.878355009] [rx_test.controller_manager]: Shutting down all controllers in the controller manager.\n[INFO] [1789511666.878369884] [rx_test.controller_manager]: Shutting down controller 'arm_controller'\n[INFO] [1789511666.878509176] [resource_manager]: 'deactivate' hardware 'N5GenericSystem' \n[INFO] [1789511666.878532801] [resource_manager]: Successful 'deactivate' of hardware 'N5GenericSystem'\n[INFO] [1789511666.878541842] [resource_manager]: 'shutdown' hardware 'N5GenericSystem' \n[INFO] [1789511666.878544009] [resource_manager]: Successful 'shutdown' of hardware 'N5GenericSystem'\n[INFO] [1789511666.878566426] [rx_test.controller_manager]: Shutting down the controller manager.\n[ERROR] [1789511666.878735801] [rx_test.controller_manager.pal_statistics]: Exception in publisher thread: context cannot be slept with because it's invalid!. Aborting!\n[ERROR] [1789511666.878741217] [rx_test.controller_manager.pal_statistics]: Exception in publisher thread: context cannot be slept with because it's invalid!. Aborting!\n[INFO] [1789511666.881643009] [rx_test.controller_manager.pal_statistics]: Async messages lost 0\n[INFO] [1789511666.881649217] [rx_test.controller_manager.pal_statistics]: publish_async_failures_ 0\n[INFO] [1789511666.882252092] [rx_test.controller_manager.pal_statistics]: Async messages lost 0\n[INFO] [1789511666.882256217] [rx_test.controller_manager.pal_statistics]: publish_async_failures_ 0\n",
+  "bridge_logs": {
+    "restarted.stderr": "",
+    "first.stderr": ""
+  },
+  "packages_tsv": "adduser\t3.137ubuntu1\tall\napt\t2.8.3\tarm64\nbase-files\t13ubuntu10.4\tarm64\nbase-passwd\t3.6.3build1\tarm64\nbash\t5.2.21-2ubuntu4\tarm64\nbinutils\t2.42-4ubuntu2.10\tarm64\nbinutils-aarch64-linux-gnu\t2.42-4ubuntu2.10\tarm64\nbinutils-common\t2.42-4ubuntu2.10\tarm64\nbsdutils\t1:2.39.3-9ubuntu6.6\tarm64\nbuild-essential\t12.10ubuntu1\tarm64\nbzip2\t1.0.8-5.1ubuntu0.1\tarm64\nca-certificates\t20260601~24.04.1\tall\ncatch2\t3.4.0-1build1\tarm64\ncmake\t3.28.3-1build7\tarm64\ncmake-data\t3.28.3-1build7\tall\ncomerr-dev\t2.1-1.47.0-2.4~exp1ubuntu4.1\tarm64\ncoreutils\t9.4-3ubuntu6.3\tarm64\ncpp\t4:13.2.0-7ubuntu1\tarm64\ncpp-13\t13.3.0-6ubuntu2~24.04.1\tarm64\ncpp-13-aarch64-linux-gnu\t13.3.0-6ubuntu2~24.04.1\tarm64\ncpp-aarch64-linux-gnu\t4:13.2.0-7ubuntu1\tarm64\ncppcheck\t2.13.0-2ubuntu3\tarm64\ncurl\t8.5.0-2ubuntu10.13\tarm64\ndash\t0.5.12-6ubuntu5\tarm64\ndebconf\t1.5.86ubuntu1\tall\ndebianutils\t5.17build1\tarm64\ndiffutils\t1:3.10-1ubuntu0.1\tarm64\ndirmngr\t2.4.4-2ubuntu17.6\tarm64\ndocutils-common\t0.20.1+dfsg-3\tall\ndpkg\t1.22.6ubuntu6.6\tarm64\ndpkg-dev\t1.22.6ubuntu6.6\tall\ne2fsprogs\t1.47.0-2.4~exp1ubuntu4.1\tarm64\nfindutils\t4.9.0-5build1\tarm64\nfontconfig\t2.15.0-1.1ubuntu2\tarm64\nfontconfig-config\t2.15.0-1.1ubuntu2\tarm64\nfonts-dejavu-core\t2.37-8\tall\nfonts-dejavu-mono\t2.37-8\tall\ng++\t4:13.2.0-7ubuntu1\tarm64\ng++-13\t13.3.0-6ubuntu2~24.04.1\tarm64\ng++-13-aarch64-linux-gnu\t13.3.0-6ubuntu2~24.04.1\tarm64\ng++-aarch64-linux-gnu\t4:13.2.0-7ubuntu1\tarm64\ngcc\t4:13.2.0-7ubuntu1\tarm64\ngcc-13\t13.3.0-6ubuntu2~24.04.1\tarm64\ngcc-13-aarch64-linux-gnu\t13.3.0-6ubuntu2~24.04.1\tarm64\ngcc-13-base\t13.3.0-6ubuntu2~24.04.1\tarm64\ngcc-14-base\t14.2.0-4ubuntu2~24.04.1\tarm64\ngcc-aarch64-linux-gnu\t4:13.2.0-7ubuntu1\tarm64\ngit\t1:2.43.0-1ubuntu7.3\tarm64\ngit-man\t1:2.43.0-1ubuntu7.3\tall\ngnupg\t2.4.4-2ubuntu17.6\tall\ngnupg-utils\t2.4.4-2ubuntu17.6\tarm64\ngnupg2\t2.4.4-2ubuntu17.6\tall\ngoogle-mock\t1.14.0-1\tarm64\ngoogletest\t1.14.0-1\tall\ngpg\t2.4.4-2ubuntu17.6\tarm64\ngpg-agent\t2.4.4-2ubuntu17.6\tarm64\ngpgconf\t2.4.4-2ubuntu17.6\tarm64\ngpgsm\t2.4.4-2ubuntu17.6\tarm64\ngpgv\t2.4.4-2ubuntu17.6\tarm64\ngraphviz\t2.42.2-9ubuntu0.1\tarm64\ngrep\t3.11-4build1\tarm64\ngzip\t1.12-1ubuntu3.2\tarm64\nhostname\t3.23+nmu2ubuntu2\tarm64\nicu-devtools\t74.2-1ubuntu3.1\tarm64\ninit-system-helpers\t1.66ubuntu1\tall\nkeyboxd\t2.4.4-2ubuntu17.6\tarm64\nkrb5-multidev\t1.20.1-6ubuntu2.8\tarm64\nlibacl1\t2.3.2-1build1.1\tarm64\nlibann0\t1.1.2+doc-9build1\tarm64\nlibaom3\t3.8.2-2ubuntu0.1\tarm64\nlibapparmor1\t4.0.1really4.0.1-0ubuntu0.24.04.7\tarm64\nlibapt-pkg6.0t64\t2.8.3\tarm64\nlibarchive13t64\t3.7.2-2ubuntu0.8\tarm64\nlibasan8\t14.2.0-4ubuntu2~24.04.1\tarm64\nlibassuan0\t2.5.6-1build1\tarm64\nlibatomic1\t14.2.0-4ubuntu2~24.04.1\tarm64\nlibattr1\t1:2.5.2-1ubuntu0.1\tarm64\nlibaudit-common\t1:3.1.2-2.1build1.1\tall\nlibaudit1\t1:3.1.2-2.1build1.1\tarm64\nlibbinutils\t2.42-4ubuntu2.10\tarm64\nlibblas3\t3.12.0-3build1.1\tarm64\nlibblkid1\t2.39.3-9ubuntu6.6\tarm64\nlibboost-dev\t1.83.0.1ubuntu2\tarm64\nlibboost1.83-dev\t1.83.0-2.1ubuntu3.2\tarm64\nlibbrotli1\t1.1.0-2build2\tarm64\nlibbsd-dev\t0.12.1-1build1.1\tarm64\nlibbsd0\t0.12.1-1build1.1\tarm64\nlibbullet-dev\t3.24+dfsg-2.1build1\tarm64\nlibbullet3.24t64\t3.24+dfsg-2.1build1\tarm64\nlibbz2-1.0\t1.0.8-5.1ubuntu0.1\tarm64\nlibc-bin\t2.39-0ubuntu8.8\tarm64\nlibc-dev-bin\t2.39-0ubuntu8.8\tarm64\nlibc6\t2.39-0ubuntu8.8\tarm64\nlibc6-dev\t2.39-0ubuntu8.8\tarm64\nlibcairo2\t1.18.0-3build1\tarm64\nlibcap-dev\t1:2.66-5ubuntu2.4\tarm64\nlibcap-ng0\t0.8.4-2build2\tarm64\nlibcap2\t1:2.66-5ubuntu2.4\tarm64\nlibcc1-0\t14.2.0-4ubuntu2~24.04.1\tarm64\nlibcdt5\t2.42.2-9ubuntu0.1\tarm64\nlibcgraph6\t2.42.2-9ubuntu0.1\tarm64\nlibcom-err2\t1.47.0-2.4~exp1ubuntu4.1\tarm64\nlibconsole-bridge-dev\t1.0.1+dfsg2-3build1\tarm64\nlibconsole-bridge1.0\t1.0.1+dfsg2-3build1\tarm64\nlibcrypt-dev\t1:4.4.36-4build1\tarm64\nlibcrypt1\t1:4.4.36-4build1\tarm64\nlibctf-nobfd0\t2.42-4ubuntu2.10\tarm64\nlibctf0\t2.42-4ubuntu2.10\tarm64\nlibcurl3t64-gnutls\t8.5.0-2ubuntu10.13\tarm64\nlibcurl4t64\t8.5.0-2ubuntu10.13\tarm64\nlibdatrie1\t0.2.13-3build1\tarm64\nlibdb5.3t64\t5.3.28+dfsg2-7\tarm64\nlibdbus-1-3\t1.14.10-4ubuntu4.1\tarm64\nlibdebconfclient0\t0.271ubuntu3\tarm64\nlibdeflate0\t1.19-1build1.1\tarm64\nlibdpkg-perl\t1.22.6ubuntu6.6\tall\nlibdw-dev\t0.190-1.1ubuntu0.1\tarm64\nlibdw1t64\t0.190-1.1ubuntu0.1\tarm64\nlibedit2\t3.1-20230828-1build1\tarm64\nlibeigen3-dev\t3.4.0-4build0.1\tall\nlibelf-dev\t0.190-1.1ubuntu0.1\tarm64\nlibelf1t64\t0.190-1.1ubuntu0.1\tarm64\nliberror-perl\t0.17029-2\tall\nlibexpat1\t2.6.1-2ubuntu0.4\tarm64\nlibexpat1-dev\t2.6.1-2ubuntu0.4\tarm64\nlibexpected-dev\t1.1.0-2\tall\nlibext2fs2t64\t1.47.0-2.4~exp1ubuntu4.1\tarm64\nlibffi8\t3.4.6-1build1\tarm64\nlibfmt-dev\t9.1.0+ds1-2\tarm64\nlibfmt9\t9.1.0+ds1-2\tarm64\nlibfontconfig1\t2.15.0-1.1ubuntu2\tarm64\nlibfreetype6\t2.13.2+dfsg-1ubuntu0.1\tarm64\nlibfribidi0\t1.0.13-3build1\tarm64\nlibgcc-13-dev\t13.3.0-6ubuntu2~24.04.1\tarm64\nlibgcc-s1\t14.2.0-4ubuntu2~24.04.1\tarm64\nlibgcrypt20\t1.10.3-2ubuntu0.2\tarm64\nlibgd3\t2.3.3-9ubuntu5\tarm64\nlibgdbm-compat4t64\t1.23-5.1build1\tarm64\nlibgdbm6t64\t1.23-5.1build1\tarm64\nlibgfortran5\t14.2.0-4ubuntu2~24.04.1\tarm64\nlibglib2.0-0t64\t2.80.0-6ubuntu3.8\tarm64\nlibgmp10\t2:6.3.0+dfsg-2ubuntu6.1\tarm64\nlibgnutls30t64\t3.8.3-1.1ubuntu3.6\tarm64\nlibgomp1\t14.2.0-4ubuntu2~24.04.1\tarm64\nlibgpg-error0\t1.47-3build2.1\tarm64\nlibgprofng0\t2.42-4ubuntu2.10\tarm64\nlibgraphite2-3\t1.3.14-2ubuntu0.24.04.1\tarm64\nlibgssapi-krb5-2\t1.20.1-6ubuntu2.8\tarm64\nlibgssrpc4t64\t1.20.1-6ubuntu2.8\tarm64\nlibgtest-dev\t1.14.0-1\tarm64\nlibgts-0.7-5t64\t0.7.6+darcs121130-5.2build1\tarm64\nlibgvc6\t2.42.2-9ubuntu0.1\tarm64\nlibgvpr2\t2.42.2-9ubuntu0.1\tarm64\nlibharfbuzz0b\t8.3.0-2build2\tarm64\nlibheif-plugin-aomdec\t1.17.6-1ubuntu4.8\tarm64\nlibheif1\t1.17.6-1ubuntu4.8\tarm64\nlibhogweed6t64\t3.9.1-2.2build1.1\tarm64\nlibhwasan0\t14.2.0-4ubuntu2~24.04.1\tarm64\nlibice6\t2:1.0.10-1build3\tarm64\nlibicu-dev\t74.2-1ubuntu3.1\tarm64\nlibicu74\t74.2-1ubuntu3.1\tarm64\nlibidn2-0\t2.3.7-2build1.1\tarm64\nlibisl23\t0.26-3build1.1\tarm64\nlibitm1\t14.2.0-4ubuntu2~24.04.1\tarm64\nlibjansson4\t2.14-2build2\tarm64\nlibjbig0\t2.1-6.1ubuntu2\tarm64\nlibjpeg-turbo8\t2.1.5-2ubuntu2\tarm64\nlibjpeg8\t8c-2ubuntu11\tarm64\nlibjs-jquery\t3.6.1+dfsg+~3.5.14-1\tall\nlibjs-sphinxdoc\t7.2.6-6\tall\nlibjs-underscore\t1.13.4~dfsg+~1.11.4-3\tall\nlibjsoncpp25\t1.9.5-6build1\tarm64\nlibk5crypto3\t1.20.1-6ubuntu2.8\tarm64\nlibkadm5clnt-mit12\t1.20.1-6ubuntu2.8\tarm64\nlibkadm5srv-mit12\t1.20.1-6ubuntu2.8\tarm64\nlibkdb5-10t64\t1.20.1-6ubuntu2.8\tarm64\nlibkeyutils1\t1.6.3-3build1\tarm64\nlibkmod2\t31+20240202-2ubuntu7.2\tarm64\nlibkrb5-3\t1.20.1-6ubuntu2.8\tarm64\nlibkrb5-dev\t1.20.1-6ubuntu2.8\tarm64\nlibkrb5support0\t1.20.1-6ubuntu2.8\tarm64\nlibksba8\t1.6.6-1build1\tarm64\nliblab-gamut1\t2.42.2-9ubuntu0.1\tarm64\nliblapack3\t3.12.0-3build1.1\tarm64\nlibldap2\t2.6.10+dfsg-0ubuntu0.24.04.1\tarm64\nliblerc4\t4.0.0+ds-4ubuntu2\tarm64\nliblsan0\t14.2.0-4ubuntu2~24.04.1\tarm64\nlibltdl7\t2.4.7-7build1\tarm64\nliblttng-ctl0t64\t2.13.11-2.1build4\tarm64\nliblttng-ust-common1t64\t2.13.7-1.1ubuntu2\tarm64\nliblttng-ust-ctl5t64\t2.13.7-1.1ubuntu2\tarm64\nliblttng-ust-dev\t2.13.7-1.1ubuntu2\tarm64\nliblttng-ust-python-agent1t64\t2.13.7-1.1ubuntu2\tarm64\nliblttng-ust1t64\t2.13.7-1.1ubuntu2\tarm64\nliblz4-1\t1.9.4-1build1.1\tarm64\nliblz4-dev\t1.9.4-1build1.1\tarm64\nliblzma-dev\t5.6.1+really5.4.5-1ubuntu0.3\tarm64\nliblzma5\t5.6.1+really5.4.5-1ubuntu0.3\tarm64\nlibmd-dev\t1.1.0-2build1.1\tarm64\nlibmd0\t1.1.0-2build1.1\tarm64\nlibmount1\t2.39.3-9ubuntu6.6\tarm64\nlibmpc3\t1.3.1-1build1.1\tarm64\nlibmpfr6\t4.2.1-1build1.1\tarm64\nlibncurses6\t6.4+20240113-1ubuntu2.2\tarm64\nlibncursesw6\t6.4+20240113-1ubuntu2.2\tarm64\nlibnettle8t64\t3.9.1-2.2build1.1\tarm64\nlibnghttp2-14\t1.59.0-1ubuntu0.4\tarm64\nlibnorm-dev\t1.5.9+dfsg-3.1build1\tarm64\nlibnorm1t64\t1.5.9+dfsg-3.1build1\tarm64\nlibnpth0t64\t1.6-3.1build1\tarm64\nlibnuma1\t2.0.18-1ubuntu0.24.04.1\tarm64\nliborocos-kdl-dev\t1.5.1-4build1\tarm64\nliborocos-kdl1.5\t1.5.1-4build1\tarm64\nlibp11-kit0\t0.25.3-4ubuntu2.2\tarm64\nlibpam-modules\t1.5.3-5ubuntu5.7\tarm64\nlibpam-modules-bin\t1.5.3-5ubuntu5.7\tarm64\nlibpam-runtime\t1.5.3-5ubuntu5.7\tall\nlibpam0g\t1.5.3-5ubuntu5.7\tarm64\nlibpango-1.0-0\t1.52.1+ds-1build1\tarm64\nlibpangocairo-1.0-0\t1.52.1+ds-1build1\tarm64\nlibpangoft2-1.0-0\t1.52.1+ds-1build1\tarm64\nlibpathplan4\t2.42.2-9ubuntu0.1\tarm64\nlibpcre2-8-0\t10.42-4ubuntu2.1\tarm64\nlibperl5.38t64\t5.38.2-3.2ubuntu0.4\tarm64\nlibpgm-5.3-0t64\t5.3.128~dfsg-2.1build1\tarm64\nlibpgm-dev\t5.3.128~dfsg-2.1build1\tarm64\nlibpixman-1-0\t0.42.2-1build1\tarm64\nlibpkgconf3\t1.8.1-2build1\tarm64\nlibpng16-16t64\t1.6.43-5ubuntu0.6\tarm64\nlibpopt0\t1.19+dfsg-1build1\tarm64\nlibproc2-0\t2:4.0.4-4ubuntu3.3\tarm64\nlibpsl5t64\t0.21.2-1.1build1\tarm64\nlibpython3-dev\t3.12.3-0ubuntu2.1\tarm64\nlibpython3-stdlib\t3.12.3-0ubuntu2.1\tarm64\nlibpython3.12-dev\t3.12.3-1ubuntu0.16\tarm64\nlibpython3.12-minimal\t3.12.3-1ubuntu0.16\tarm64\nlibpython3.12-stdlib\t3.12.3-1ubuntu0.16\tarm64\nlibpython3.12t64\t3.12.3-1ubuntu0.16\tarm64\nlibreadline8t64\t8.2-4build1\tarm64\nlibrhash0\t1.4.3-3build1\tarm64\nlibrtmp1\t2.4+20151223.gitfa8646d.1-2build7\tarm64\nlibruby\t1:3.2~ubuntu1\tarm64\nlibruby3.2\t3.2.3-1ubuntu0.24.04.8\tarm64\nlibsasl2-2\t2.1.28+dfsg1-5ubuntu3.1\tarm64\nlibsasl2-modules-db\t2.1.28+dfsg1-5ubuntu3.1\tarm64\nlibseccomp2\t2.5.5-1ubuntu3.1\tarm64\nlibselinux1\t3.5-2ubuntu2.1\tarm64\nlibsemanage-common\t3.5-1build5\tall\nlibsemanage2\t3.5-1build5\tarm64\nlibsepol2\t3.5-2build1\tarm64\nlibsframe1\t2.42-4ubuntu2.10\tarm64\nlibsharpyuv0\t1.3.2-0.4build3\tarm64\nlibsm6\t2:1.2.3-1build3\tarm64\nlibsmartcols1\t2.39.3-9ubuntu6.6\tarm64\nlibsodium-dev\t1.0.18-1ubuntu0.24.04.1\tarm64\nlibsodium23\t1.0.18-1ubuntu0.24.04.1\tarm64\nlibspdlog-dev\t1:1.12.0+ds-2build1\tarm64\nlibspdlog1.12\t1:1.12.0+ds-2build1\tarm64\nlibsqlite3-0\t3.45.1-1ubuntu2.7\tarm64\nlibsqlite3-dev\t3.45.1-1ubuntu2.7\tarm64\nlibss2\t1.47.0-2.4~exp1ubuntu4.1\tarm64\nlibssh-4\t0.10.6-2ubuntu0.5\tarm64\nlibssl-dev\t3.0.13-0ubuntu3.15\tarm64\nlibssl3t64\t3.0.13-0ubuntu3.15\tarm64\nlibstdc++-13-dev\t13.3.0-6ubuntu2~24.04.1\tarm64\nlibstdc++6\t14.2.0-4ubuntu2~24.04.1\tarm64\nlibsystemd0\t255.4-1ubuntu8.17\tarm64\nlibtasn1-6\t4.19.0-3ubuntu0.24.04.2\tarm64\nlibthai-data\t0.1.29-2build1\tall\nlibthai0\t0.1.29-2build1\tarm64\nlibtiff6\t4.5.1+git230720-4ubuntu2.5\tarm64\nlibtinfo6\t6.4+20240113-1ubuntu2.2\tarm64\nlibtinyxml2-10\t10.0.0+dfsg-2\tarm64\nlibtinyxml2-dev\t10.0.0+dfsg-2\tarm64\nlibtsan2\t14.2.0-4ubuntu2~24.04.1\tarm64\nlibubsan1\t14.2.0-4ubuntu2~24.04.1\tarm64\nlibudev1\t255.4-1ubuntu8.17\tarm64\nlibunistring5\t1.1-2build1.1\tarm64\nliburcu-dev\t0.14.0-3.1build1\tarm64\nliburcu8t64\t0.14.0-3.1build1\tarm64\nliburdfdom-headers-dev\t1.0.5-3\tall\nlibuuid1\t2.39.3-9ubuntu6.6\tarm64\nlibuv1t64\t1.48.0-1.1build1\tarm64\nlibwebp7\t1.3.2-0.4build3\tarm64\nlibx11-6\t2:1.8.7-1build1\tarm64\nlibx11-data\t2:1.8.7-1build1\tall\nlibxau6\t1:1.0.9-1build6\tarm64\nlibxaw7\t2:1.0.14-1build2\tarm64\nlibxcb-render0\t1.15-1ubuntu2\tarm64\nlibxcb-shm0\t1.15-1ubuntu2\tarm64\nlibxcb1\t1.15-1ubuntu2\tarm64\nlibxdmcp6\t1:1.1.3-0ubuntu6\tarm64\nlibxext6\t2:1.3.4-1build2\tarm64\nlibxml2\t2.9.14+dfsg-1.3ubuntu3.8\tarm64\nlibxml2-dev\t2.9.14+dfsg-1.3ubuntu3.8\tarm64\nlibxml2-utils\t2.9.14+dfsg-1.3ubuntu3.8\tarm64\nlibxmu6\t2:1.1.3-3build2\tarm64\nlibxpm4\t1:3.5.17-1ubuntu0.24.04.1\tarm64\nlibxrender1\t1:0.9.10-1.1build1\tarm64\nlibxslt1.1\t1.1.39-0exp1ubuntu0.24.04.3\tarm64\nlibxt6t64\t1:1.2.1-1.2build1\tarm64\nlibxxhash0\t0.8.2-2build1\tarm64\nlibyaml-0-2\t0.2.5-1build1\tarm64\nlibyaml-cpp-dev\t0.8.0+dfsg-6build1\tarm64\nlibyaml-cpp0.8\t0.8.0+dfsg-6build1\tarm64\nlibyaml-dev\t0.2.5-1build1\tarm64\nlibzmq3-dev\t4.3.5-1build2\tarm64\nlibzmq5\t4.3.5-1build2\tarm64\nlibzstd-dev\t1.5.5+dfsg2-2build1.1\tarm64\nlibzstd1\t1.5.5+dfsg2-2build1.1\tarm64\nlinux-libc-dev\t6.8.0-139.139\tarm64\nlogin\t1:4.13+dfsg1-4ubuntu3.2\tarm64\nlogsave\t1.47.0-2.4~exp1ubuntu4.1\tarm64\nlsb-release\t12.0-2\tall\nlto-disabled-list\t47\tall\nlttng-tools\t2.13.11-2.1build4\tarm64\nmake\t4.3-4.1build2\tarm64\nmawk\t1.3.4.20240123-1build1\tarm64\nmedia-types\t10.1.0\tall\nmount\t2.39.3-9ubuntu6.6\tarm64\nncurses-base\t6.4+20240113-1ubuntu2.2\tall\nncurses-bin\t6.4+20240113-1ubuntu2.2\tarm64\nnetbase\t6.4\tall\nninja-build\t1.11.1-2\tarm64\nnlohmann-json3-dev\t3.11.3-1\tall\nopenssl\t3.0.13-0ubuntu3.15\tarm64\npasswd\t1:4.13+dfsg1-4ubuntu3.2\tarm64\npatch\t2.7.6-7build3\tarm64\nperl\t5.38.2-3.2ubuntu0.4\tarm64\nperl-base\t5.38.2-3.2ubuntu0.4\tarm64\nperl-modules-5.38\t5.38.2-3.2ubuntu0.4\tall\npinentry-curses\t1.2.1-3ubuntu5\tarm64\npkg-config\t1.8.1-2build1\tarm64\npkgconf\t1.8.1-2build1\tarm64\npkgconf-bin\t1.8.1-2build1\tarm64\nprocps\t2:4.0.4-4ubuntu3.3\tarm64\npybind11-dev\t2.11.1-2\tall\npydocstyle\t6.3.0-1.1\tall\npython3\t3.12.3-0ubuntu2.1\tarm64\npython3-argcomplete\t3.1.4-1ubuntu0.1\tall\npython3-catkin-pkg-modules\t1.1.0-2\tall\npython3-cffi-backend\t1.16.0-2build1\tarm64\npython3-colcon-argcomplete\t0.3.3+upstream-1\tall\npython3-colcon-bash\t0.5.0-100\tall\npython3-colcon-cd\t0.2.1-100\tall\npython3-colcon-cmake\t0.2.30+upstream-1\tall\npython3-colcon-common-extensions\t0.3.0-100\tall\npython3-colcon-core\t0.21.1+upstream-1\tall\npython3-colcon-defaults\t0.2.9+upstream-1\tall\npython3-colcon-devtools\t0.3.0-100\tall\npython3-colcon-library-path\t0.2.1-100\tall\npython3-colcon-metadata\t0.2.5-100\tall\npython3-colcon-mixin\t0.3.0+upstream-1\tall\npython3-colcon-notification\t0.3.1+upstream-1\tall\npython3-colcon-output\t0.2.14+upstream-1\tall\npython3-colcon-package-information\t0.4.1+upstream-1\tall\npython3-colcon-package-selection\t0.2.10-100\tall\npython3-colcon-parallel-executor\t0.3.0-100\tall\npython3-colcon-pkg-config\t0.1.0-100\tall\npython3-colcon-powershell\t0.5.0+upstream-1\tall\npython3-colcon-python-setup-py\t0.2.9-100\tall\npython3-colcon-recursive-crawl\t0.2.3-100\tall\npython3-colcon-ros\t0.5.0+upstream-1\tall\npython3-colcon-test-result\t0.3.8-100\tall\npython3-colcon-zsh\t0.5.0-100\tall\npython3-cryptography\t41.0.7-4ubuntu0.4\tarm64\npython3-dateutil\t2.8.2-3ubuntu1\tall\npython3-dbus\t1.3.2-5build3\tarm64\npython3-dev\t3.12.3-0ubuntu2.1\tarm64\npython3-distlib\t0.3.8-1\tall\npython3-distro\t1.9.0-1\tall\npython3-docutils\t0.20.1+dfsg-3\tall\npython3-empy\t3.3.4-2\tall\npython3-filelock\t3.13.1-1\tall\npython3-flake8\t7.0.0-1\tall\npython3-flake8-builtins\t2.1.0-1\tall\npython3-flake8-comprehensions\t3.14.0-1\tall\npython3-flake8-docstrings\t1.6.0-2\tall\npython3-flake8-import-order\t0.18.2-2\tall\npython3-flake8-quotes\t3.4.0-1\tall\npython3-graphviz\t0.20.2-1\tall\npython3-importlib-metadata\t4.12.0-1\tall\npython3-iniconfig\t1.1.1-2\tall\npython3-jinja2\t3.1.2-1ubuntu1.3\tall\npython3-lark\t1.1.9-1\tall\npython3-lxml\t5.2.1-1\tarm64\npython3-markupsafe\t2.1.5-1build2\tarm64\npython3-mccabe\t0.7.0-1\tall\npython3-minimal\t3.12.3-0ubuntu2.1\tarm64\npython3-more-itertools\t10.2.0-1\tall\npython3-notify2\t0.3-5\tall\npython3-numpy\t1:1.26.4+ds-6ubuntu1\tarm64\npython3-packaging\t24.0-1\tall\npython3-pkg-resources\t68.1.2-2ubuntu1.2\tall\npython3-pluggy\t1.4.0-1\tall\npython3-psutil\t5.9.8-2build2\tarm64\npython3-pycodestyle\t2.11.1-1\tall\npython3-pydocstyle\t6.3.0-1.1\tall\npython3-pyflakes\t3.2.0-1\tall\npython3-pygments\t2.17.2+dfsg-1\tall\npython3-pykdl\t1.5.1-4build1\tarm64\npython3-pyparsing\t3.1.1-1\tall\npython3-pytest\t7.4.4-1\tall\npython3-roman\t3.3-3\tall\npython3-rosdep\t0.26.0-1\tall\npython3-rosdep-modules\t0.26.0-1\tall\npython3-rosdistro-modules\t1.1.0-1\tall\npython3-rospkg-modules\t1.6.2-1\tall\npython3-setuptools\t68.1.2-2ubuntu1.2\tall\npython3-six\t1.16.0-4\tall\npython3-snowballstemmer\t2.2.0-4build1\tall\npython3-typeguard\t4.1.5-1\tall\npython3-vcstool\t0.3.0-1\tall\npython3-yaml\t6.0.1-2build2\tarm64\npython3-zipp\t1.0.0-6ubuntu0.1\tall\npython3.12\t3.12.3-1ubuntu0.16\tarm64\npython3.12-dev\t3.12.3-1ubuntu0.16\tarm64\npython3.12-minimal\t3.12.3-1ubuntu0.16\tarm64\nrake\t13.0.6-3\tall\nreadline-common\t8.2-4build1\tall\nros-jazzy-action-msgs\t2.0.4-1noble.20260902.015428\tarm64\nros-jazzy-actionlib-msgs\t5.3.8-1noble.20260612.053838\tarm64\nros-jazzy-ament-cmake\t2.5.6-2noble.20260305.203904\tarm64\nros-jazzy-ament-cmake-auto\t2.5.6-2noble.20260305.211009\tarm64\nros-jazzy-ament-cmake-copyright\t0.17.5-1noble.20260411.113359\tarm64\nros-jazzy-ament-cmake-core\t2.5.6-2noble.20260224.191051\tarm64\nros-jazzy-ament-cmake-cppcheck\t0.17.5-1noble.20260410.225507\tarm64\nros-jazzy-ament-cmake-cpplint\t0.17.5-1noble.20260410.225517\tarm64\nros-jazzy-ament-cmake-export-definitions\t2.5.6-2noble.20260225.111647\tarm64\nros-jazzy-ament-cmake-export-dependencies\t2.5.6-2noble.20260225.121204\tarm64\nros-jazzy-ament-cmake-export-include-directories\t2.5.6-2noble.20260305.195340\tarm64\nros-jazzy-ament-cmake-export-interfaces\t2.5.6-2noble.20260225.115659\tarm64\nros-jazzy-ament-cmake-export-libraries\t2.5.6-2noble.20260225.114045\tarm64\nros-jazzy-ament-cmake-export-link-flags\t2.5.6-2noble.20260305.195440\tarm64\nros-jazzy-ament-cmake-export-targets\t2.5.6-2noble.20260225.115837\tarm64\nros-jazzy-ament-cmake-flake8\t0.17.5-1noble.20260411.114519\tarm64\nros-jazzy-ament-cmake-gen-version-h\t2.5.6-2noble.20260225.114201\tarm64\nros-jazzy-ament-cmake-gmock\t2.5.6-2noble.20260225.232840\tarm64\nros-jazzy-ament-cmake-gtest\t2.5.6-2noble.20260225.230858\tarm64\nros-jazzy-ament-cmake-include-directories\t2.5.6-2noble.20260225.114255\tarm64\nros-jazzy-ament-cmake-libraries\t2.5.6-2noble.20260225.115526\tarm64\nros-jazzy-ament-cmake-lint-cmake\t0.17.5-1noble.20260411.112818\tarm64\nros-jazzy-ament-cmake-pep257\t0.17.5-1noble.20260411.115523\tarm64\nros-jazzy-ament-cmake-pytest\t2.5.6-2noble.20260225.124454\tarm64\nros-jazzy-ament-cmake-python\t2.5.6-2noble.20260225.115526\tarm64\nros-jazzy-ament-cmake-ros\t0.12.1-1noble.20260603.145943\tarm64\nros-jazzy-ament-cmake-target-dependencies\t2.5.6-2noble.20260225.121314\tarm64\nros-jazzy-ament-cmake-test\t2.5.6-2noble.20260225.121319\tarm64\nros-jazzy-ament-cmake-uncrustify\t0.17.5-1noble.20260411.113331\tarm64\nros-jazzy-ament-cmake-version\t2.5.6-2noble.20260225.115526\tarm64\nros-jazzy-ament-cmake-xmllint\t0.17.5-1noble.20260411.115523\tarm64\nros-jazzy-ament-copyright\t0.17.5-1noble.20260410.225542\tarm64\nros-jazzy-ament-cppcheck\t0.17.5-1noble.20260410.080852\tarm64\nros-jazzy-ament-cpplint\t0.17.5-1noble.20260410.080931\tarm64\nros-jazzy-ament-flake8\t0.17.5-1noble.20260411.112228\tarm64\nros-jazzy-ament-index-cpp\t1.8.4-1noble.20260519.010814\tarm64\nros-jazzy-ament-index-python\t1.8.4-1noble.20260519.010838\tarm64\nros-jazzy-ament-lint\t0.17.5-1noble.20260410.080953\tarm64\nros-jazzy-ament-lint-auto\t0.17.5-1noble.20260410.081016\tarm64\nros-jazzy-ament-lint-cmake\t0.17.5-1noble.20260410.125655\tarm64\nros-jazzy-ament-lint-common\t0.17.5-1noble.20260411.120318\tarm64\nros-jazzy-ament-package\t0.16.5-1noble.20260121.175232\tarm64\nros-jazzy-ament-pep257\t0.17.5-1noble.20260411.112251\tarm64\nros-jazzy-ament-uncrustify\t0.17.5-1noble.20260410.225047\tarm64\nros-jazzy-ament-xmllint\t0.17.5-1noble.20260411.112313\tarm64\nros-jazzy-angles\t1.16.1-1noble.20260305.211211\tarm64\nros-jazzy-backward-ros\t1.0.8-1noble.20260225.223902\tarm64\nros-jazzy-builtin-interfaces\t2.0.4-1noble.20260612.051853\tarm64\nros-jazzy-class-loader\t2.7.1-1noble.20260603.150816\tarm64\nros-jazzy-common-interfaces\t5.3.8-1noble.20260612.090713\tarm64\nros-jazzy-composition-interfaces\t2.0.4-1noble.20260612.092230\tarm64\nros-jazzy-console-bridge-vendor\t1.7.2-1noble.20260603.145621\tarm64\nros-jazzy-control-msgs\t5.9.0-1noble.20260902.141921\tarm64\nros-jazzy-control-toolbox\t4.11.1-1noble.20260903.201502\tarm64\nros-jazzy-controller-interface\t4.48.0-1noble.20260904.011627\tarm64\nros-jazzy-controller-manager\t4.48.0-1noble.20260904.013127\tarm64\nros-jazzy-controller-manager-msgs\t4.48.0-1noble.20260903.022424\tarm64\nros-jazzy-diagnostic-msgs\t5.3.8-1noble.20260612.081536\tarm64\nros-jazzy-diagnostic-updater\t4.2.7-1noble.20260902.152037\tarm64\nros-jazzy-domain-coordinator\t0.12.1-1noble.20260603.145652\tarm64\nros-jazzy-eigen3-cmake-module\t0.3.1-1noble.20260603.145848\tarm64\nros-jazzy-fastcdr\t2.2.7-1noble.20260225.225058\tarm64\nros-jazzy-fastrtps\t2.14.6-1noble.20260303.223942\tarm64\nros-jazzy-fastrtps-cmake-module\t3.6.4-1noble.20260603.150028\tarm64\nros-jazzy-filters\t2.2.2-1noble.20260902.212531\tarm64\nros-jazzy-foonathan-memory-vendor\t1.3.1-3noble.20260225.225339\tarm64\nros-jazzy-forward-command-controller\t4.42.1-1noble.20260904.013248\tarm64\nros-jazzy-generate-parameter-library\t0.7.6-1noble.20260902.151613\tarm64\nros-jazzy-generate-parameter-library-py\t0.7.6-1noble.20260810.141423\tarm64\nros-jazzy-geometry-msgs\t5.3.8-1noble.20260612.060310\tarm64\nros-jazzy-geometry2\t0.36.21-1noble.20260614.080307\tarm64\nros-jazzy-gmock-vendor\t1.14.9000-2noble.20260225.231553\tarm64\nros-jazzy-gtest-vendor\t1.14.9000-2noble.20260225.225707\tarm64\nros-jazzy-gz-cmake-vendor\t0.0.12-1noble.20260618.172935\tarm64\nros-jazzy-gz-math-vendor\t0.0.11-1noble.20260903.201031\tarm64\nros-jazzy-gz-tools-vendor\t0.0.8-1noble.20260820.170736\tarm64\nros-jazzy-gz-utils-vendor\t0.0.5-1noble.20260618.173450\tarm64\nros-jazzy-hardware-interface\t4.48.0-1noble.20260904.011033\tarm64\nros-jazzy-joint-limits\t4.48.0-1noble.20260903.202131\tarm64\nros-jazzy-joint-trajectory-controller\t4.42.1-1noble.20260904.012550\tarm64\nros-jazzy-kdl-parser\t2.11.0-3noble.20260604.174910\tarm64\nros-jazzy-keyboard-handler\t0.3.2-1noble.20260305.214544\tarm64\nros-jazzy-launch\t3.4.11-1noble.20260603.145505\tarm64\nros-jazzy-launch-ros\t0.26.12-1noble.20260612.133411\tarm64\nros-jazzy-launch-testing\t3.4.11-1noble.20260603.145921\tarm64\nros-jazzy-launch-testing-ament-cmake\t3.4.11-1noble.20260603.150105\tarm64\nros-jazzy-launch-testing-ros\t0.26.12-1noble.20260612.161624\tarm64\nros-jazzy-launch-xml\t3.4.11-1noble.20260603.145746\tarm64\nros-jazzy-launch-yaml\t3.4.11-1noble.20260603.145754\tarm64\nros-jazzy-liblz4-vendor\t0.26.11-1noble.20260603.145530\tarm64\nros-jazzy-libstatistics-collector\t1.7.4-1noble.20260612.095552\tarm64\nros-jazzy-libyaml-vendor\t1.6.4-2noble.20260603.145652\tarm64\nros-jazzy-lifecycle-msgs\t2.0.4-1noble.20260612.060410\tarm64\nros-jazzy-mcap-vendor\t0.26.11-1noble.20260604.093033\tarm64\nros-jazzy-message-filters\t4.11.17-1noble.20260614.050915\tarm64\nros-jazzy-nav-msgs\t5.3.8-1noble.20260612.082120\tarm64\nros-jazzy-orocos-kdl-vendor\t0.5.2-1noble.20260603.150050\tarm64\nros-jazzy-osrf-pycommon\t2.1.7-1noble.20260305.201653\tarm64\nros-jazzy-pal-statistics\t2.8.2-1noble.20260902.174848\tarm64\nros-jazzy-pal-statistics-msgs\t2.8.2-1noble.20260902.130553\tarm64\nros-jazzy-parameter-traits\t0.7.6-1noble.20260902.145236\tarm64\nros-jazzy-pluginlib\t5.4.5-1noble.20260604.172545\tarm64\nros-jazzy-position-controllers\t4.42.1-1noble.20260904.020046\tarm64\nros-jazzy-pybind11-vendor\t3.1.3-1noble.20260305.220146\tarm64\nros-jazzy-python-cmake-module\t0.11.1-2noble.20260305.220219\tarm64\nros-jazzy-python-orocos-kdl-vendor\t0.5.2-1noble.20260603.150415\tarm64\nros-jazzy-rcl\t9.2.11-1noble.20260612.094928\tarm64\nros-jazzy-rcl-action\t9.2.11-1noble.20260612.095238\tarm64\nros-jazzy-rcl-interfaces\t2.0.4-1noble.20260612.091447\tarm64\nros-jazzy-rcl-lifecycle\t9.2.11-1noble.20260612.095339\tarm64\nros-jazzy-rcl-logging-interface\t3.1.1-1noble.20260604.171824\tarm64\nros-jazzy-rcl-logging-spdlog\t3.1.1-1noble.20260604.172137\tarm64\nros-jazzy-rcl-yaml-param-parser\t9.2.11-1noble.20260612.050815\tarm64\nros-jazzy-rclcpp\t28.1.22-1noble.20260902.143108\tarm64\nros-jazzy-rclcpp-action\t28.1.21-1noble.20260612.100837\tarm64\nros-jazzy-rclcpp-components\t28.1.21-1noble.20260612.102635\tarm64\nros-jazzy-rclcpp-lifecycle\t28.1.21-1noble.20260612.120153\tarm64\nros-jazzy-rclpy\t7.1.11-1noble.20260612.095634\tarm64\nros-jazzy-rcpputils\t2.11.4-1noble.20260603.150554\tarm64\nros-jazzy-rcutils\t6.7.6-1noble.20260603.150149\tarm64\nros-jazzy-realtime-tools\t3.12.0-1noble.20260903.200958\tarm64\nros-jazzy-rmw\t7.3.3-1noble.20260612.050446\tarm64\nros-jazzy-rmw-dds-common\t3.1.1-1noble.20260612.091532\tarm64\nros-jazzy-rmw-fastrtps-cpp\t8.4.4-1noble.20260612.092346\tarm64\nros-jazzy-rmw-fastrtps-shared-cpp\t8.4.4-1noble.20260612.091855\tarm64\nros-jazzy-rmw-implementation\t2.15.6-1noble.20260612.094512\tarm64\nros-jazzy-rmw-implementation-cmake\t7.3.3-1noble.20260305.221018\tarm64\nros-jazzy-rmw-zenoh-cpp\t0.2.10-1noble.20260902.013751\tarm64\nros-jazzy-robot-state-publisher\t3.3.4-1noble.20260614.055403\tarm64\nros-jazzy-ros-base\t0.11.0-1noble.20260614.091815\tarm64\nros-jazzy-ros-core\t0.11.0-1noble.20260612.194005\tarm64\nros-jazzy-ros-environment\t4.2.1-1noble.20260225.120022\tarm64\nros-jazzy-ros-workspace\t1.0.3-7noble.20260224.192101\tarm64\nros-jazzy-ros2action\t0.32.10-1noble.20260612.162216\tarm64\nros-jazzy-ros2bag\t0.26.11-1noble.20260612.202425\tarm64\nros-jazzy-ros2cli\t0.32.10-1noble.20260612.161709\tarm64\nros-jazzy-ros2cli-common-extensions\t0.3.1-1noble.20260612.193901\tarm64\nros-jazzy-ros2component\t0.32.10-1noble.20260612.190231\tarm64\nros-jazzy-ros2controlcli\t4.48.0-1noble.20260904.020124\tarm64\nros-jazzy-ros2doctor\t0.32.10-1noble.20260612.162257\tarm64\nros-jazzy-ros2interface\t0.32.10-1noble.20260612.162016\tarm64\nros-jazzy-ros2launch\t0.26.12-1noble.20260612.190450\tarm64\nros-jazzy-ros2lifecycle\t0.32.10-1noble.20260612.162505\tarm64\nros-jazzy-ros2multicast\t0.32.10-1noble.20260612.190105\tarm64\nros-jazzy-ros2node\t0.32.10-1noble.20260612.162347\tarm64\nros-jazzy-ros2param\t0.32.10-1noble.20260612.162446\tarm64\nros-jazzy-ros2pkg\t0.32.10-1noble.20260612.190052\tarm64\nros-jazzy-ros2plugin\t5.4.5-1noble.20260612.190441\tarm64\nros-jazzy-ros2run\t0.32.10-1noble.20260612.190902\tarm64\nros-jazzy-ros2service\t0.32.10-1noble.20260612.162300\tarm64\nros-jazzy-ros2topic\t0.32.10-1noble.20260612.162212\tarm64\nros-jazzy-rosbag2\t0.26.11-1noble.20260612.202546\tarm64\nros-jazzy-rosbag2-compression\t0.26.11-1noble.20260612.173908\tarm64\nros-jazzy-rosbag2-compression-zstd\t0.26.11-1noble.20260612.202148\tarm64\nros-jazzy-rosbag2-cpp\t0.26.11-1noble.20260612.123737\tarm64\nros-jazzy-rosbag2-interfaces\t0.26.11-1noble.20260612.053417\tarm64\nros-jazzy-rosbag2-py\t0.26.11-1noble.20260612.175053\tarm64\nros-jazzy-rosbag2-storage\t0.26.11-1noble.20260612.123349\tarm64\nros-jazzy-rosbag2-storage-default-plugins\t0.26.11-1noble.20260612.202209\tarm64\nros-jazzy-rosbag2-storage-mcap\t0.26.11-1noble.20260612.173921\tarm64\nros-jazzy-rosbag2-storage-sqlite3\t0.26.11-1noble.20260612.174102\tarm64\nros-jazzy-rosbag2-transport\t0.26.11-1noble.20260612.174257\tarm64\nros-jazzy-rosgraph-msgs\t2.0.4-1noble.20260612.091956\tarm64\nros-jazzy-rosidl-adapter\t4.6.9-1noble.20260612.045318\tarm64\nros-jazzy-rosidl-cli\t4.6.9-1noble.20260612.045056\tarm64\nros-jazzy-rosidl-cmake\t4.6.9-1noble.20260612.050232\tarm64\nros-jazzy-rosidl-core-generators\t0.2.1-1noble.20260612.051523\tarm64\nros-jazzy-rosidl-core-runtime\t0.2.1-1noble.20260612.051518\tarm64\nros-jazzy-rosidl-default-generators\t1.6.1-1noble.20260612.052930\tarm64\nros-jazzy-rosidl-default-runtime\t1.6.1-1noble.20260612.052928\tarm64\nros-jazzy-rosidl-dynamic-typesupport\t0.1.2-3noble.20260612.050219\tarm64\nros-jazzy-rosidl-dynamic-typesupport-fastrtps\t0.1.0-3noble.20260612.050502\tarm64\nros-jazzy-rosidl-generator-c\t4.6.9-1noble.20260612.050445\tarm64\nros-jazzy-rosidl-generator-cpp\t4.6.9-1noble.20260612.050559\tarm64\nros-jazzy-rosidl-generator-py\t0.22.2-1noble.20260612.051150\tarm64\nros-jazzy-rosidl-generator-rs\t0.4.12-1noble.20260612.051152\tarm64\nros-jazzy-rosidl-generator-type-description\t4.6.9-1noble.20260612.050054\tarm64\nros-jazzy-rosidl-parser\t4.6.9-1noble.20260612.045834\tarm64\nros-jazzy-rosidl-pycommon\t4.6.9-1noble.20260612.050023\tarm64\nros-jazzy-rosidl-runtime-c\t4.6.9-1noble.20260612.045845\tarm64\nros-jazzy-rosidl-runtime-cpp\t4.6.9-1noble.20260612.050208\tarm64\nros-jazzy-rosidl-runtime-py\t0.13.2-1noble.20260612.050023\tarm64\nros-jazzy-rosidl-typesupport-c\t3.2.3-1noble.20260612.050932\tarm64\nros-jazzy-rosidl-typesupport-cpp\t3.2.3-1noble.20260612.051258\tarm64\nros-jazzy-rosidl-typesupport-fastrtps-c\t3.6.4-1noble.20260612.051041\tarm64\nros-jazzy-rosidl-typesupport-fastrtps-cpp\t3.6.4-1noble.20260612.050817\tarm64\nros-jazzy-rosidl-typesupport-interface\t4.6.9-1noble.20260612.045115\tarm64\nros-jazzy-rosidl-typesupport-introspection-c\t4.6.9-1noble.20260612.050703\tarm64\nros-jazzy-rosidl-typesupport-introspection-cpp\t4.6.9-1noble.20260612.050922\tarm64\nros-jazzy-rpyutils\t0.4.2-1noble.20260305.205337\tarm64\nros-jazzy-rsl\t1.3.0-1noble.20260902.144906\tarm64\nros-jazzy-sdformat-urdf\t1.0.2-1noble.20260904.010733\tarm64\nros-jazzy-sdformat-vendor\t0.0.14-1noble.20260904.005216\tarm64\nros-jazzy-sensor-msgs\t5.3.8-1noble.20260612.082718\tarm64\nros-jazzy-sensor-msgs-py\t5.3.8-1noble.20260612.091811\tarm64\nros-jazzy-service-msgs\t2.0.4-1noble.20260612.052205\tarm64\nros-jazzy-shape-msgs\t5.3.8-1noble.20260612.085104\tarm64\nros-jazzy-spdlog-vendor\t1.6.2-1noble.20260603.151440\tarm64\nros-jazzy-sqlite3-vendor\t0.26.11-1noble.20260604.090944\tarm64\nros-jazzy-sros2\t0.13.6-1noble.20260612.162423\tarm64\nros-jazzy-sros2-cmake\t0.13.6-1noble.20260612.190641\tarm64\nros-jazzy-statistics-msgs\t2.0.4-1noble.20260612.053420\tarm64\nros-jazzy-std-msgs\t5.3.8-1noble.20260612.053429\tarm64\nros-jazzy-std-srvs\t5.3.8-1noble.20260612.090547\tarm64\nros-jazzy-stereo-msgs\t5.3.8-1noble.20260612.084934\tarm64\nros-jazzy-tcb-span\t1.3.2-1noble.20260618.161441\tarm64\nros-jazzy-tf2\t0.36.21-1noble.20260612.080352\tarm64\nros-jazzy-tf2-bullet\t0.36.21-1noble.20260614.055818\tarm64\nros-jazzy-tf2-eigen\t0.36.21-1noble.20260614.055857\tarm64\nros-jazzy-tf2-eigen-kdl\t0.36.21-1noble.20260612.093812\tarm64\nros-jazzy-tf2-geometry-msgs\t0.36.21-1noble.20260614.055959\tarm64\nros-jazzy-tf2-kdl\t0.36.21-1noble.20260614.060020\tarm64\nros-jazzy-tf2-msgs\t0.36.21-1noble.20260612.082742\tarm64\nros-jazzy-tf2-py\t0.36.21-1noble.20260612.100533\tarm64\nros-jazzy-tf2-ros\t0.36.21-1noble.20260614.051508\tarm64\nros-jazzy-tf2-ros-py\t0.36.21-1noble.20260612.100802\tarm64\nros-jazzy-tf2-sensor-msgs\t0.36.21-1noble.20260614.060022\tarm64\nros-jazzy-tf2-tools\t0.36.21-1noble.20260612.154248\tarm64\nros-jazzy-tinyxml2-vendor\t0.9.2-1noble.20260305.223118\tarm64\nros-jazzy-tl-expected\t1.3.2-1noble.20260618.161523\tarm64\nros-jazzy-tracetools\t8.2.6-1noble.20260604.091022\tarm64\nros-jazzy-trajectory-msgs\t5.3.8-1noble.20260612.082940\tarm64\nros-jazzy-type-description-interfaces\t2.0.4-1noble.20260612.052559\tarm64\nros-jazzy-uncrustify-vendor\t3.0.1-1noble.20260305.223611\tarm64\nros-jazzy-unique-identifier-msgs\t2.5.1-1noble.20260612.051815\tarm64\nros-jazzy-urdf\t2.10.1-2noble.20260604.174740\tarm64\nros-jazzy-urdf-parser-plugin\t2.10.1-2noble.20260604.092949\tarm64\nros-jazzy-urdfdom\t4.0.2-1noble.20260604.093156\tarm64\nros-jazzy-urdfdom-headers\t1.1.3-1noble.20260604.092803\tarm64\nros-jazzy-visualization-msgs\t5.3.8-1noble.20260612.083755\tarm64\nros-jazzy-yaml-cpp-vendor\t9.0.1-1noble.20260305.224129\tarm64\nros-jazzy-zenoh-cpp-vendor\t0.2.10-1noble.20260722.215603\tarm64\nros-jazzy-zstd-vendor\t0.26.11-1noble.20260604.092801\tarm64\nros2-apt-source\t1.2.0~noble\tall\nrpcsvc-proto\t1.4.2-0ubuntu7\tarm64\nruby\t1:3.2~ubuntu1\tarm64\nruby-net-telnet\t0.2.0-1\tall\nruby-rubygems\t3.4.20-1\tall\nruby-sdbm\t1.0.0-5build4\tarm64\nruby-webrick\t1.8.1-1ubuntu0.2\tall\nruby-xmlrpc\t0.3.2-2\tall\nruby3.2\t3.2.3-1ubuntu0.24.04.8\tarm64\nrubygems-integration\t1.18\tall\nsed\t4.9-2ubuntu0.24.04.1\tarm64\nsensible-utils\t0.0.22\tall\nsgml-base\t1.31\tall\nsudo\t1.9.15p5-3ubuntu5.24.04.2\tarm64\nsysvinit-utils\t3.08-6ubuntu3\tarm64\ntar\t1.35+dfsg-3ubuntu0.4\tarm64\ntzdata\t2026c-0ubuntu0.24.04.1\tall\nubuntu-keyring\t2023.11.28.1\tall\nuncrustify\t0.78.1+dfsg1-1\tarm64\nunminimize\t0.2.1\tarm64\nutil-linux\t2.39.3-9ubuntu6.6\tarm64\nuuid-dev\t2.39.3-9ubuntu6.6\tarm64\nx11-common\t1:7.7+23ubuntu3\tall\nxml-core\t0.19\tall\nxz-utils\t5.6.1+really5.4.5-1ubuntu0.3\tarm64\nzlib1g\t1:1.3.dfsg-3.1ubuntu2.2\tarm64\nzlib1g-dev\t1:1.3.dfsg-3.1ubuntu2.2\tarm64\n",
+  "limits": [
+    "real ROS controller software with idealized mock hardware only",
+    "no controller generation provider or external-client exclusion proof",
+    "no physical support, stop, human receipt or service-completion evidence",
+    "restart queries same running controller cache, not persistent controller history",
+    "no Rust Host, P admission, grant, permit, or N1 operation execution"
+  ],
+  "container": {
+    "image_id": "sha256:7af36ac5969a142af5531d6e93d1d182035bad13d79e20f03dc578c0546ce125",
+    "os": "linux",
+    "architecture": "arm64",
+    "user": "10001:10001",
+    "network": "none",
+    "read_only_root": true,
+    "cap_drop": [
+      "ALL"
+    ],
+    "privileged": false,
+    "devices": [],
+    "host_bind_mounts": [],
+    "security_options": [
+      "no-new-privileges"
+    ],
+    "exit_code": 0
+  }
+}
