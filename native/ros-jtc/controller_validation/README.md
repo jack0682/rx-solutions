@@ -112,7 +112,7 @@ and [adapter guards](../../../runtime/rx-host/src/ros_jtc/adapter.rs) are unchan
 |---|---|---|
 | Prevent generation reuse | AuthoritySnapshot carries controller_session; adapter compares it to dispatch context | Bridge explicitly reports generation unknown. A fresh bridge UUID identifies only a new client process. No provider derives a non-reused controller generation |
 | Observation freshness | Snapshot.validate checks clock health, resources and age+uncertainty against profile maximum age | Default provider supplies no snapshot. Test Auth in Rust stamps an in-memory fixture with the test clock; N5's ROS samples are not wired into that provider. No sensor-age proof |
-| Invalidate after protection | Adapter invokes release-owned LocalProtection on relevant faults; provider owns its state | UnavailableAuthority protection is a no-op and never permits execution; the test fixture records callbacks. N5 supplies no provider that invalidates real authority after protection |
+| Invalidate after protection | Adapter Protection.react first latches its local admission block, then invokes release-owned LocalProtection; guard/submit check that latch | The default provider's external callback is a no-op, but the adapter's local block still exists. No provider supplies and invalidates actual controller/ownership/support state after protection. N5's direct bridge test does not exercise that Host path |
 
 The existing `missing_authority_or_changed_artifact_never_dispatches` test is a
 real execution of the Rust guard with a fake transport; it is not a real-controller
