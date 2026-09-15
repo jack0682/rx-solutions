@@ -1,0 +1,101 @@
+{
+  "schema": "rx.n5-baseline.v1",
+  "source_commit": "236dcae60212f1f829632438985e2ad039963bc0",
+  "product_image": {
+    "schema": "rx.solutions-image-smoke.v1",
+    "status": "PASS",
+    "image_id": "sha256:fcb56bfdfcc1f68bf8cfb6d28f7f24d5899f5e31030ee2a882f6e29e1e28b4a0",
+    "os": "linux",
+    "architecture": "arm64",
+    "user": "10001:10001",
+    "read_only_root": true,
+    "cap_drop": [
+      "ALL"
+    ],
+    "devices": [],
+    "startup": {
+      "schema": "rx.solutions-status.v1",
+      "supervisor_instance": null,
+      "phase": "SOFTWARE_READY_UNCOMMISSIONED",
+      "native_packages": 675,
+      "external_device_repositories": 0,
+      "support_profiles": 4,
+      "simulation_profiles": 4,
+      "physical_qualification": "NOT_PERFORMED",
+      "hardware_processes_started_by_entrypoint": 0,
+      "operator_api_delegation": "NOT_CONNECTED"
+    },
+    "process_list": "PID                 COMMAND             COMMAND\n32173               python3             python3 /opt/rx/tools/solutions_status.py serve",
+    "sigterm_exit": 0,
+    "tampered_catalog_rejected": true,
+    "limitations": [
+      "read-only software diagnostics only",
+      "no automatic Host/driver/BT launch",
+      "no physical qualification or performance guarantee",
+      "operator API delegation not connected"
+    ]
+  },
+  "simulated_action_server": {
+    "schema": "rx.ros-jtc-bridge-test.v1",
+    "status": "PASS",
+    "cases": [
+      "catalog_and_read_only_controller_inspection",
+      "invalid_trajectory_and_implicit_tolerances_send_nothing",
+      "inactive_or_different_joint_claims_rejected",
+      "supplied_uuid_single_send_result_query_and_pending_admission",
+      "unknown_goal_with_default_success_code_is_not_success",
+      "native_rejection_abort_and_contradictory_result_preserved",
+      "exact_uuid_cancel_without_cancel_all_and_distinct_terminal_result",
+      "deadline_during_controller_preflight_has_no_native_send",
+      "stale_context_sequence_and_duplicate_json_rejected",
+      "restart_changes_bridge_identity_and_does_not_adopt_cancel_authority",
+      "lost_send_reply_is_not_retried_and_late_result_does_not_clear_admission_fault",
+      "lost_cancel_reply_is_retained_and_exact_cancel_is_not_resent",
+      "follower_controller_with_integrated_gripper_has_distinct_joint_set",
+      "leader_impedance_and_other_controller_types_not_mislabeled_as_jtc",
+      "catalog_source_pin_mismatch_rejected",
+      "all_simulation_jtc_declarations_select_without_sending_goals"
+    ],
+    "catalog_declarations": [
+      {
+        "support_id": "SIM-JTC-6DOF",
+        "controller": "arm_controller",
+        "joint_count": 6
+      },
+      {
+        "support_id": "SIM-JTC-7DOF",
+        "controller": "arm_controller",
+        "joint_count": 7
+      }
+    ],
+    "server": {
+      "received": 7,
+      "accepted": 6,
+      "cancelled": 2,
+      "list_calls": 13,
+      "goals": [
+        "f41d15f3-9246-455c-955d-22015ef86e86",
+        "868bdac3-47dc-4ad8-aa92-181f2a2453e4",
+        "bee50556-8de3-47a1-94b1-676f38dd5033",
+        "a709cae9-d731-4a52-bcf7-0019aee76b38",
+        "d1977973-ad0b-4cff-9890-6d42cbfa7ac9",
+        "22235cdf-b3e3-4549-af47-bd58dbc6dce6"
+      ],
+      "active": true,
+      "extra_claim": false,
+      "list_delay": 0,
+      "cancel_delay": 0.0
+    },
+    "physical_equipment_used": false,
+    "host_native_journal_connected": false
+  },
+  "host_authority_regression": {
+    "command": "./tools/cargo test --locked -p rx-host --test ros_jtc",
+    "environment": "macOS arm64; fake transport and test Authority where required; not the actual controller path",
+    "stdout": "   Compiling rx-host v0.1.0 (/Users/ojaehong/RX_automation/rx_ws/rx-solutions/runtime/rx-host)\n   Compiling rx-protocol v0.1.0 (/Users/ojaehong/RX_automation/rx_ws/rx-solutions/sdk/crates/rx-protocol)\n    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.70s\n     Running tests/ros_jtc.rs (target/debug/deps/ros_jtc-1f74f73f1bfcf865)\n\nrunning 10 tests\ntest crash_jtc_child ... ignored, child-only abrupt-exit fixture\ntest abrupt_exit_at_each_native_boundary_preserves_entry_and_never_replays ... ok\ntest bound_jtc_outcome_table_interprets_native_captures_without_code_zero_fallback ... ok\ntest action_completion_does_not_close_bridge_until_support_and_child_exit_are_proven ... ok\ntest contradictory_result_is_stored_without_success_capture ... ok\ntest journal_identity_loss_and_corrupt_capture_cannot_be_adopted ... ok\ntest independent_generation_ownership_and_drop_proof_are_required ... ok\ntest native_journal_prevents_resend_and_new_id_bypass_after_reply_loss_and_reopen ... ok\ntest host_dispatch_context_survives_native_journal_and_rejects_expiry_or_generation_change ... ok\ntest missing_authority_or_changed_artifact_never_dispatches ... ok\n\ntest result: ok. 9 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.35s\n\n",
+    "passed": 9,
+    "failed": 0,
+    "ignored": 1
+  },
+  "product_controller_inventory_stdout": "dpkg-query: no packages found matching ros-jazzy-controller-manager\ndpkg-query: no packages found matching ros-jazzy-ros2controlcli\nros-jazzy-hardware-interface\t4.48.0-1noble.20260904.011033\nros-jazzy-joint-trajectory-controller\t4.42.1-1noble.20260904.012550\nls: cannot access '/opt/ros/jazzy/lib/controller_manager/ros2_control_node': No such file or directory\n"
+}
