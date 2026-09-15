@@ -1,0 +1,1346 @@
+{
+  "command_path": [
+    {
+      "input_origin": "SYNTHETIC_NOT_A_VALIDATED_P_SNAPSHOT",
+      "observed_frontier": {
+        "decisions": [],
+        "handovers": [],
+        "interventions": [],
+        "operations": [
+          "node/a721a7164429eab185c11041bf0afff9f4835c6eed0217c5b84eb9e88014de07"
+        ],
+        "pending_operations": [],
+        "reasons": [],
+        "state": "READY",
+        "waits": []
+      },
+      "progress": {
+        "branches": {},
+        "cleared_interventions": {},
+        "complete": true,
+        "operations": {},
+        "resolved_digest": "7d4377c74c2cc94135f941327063399955d786f40f84b702c7008f56648b400e",
+        "run": "00000000-0000-4000-8000-000000000001",
+        "waits": {}
+      },
+      "step": "command-prefix-candidate"
+    },
+    {
+      "input_origin": "SYNTHETIC_NOT_A_VALIDATED_P_SNAPSHOT",
+      "observed_frontier": {
+        "decisions": [],
+        "handovers": [],
+        "interventions": [],
+        "operations": [],
+        "pending_operations": [
+          "00000000-0000-4000-8000-00000000000a"
+        ],
+        "reasons": [],
+        "state": "RUNNING",
+        "waits": []
+      },
+      "progress": {
+        "branches": {},
+        "cleared_interventions": {},
+        "complete": true,
+        "operations": {
+          "node/a721a7164429eab185c11041bf0afff9f4835c6eed0217c5b84eb9e88014de07": {
+            "intent_digest": "edd87d0c463701075d7d63fb98690467bca72a4c037a8420f422749534ee8f21",
+            "operation": {
+              "disposition": "HELD",
+              "evidence_ids": [],
+              "execution_knowledge": "NOT_SENT",
+              "integrity": "VALID",
+              "intent_digest": "edd87d0c463701075d7d63fb98690467bca72a4c037a8420f422749534ee8f21",
+              "operation_id": "00000000-0000-4000-8000-00000000000a",
+              "outcome": "NONE",
+              "phase": "ADMITTED",
+              "revision": "1"
+            }
+          }
+        },
+        "resolved_digest": "7d4377c74c2cc94135f941327063399955d786f40f84b702c7008f56648b400e",
+        "run": "00000000-0000-4000-8000-000000000001",
+        "waits": {}
+      },
+      "step": "synthetic-operation-admitted"
+    },
+    {
+      "input_origin": "SYNTHETIC_NOT_A_VALIDATED_P_SNAPSHOT",
+      "observed_frontier": {
+        "decisions": [],
+        "handovers": [],
+        "interventions": [],
+        "operations": [],
+        "pending_operations": [
+          "00000000-0000-4000-8000-00000000000a"
+        ],
+        "reasons": [],
+        "state": "RUNNING",
+        "waits": []
+      },
+      "progress": {
+        "branches": {},
+        "cleared_interventions": {},
+        "complete": true,
+        "operations": {
+          "node/a721a7164429eab185c11041bf0afff9f4835c6eed0217c5b84eb9e88014de07": {
+            "intent_digest": "edd87d0c463701075d7d63fb98690467bca72a4c037a8420f422749534ee8f21",
+            "operation": {
+              "disposition": "HELD",
+              "evidence_ids": [],
+              "execution_knowledge": "MAY_HAVE_EXECUTED",
+              "integrity": "VALID",
+              "intent_digest": "edd87d0c463701075d7d63fb98690467bca72a4c037a8420f422749534ee8f21",
+              "operation_id": "00000000-0000-4000-8000-00000000000a",
+              "outcome": "NONE",
+              "phase": "ACTIVE",
+              "revision": "2"
+            }
+          }
+        },
+        "resolved_digest": "7d4377c74c2cc94135f941327063399955d786f40f84b702c7008f56648b400e",
+        "run": "00000000-0000-4000-8000-000000000001",
+        "waits": {}
+      },
+      "step": "synthetic-send-entered"
+    },
+    {
+      "input_origin": "SYNTHETIC_NOT_A_VALIDATED_P_SNAPSHOT",
+      "observed_frontier": {
+        "decisions": [],
+        "handovers": [
+          "node/a721a7164429eab185c11041bf0afff9f4835c6eed0217c5b84eb9e88014de07"
+        ],
+        "interventions": [],
+        "operations": [],
+        "pending_operations": [],
+        "reasons": [],
+        "state": "RUNNING",
+        "waits": []
+      },
+      "progress": {
+        "branches": {},
+        "cleared_interventions": {},
+        "complete": true,
+        "operations": {
+          "node/a721a7164429eab185c11041bf0afff9f4835c6eed0217c5b84eb9e88014de07": {
+            "intent_digest": "edd87d0c463701075d7d63fb98690467bca72a4c037a8420f422749534ee8f21",
+            "operation": {
+              "disposition": "HELD",
+              "evidence_ids": [
+                "00000000-0000-4000-8000-000000000064"
+              ],
+              "execution_knowledge": "ENDED",
+              "integrity": "VALID",
+              "intent_digest": "edd87d0c463701075d7d63fb98690467bca72a4c037a8420f422749534ee8f21",
+              "operation_id": "00000000-0000-4000-8000-00000000000a",
+              "outcome": "SUCCEEDED",
+              "phase": "SETTLED",
+              "revision": "3"
+            }
+          }
+        },
+        "resolved_digest": "7d4377c74c2cc94135f941327063399955d786f40f84b702c7008f56648b400e",
+        "run": "00000000-0000-4000-8000-000000000001",
+        "waits": {}
+      },
+      "step": "synthetic-succeeded-command-resource-held"
+    },
+    {
+      "input_origin": "SYNTHETIC_NOT_A_VALIDATED_P_SNAPSHOT",
+      "observed_frontier": {
+        "decisions": [],
+        "handovers": [],
+        "interventions": [],
+        "operations": [
+          "node/3b18094db5dc48cb65e2f14ee66251e9ef0196edd84b940be389244a455f6483"
+        ],
+        "pending_operations": [],
+        "reasons": [],
+        "state": "READY",
+        "waits": []
+      },
+      "progress": {
+        "branches": {},
+        "cleared_interventions": {},
+        "complete": true,
+        "operations": {
+          "node/a721a7164429eab185c11041bf0afff9f4835c6eed0217c5b84eb9e88014de07": {
+            "intent_digest": "edd87d0c463701075d7d63fb98690467bca72a4c037a8420f422749534ee8f21",
+            "operation": {
+              "disposition": "RELEASED",
+              "evidence_ids": [
+                "00000000-0000-4000-8000-000000000064",
+                "00000000-0000-4000-8000-0000000000c8"
+              ],
+              "execution_knowledge": "ENDED",
+              "integrity": "VALID",
+              "intent_digest": "edd87d0c463701075d7d63fb98690467bca72a4c037a8420f422749534ee8f21",
+              "operation_id": "00000000-0000-4000-8000-00000000000a",
+              "outcome": "SUCCEEDED",
+              "phase": "SETTLED",
+              "revision": "4"
+            }
+          }
+        },
+        "resolved_digest": "7d4377c74c2cc94135f941327063399955d786f40f84b702c7008f56648b400e",
+        "run": "00000000-0000-4000-8000-000000000001",
+        "waits": {}
+      },
+      "step": "synthetic-command-resource-released"
+    },
+    {
+      "input_origin": "SYNTHETIC_NOT_A_VALIDATED_P_SNAPSHOT",
+      "observed_frontier": {
+        "decisions": [],
+        "handovers": [],
+        "interventions": [],
+        "operations": [],
+        "pending_operations": [
+          "00000000-0000-4000-8000-00000000000b"
+        ],
+        "reasons": [],
+        "state": "RUNNING",
+        "waits": []
+      },
+      "progress": {
+        "branches": {},
+        "cleared_interventions": {},
+        "complete": true,
+        "operations": {
+          "node/3b18094db5dc48cb65e2f14ee66251e9ef0196edd84b940be389244a455f6483": {
+            "intent_digest": "e06ce33f098b786f1794d0b53f2b6b3ff6b9392eaa3d95dc930a923b976c25db",
+            "operation": {
+              "disposition": "HELD",
+              "evidence_ids": [],
+              "execution_knowledge": "NOT_SENT",
+              "integrity": "VALID",
+              "intent_digest": "e06ce33f098b786f1794d0b53f2b6b3ff6b9392eaa3d95dc930a923b976c25db",
+              "operation_id": "00000000-0000-4000-8000-00000000000b",
+              "outcome": "NONE",
+              "phase": "ADMITTED",
+              "revision": "1"
+            }
+          },
+          "node/a721a7164429eab185c11041bf0afff9f4835c6eed0217c5b84eb9e88014de07": {
+            "intent_digest": "edd87d0c463701075d7d63fb98690467bca72a4c037a8420f422749534ee8f21",
+            "operation": {
+              "disposition": "RELEASED",
+              "evidence_ids": [
+                "00000000-0000-4000-8000-000000000064",
+                "00000000-0000-4000-8000-0000000000c8"
+              ],
+              "execution_knowledge": "ENDED",
+              "integrity": "VALID",
+              "intent_digest": "edd87d0c463701075d7d63fb98690467bca72a4c037a8420f422749534ee8f21",
+              "operation_id": "00000000-0000-4000-8000-00000000000a",
+              "outcome": "SUCCEEDED",
+              "phase": "SETTLED",
+              "revision": "4"
+            }
+          }
+        },
+        "resolved_digest": "7d4377c74c2cc94135f941327063399955d786f40f84b702c7008f56648b400e",
+        "run": "00000000-0000-4000-8000-000000000001",
+        "waits": {}
+      },
+      "step": "synthetic-operation-admitted"
+    },
+    {
+      "input_origin": "SYNTHETIC_NOT_A_VALIDATED_P_SNAPSHOT",
+      "observed_frontier": {
+        "decisions": [],
+        "handovers": [],
+        "interventions": [],
+        "operations": [],
+        "pending_operations": [
+          "00000000-0000-4000-8000-00000000000b"
+        ],
+        "reasons": [],
+        "state": "RUNNING",
+        "waits": []
+      },
+      "progress": {
+        "branches": {},
+        "cleared_interventions": {},
+        "complete": true,
+        "operations": {
+          "node/3b18094db5dc48cb65e2f14ee66251e9ef0196edd84b940be389244a455f6483": {
+            "intent_digest": "e06ce33f098b786f1794d0b53f2b6b3ff6b9392eaa3d95dc930a923b976c25db",
+            "operation": {
+              "disposition": "HELD",
+              "evidence_ids": [],
+              "execution_knowledge": "MAY_HAVE_EXECUTED",
+              "integrity": "VALID",
+              "intent_digest": "e06ce33f098b786f1794d0b53f2b6b3ff6b9392eaa3d95dc930a923b976c25db",
+              "operation_id": "00000000-0000-4000-8000-00000000000b",
+              "outcome": "NONE",
+              "phase": "ACTIVE",
+              "revision": "2"
+            }
+          },
+          "node/a721a7164429eab185c11041bf0afff9f4835c6eed0217c5b84eb9e88014de07": {
+            "intent_digest": "edd87d0c463701075d7d63fb98690467bca72a4c037a8420f422749534ee8f21",
+            "operation": {
+              "disposition": "RELEASED",
+              "evidence_ids": [
+                "00000000-0000-4000-8000-000000000064",
+                "00000000-0000-4000-8000-0000000000c8"
+              ],
+              "execution_knowledge": "ENDED",
+              "integrity": "VALID",
+              "intent_digest": "edd87d0c463701075d7d63fb98690467bca72a4c037a8420f422749534ee8f21",
+              "operation_id": "00000000-0000-4000-8000-00000000000a",
+              "outcome": "SUCCEEDED",
+              "phase": "SETTLED",
+              "revision": "4"
+            }
+          }
+        },
+        "resolved_digest": "7d4377c74c2cc94135f941327063399955d786f40f84b702c7008f56648b400e",
+        "run": "00000000-0000-4000-8000-000000000001",
+        "waits": {}
+      },
+      "step": "synthetic-send-entered"
+    },
+    {
+      "input_origin": "SYNTHETIC_NOT_A_VALIDATED_P_SNAPSHOT",
+      "observed_frontier": {
+        "decisions": [],
+        "handovers": [
+          "node/3b18094db5dc48cb65e2f14ee66251e9ef0196edd84b940be389244a455f6483"
+        ],
+        "interventions": [],
+        "operations": [],
+        "pending_operations": [],
+        "reasons": [],
+        "state": "RUNNING",
+        "waits": []
+      },
+      "progress": {
+        "branches": {},
+        "cleared_interventions": {},
+        "complete": true,
+        "operations": {
+          "node/3b18094db5dc48cb65e2f14ee66251e9ef0196edd84b940be389244a455f6483": {
+            "intent_digest": "e06ce33f098b786f1794d0b53f2b6b3ff6b9392eaa3d95dc930a923b976c25db",
+            "operation": {
+              "disposition": "HELD",
+              "evidence_ids": [
+                "00000000-0000-4000-8000-000000000065"
+              ],
+              "execution_knowledge": "ENDED",
+              "integrity": "VALID",
+              "intent_digest": "e06ce33f098b786f1794d0b53f2b6b3ff6b9392eaa3d95dc930a923b976c25db",
+              "operation_id": "00000000-0000-4000-8000-00000000000b",
+              "outcome": "SUCCEEDED",
+              "phase": "SETTLED",
+              "revision": "3"
+            }
+          },
+          "node/a721a7164429eab185c11041bf0afff9f4835c6eed0217c5b84eb9e88014de07": {
+            "intent_digest": "edd87d0c463701075d7d63fb98690467bca72a4c037a8420f422749534ee8f21",
+            "operation": {
+              "disposition": "RELEASED",
+              "evidence_ids": [
+                "00000000-0000-4000-8000-000000000064",
+                "00000000-0000-4000-8000-0000000000c8"
+              ],
+              "execution_knowledge": "ENDED",
+              "integrity": "VALID",
+              "intent_digest": "edd87d0c463701075d7d63fb98690467bca72a4c037a8420f422749534ee8f21",
+              "operation_id": "00000000-0000-4000-8000-00000000000a",
+              "outcome": "SUCCEEDED",
+              "phase": "SETTLED",
+              "revision": "4"
+            }
+          }
+        },
+        "resolved_digest": "7d4377c74c2cc94135f941327063399955d786f40f84b702c7008f56648b400e",
+        "run": "00000000-0000-4000-8000-000000000001",
+        "waits": {}
+      },
+      "step": "synthetic-succeeded-command-resource-held"
+    },
+    {
+      "input_origin": "SYNTHETIC_NOT_A_VALIDATED_P_SNAPSHOT",
+      "observed_frontier": {
+        "decisions": [],
+        "handovers": [],
+        "interventions": [],
+        "operations": [
+          "node/cb88168142122e606e494b45f1b4e02440ab62bd28214d7921219fd219d58442"
+        ],
+        "pending_operations": [],
+        "reasons": [],
+        "state": "READY",
+        "waits": []
+      },
+      "progress": {
+        "branches": {},
+        "cleared_interventions": {},
+        "complete": true,
+        "operations": {
+          "node/3b18094db5dc48cb65e2f14ee66251e9ef0196edd84b940be389244a455f6483": {
+            "intent_digest": "e06ce33f098b786f1794d0b53f2b6b3ff6b9392eaa3d95dc930a923b976c25db",
+            "operation": {
+              "disposition": "RELEASED",
+              "evidence_ids": [
+                "00000000-0000-4000-8000-000000000065",
+                "00000000-0000-4000-8000-0000000000c9"
+              ],
+              "execution_knowledge": "ENDED",
+              "integrity": "VALID",
+              "intent_digest": "e06ce33f098b786f1794d0b53f2b6b3ff6b9392eaa3d95dc930a923b976c25db",
+              "operation_id": "00000000-0000-4000-8000-00000000000b",
+              "outcome": "SUCCEEDED",
+              "phase": "SETTLED",
+              "revision": "4"
+            }
+          },
+          "node/a721a7164429eab185c11041bf0afff9f4835c6eed0217c5b84eb9e88014de07": {
+            "intent_digest": "edd87d0c463701075d7d63fb98690467bca72a4c037a8420f422749534ee8f21",
+            "operation": {
+              "disposition": "RELEASED",
+              "evidence_ids": [
+                "00000000-0000-4000-8000-000000000064",
+                "00000000-0000-4000-8000-0000000000c8"
+              ],
+              "execution_knowledge": "ENDED",
+              "integrity": "VALID",
+              "intent_digest": "edd87d0c463701075d7d63fb98690467bca72a4c037a8420f422749534ee8f21",
+              "operation_id": "00000000-0000-4000-8000-00000000000a",
+              "outcome": "SUCCEEDED",
+              "phase": "SETTLED",
+              "revision": "4"
+            }
+          }
+        },
+        "resolved_digest": "7d4377c74c2cc94135f941327063399955d786f40f84b702c7008f56648b400e",
+        "run": "00000000-0000-4000-8000-000000000001",
+        "waits": {}
+      },
+      "step": "synthetic-command-resource-released"
+    },
+    {
+      "input_origin": "SYNTHETIC_NOT_A_VALIDATED_P_SNAPSHOT",
+      "observed_frontier": {
+        "decisions": [],
+        "handovers": [],
+        "interventions": [],
+        "operations": [],
+        "pending_operations": [
+          "00000000-0000-4000-8000-00000000000c"
+        ],
+        "reasons": [],
+        "state": "RUNNING",
+        "waits": []
+      },
+      "progress": {
+        "branches": {},
+        "cleared_interventions": {},
+        "complete": true,
+        "operations": {
+          "node/3b18094db5dc48cb65e2f14ee66251e9ef0196edd84b940be389244a455f6483": {
+            "intent_digest": "e06ce33f098b786f1794d0b53f2b6b3ff6b9392eaa3d95dc930a923b976c25db",
+            "operation": {
+              "disposition": "RELEASED",
+              "evidence_ids": [
+                "00000000-0000-4000-8000-000000000065",
+                "00000000-0000-4000-8000-0000000000c9"
+              ],
+              "execution_knowledge": "ENDED",
+              "integrity": "VALID",
+              "intent_digest": "e06ce33f098b786f1794d0b53f2b6b3ff6b9392eaa3d95dc930a923b976c25db",
+              "operation_id": "00000000-0000-4000-8000-00000000000b",
+              "outcome": "SUCCEEDED",
+              "phase": "SETTLED",
+              "revision": "4"
+            }
+          },
+          "node/a721a7164429eab185c11041bf0afff9f4835c6eed0217c5b84eb9e88014de07": {
+            "intent_digest": "edd87d0c463701075d7d63fb98690467bca72a4c037a8420f422749534ee8f21",
+            "operation": {
+              "disposition": "RELEASED",
+              "evidence_ids": [
+                "00000000-0000-4000-8000-000000000064",
+                "00000000-0000-4000-8000-0000000000c8"
+              ],
+              "execution_knowledge": "ENDED",
+              "integrity": "VALID",
+              "intent_digest": "edd87d0c463701075d7d63fb98690467bca72a4c037a8420f422749534ee8f21",
+              "operation_id": "00000000-0000-4000-8000-00000000000a",
+              "outcome": "SUCCEEDED",
+              "phase": "SETTLED",
+              "revision": "4"
+            }
+          },
+          "node/cb88168142122e606e494b45f1b4e02440ab62bd28214d7921219fd219d58442": {
+            "intent_digest": "3e4aa5d943edfb55228e6308c50979833f607a32d11a9276e9c75b63c13f1e3f",
+            "operation": {
+              "disposition": "HELD",
+              "evidence_ids": [],
+              "execution_knowledge": "NOT_SENT",
+              "integrity": "VALID",
+              "intent_digest": "3e4aa5d943edfb55228e6308c50979833f607a32d11a9276e9c75b63c13f1e3f",
+              "operation_id": "00000000-0000-4000-8000-00000000000c",
+              "outcome": "NONE",
+              "phase": "ADMITTED",
+              "revision": "1"
+            }
+          }
+        },
+        "resolved_digest": "7d4377c74c2cc94135f941327063399955d786f40f84b702c7008f56648b400e",
+        "run": "00000000-0000-4000-8000-000000000001",
+        "waits": {}
+      },
+      "step": "synthetic-operation-admitted"
+    },
+    {
+      "input_origin": "SYNTHETIC_NOT_A_VALIDATED_P_SNAPSHOT",
+      "observed_frontier": {
+        "decisions": [],
+        "handovers": [],
+        "interventions": [],
+        "operations": [],
+        "pending_operations": [
+          "00000000-0000-4000-8000-00000000000c"
+        ],
+        "reasons": [],
+        "state": "RUNNING",
+        "waits": []
+      },
+      "progress": {
+        "branches": {},
+        "cleared_interventions": {},
+        "complete": true,
+        "operations": {
+          "node/3b18094db5dc48cb65e2f14ee66251e9ef0196edd84b940be389244a455f6483": {
+            "intent_digest": "e06ce33f098b786f1794d0b53f2b6b3ff6b9392eaa3d95dc930a923b976c25db",
+            "operation": {
+              "disposition": "RELEASED",
+              "evidence_ids": [
+                "00000000-0000-4000-8000-000000000065",
+                "00000000-0000-4000-8000-0000000000c9"
+              ],
+              "execution_knowledge": "ENDED",
+              "integrity": "VALID",
+              "intent_digest": "e06ce33f098b786f1794d0b53f2b6b3ff6b9392eaa3d95dc930a923b976c25db",
+              "operation_id": "00000000-0000-4000-8000-00000000000b",
+              "outcome": "SUCCEEDED",
+              "phase": "SETTLED",
+              "revision": "4"
+            }
+          },
+          "node/a721a7164429eab185c11041bf0afff9f4835c6eed0217c5b84eb9e88014de07": {
+            "intent_digest": "edd87d0c463701075d7d63fb98690467bca72a4c037a8420f422749534ee8f21",
+            "operation": {
+              "disposition": "RELEASED",
+              "evidence_ids": [
+                "00000000-0000-4000-8000-000000000064",
+                "00000000-0000-4000-8000-0000000000c8"
+              ],
+              "execution_knowledge": "ENDED",
+              "integrity": "VALID",
+              "intent_digest": "edd87d0c463701075d7d63fb98690467bca72a4c037a8420f422749534ee8f21",
+              "operation_id": "00000000-0000-4000-8000-00000000000a",
+              "outcome": "SUCCEEDED",
+              "phase": "SETTLED",
+              "revision": "4"
+            }
+          },
+          "node/cb88168142122e606e494b45f1b4e02440ab62bd28214d7921219fd219d58442": {
+            "intent_digest": "3e4aa5d943edfb55228e6308c50979833f607a32d11a9276e9c75b63c13f1e3f",
+            "operation": {
+              "disposition": "HELD",
+              "evidence_ids": [],
+              "execution_knowledge": "MAY_HAVE_EXECUTED",
+              "integrity": "VALID",
+              "intent_digest": "3e4aa5d943edfb55228e6308c50979833f607a32d11a9276e9c75b63c13f1e3f",
+              "operation_id": "00000000-0000-4000-8000-00000000000c",
+              "outcome": "NONE",
+              "phase": "ACTIVE",
+              "revision": "2"
+            }
+          }
+        },
+        "resolved_digest": "7d4377c74c2cc94135f941327063399955d786f40f84b702c7008f56648b400e",
+        "run": "00000000-0000-4000-8000-000000000001",
+        "waits": {}
+      },
+      "step": "synthetic-send-entered"
+    },
+    {
+      "input_origin": "SYNTHETIC_NOT_A_VALIDATED_P_SNAPSHOT",
+      "observed_frontier": {
+        "decisions": [],
+        "handovers": [
+          "node/cb88168142122e606e494b45f1b4e02440ab62bd28214d7921219fd219d58442"
+        ],
+        "interventions": [],
+        "operations": [],
+        "pending_operations": [],
+        "reasons": [],
+        "state": "RUNNING",
+        "waits": []
+      },
+      "progress": {
+        "branches": {},
+        "cleared_interventions": {},
+        "complete": true,
+        "operations": {
+          "node/3b18094db5dc48cb65e2f14ee66251e9ef0196edd84b940be389244a455f6483": {
+            "intent_digest": "e06ce33f098b786f1794d0b53f2b6b3ff6b9392eaa3d95dc930a923b976c25db",
+            "operation": {
+              "disposition": "RELEASED",
+              "evidence_ids": [
+                "00000000-0000-4000-8000-000000000065",
+                "00000000-0000-4000-8000-0000000000c9"
+              ],
+              "execution_knowledge": "ENDED",
+              "integrity": "VALID",
+              "intent_digest": "e06ce33f098b786f1794d0b53f2b6b3ff6b9392eaa3d95dc930a923b976c25db",
+              "operation_id": "00000000-0000-4000-8000-00000000000b",
+              "outcome": "SUCCEEDED",
+              "phase": "SETTLED",
+              "revision": "4"
+            }
+          },
+          "node/a721a7164429eab185c11041bf0afff9f4835c6eed0217c5b84eb9e88014de07": {
+            "intent_digest": "edd87d0c463701075d7d63fb98690467bca72a4c037a8420f422749534ee8f21",
+            "operation": {
+              "disposition": "RELEASED",
+              "evidence_ids": [
+                "00000000-0000-4000-8000-000000000064",
+                "00000000-0000-4000-8000-0000000000c8"
+              ],
+              "execution_knowledge": "ENDED",
+              "integrity": "VALID",
+              "intent_digest": "edd87d0c463701075d7d63fb98690467bca72a4c037a8420f422749534ee8f21",
+              "operation_id": "00000000-0000-4000-8000-00000000000a",
+              "outcome": "SUCCEEDED",
+              "phase": "SETTLED",
+              "revision": "4"
+            }
+          },
+          "node/cb88168142122e606e494b45f1b4e02440ab62bd28214d7921219fd219d58442": {
+            "intent_digest": "3e4aa5d943edfb55228e6308c50979833f607a32d11a9276e9c75b63c13f1e3f",
+            "operation": {
+              "disposition": "HELD",
+              "evidence_ids": [
+                "00000000-0000-4000-8000-000000000066"
+              ],
+              "execution_knowledge": "ENDED",
+              "integrity": "VALID",
+              "intent_digest": "3e4aa5d943edfb55228e6308c50979833f607a32d11a9276e9c75b63c13f1e3f",
+              "operation_id": "00000000-0000-4000-8000-00000000000c",
+              "outcome": "SUCCEEDED",
+              "phase": "SETTLED",
+              "revision": "3"
+            }
+          }
+        },
+        "resolved_digest": "7d4377c74c2cc94135f941327063399955d786f40f84b702c7008f56648b400e",
+        "run": "00000000-0000-4000-8000-000000000001",
+        "waits": {}
+      },
+      "step": "synthetic-succeeded-command-resource-held"
+    },
+    {
+      "input_origin": "SYNTHETIC_NOT_A_VALIDATED_P_SNAPSHOT",
+      "observed_frontier": {
+        "decisions": [],
+        "handovers": [],
+        "interventions": [],
+        "operations": [
+          "node/8dc5fdb7c2b564bc24822d924b33168b7b119f2ebd0ed1af57a658c53efaac81"
+        ],
+        "pending_operations": [],
+        "reasons": [],
+        "state": "READY",
+        "waits": []
+      },
+      "progress": {
+        "branches": {},
+        "cleared_interventions": {},
+        "complete": true,
+        "operations": {
+          "node/3b18094db5dc48cb65e2f14ee66251e9ef0196edd84b940be389244a455f6483": {
+            "intent_digest": "e06ce33f098b786f1794d0b53f2b6b3ff6b9392eaa3d95dc930a923b976c25db",
+            "operation": {
+              "disposition": "RELEASED",
+              "evidence_ids": [
+                "00000000-0000-4000-8000-000000000065",
+                "00000000-0000-4000-8000-0000000000c9"
+              ],
+              "execution_knowledge": "ENDED",
+              "integrity": "VALID",
+              "intent_digest": "e06ce33f098b786f1794d0b53f2b6b3ff6b9392eaa3d95dc930a923b976c25db",
+              "operation_id": "00000000-0000-4000-8000-00000000000b",
+              "outcome": "SUCCEEDED",
+              "phase": "SETTLED",
+              "revision": "4"
+            }
+          },
+          "node/a721a7164429eab185c11041bf0afff9f4835c6eed0217c5b84eb9e88014de07": {
+            "intent_digest": "edd87d0c463701075d7d63fb98690467bca72a4c037a8420f422749534ee8f21",
+            "operation": {
+              "disposition": "RELEASED",
+              "evidence_ids": [
+                "00000000-0000-4000-8000-000000000064",
+                "00000000-0000-4000-8000-0000000000c8"
+              ],
+              "execution_knowledge": "ENDED",
+              "integrity": "VALID",
+              "intent_digest": "edd87d0c463701075d7d63fb98690467bca72a4c037a8420f422749534ee8f21",
+              "operation_id": "00000000-0000-4000-8000-00000000000a",
+              "outcome": "SUCCEEDED",
+              "phase": "SETTLED",
+              "revision": "4"
+            }
+          },
+          "node/cb88168142122e606e494b45f1b4e02440ab62bd28214d7921219fd219d58442": {
+            "intent_digest": "3e4aa5d943edfb55228e6308c50979833f607a32d11a9276e9c75b63c13f1e3f",
+            "operation": {
+              "disposition": "RELEASED",
+              "evidence_ids": [
+                "00000000-0000-4000-8000-000000000066",
+                "00000000-0000-4000-8000-0000000000ca"
+              ],
+              "execution_knowledge": "ENDED",
+              "integrity": "VALID",
+              "intent_digest": "3e4aa5d943edfb55228e6308c50979833f607a32d11a9276e9c75b63c13f1e3f",
+              "operation_id": "00000000-0000-4000-8000-00000000000c",
+              "outcome": "SUCCEEDED",
+              "phase": "SETTLED",
+              "revision": "4"
+            }
+          }
+        },
+        "resolved_digest": "7d4377c74c2cc94135f941327063399955d786f40f84b702c7008f56648b400e",
+        "run": "00000000-0000-4000-8000-000000000001",
+        "waits": {}
+      },
+      "step": "synthetic-command-resource-released"
+    },
+    {
+      "input_origin": "SYNTHETIC_NOT_A_VALIDATED_P_SNAPSHOT",
+      "observed_frontier": {
+        "decisions": [],
+        "handovers": [],
+        "interventions": [],
+        "operations": [],
+        "pending_operations": [
+          "00000000-0000-4000-8000-00000000000d"
+        ],
+        "reasons": [],
+        "state": "RUNNING",
+        "waits": []
+      },
+      "progress": {
+        "branches": {},
+        "cleared_interventions": {},
+        "complete": true,
+        "operations": {
+          "node/3b18094db5dc48cb65e2f14ee66251e9ef0196edd84b940be389244a455f6483": {
+            "intent_digest": "e06ce33f098b786f1794d0b53f2b6b3ff6b9392eaa3d95dc930a923b976c25db",
+            "operation": {
+              "disposition": "RELEASED",
+              "evidence_ids": [
+                "00000000-0000-4000-8000-000000000065",
+                "00000000-0000-4000-8000-0000000000c9"
+              ],
+              "execution_knowledge": "ENDED",
+              "integrity": "VALID",
+              "intent_digest": "e06ce33f098b786f1794d0b53f2b6b3ff6b9392eaa3d95dc930a923b976c25db",
+              "operation_id": "00000000-0000-4000-8000-00000000000b",
+              "outcome": "SUCCEEDED",
+              "phase": "SETTLED",
+              "revision": "4"
+            }
+          },
+          "node/8dc5fdb7c2b564bc24822d924b33168b7b119f2ebd0ed1af57a658c53efaac81": {
+            "intent_digest": "64e6b7b07d27a2e1a9263f3c1a58fdad7d1ce865ecc216eca2947a2c92292083",
+            "operation": {
+              "disposition": "HELD",
+              "evidence_ids": [],
+              "execution_knowledge": "NOT_SENT",
+              "integrity": "VALID",
+              "intent_digest": "64e6b7b07d27a2e1a9263f3c1a58fdad7d1ce865ecc216eca2947a2c92292083",
+              "operation_id": "00000000-0000-4000-8000-00000000000d",
+              "outcome": "NONE",
+              "phase": "ADMITTED",
+              "revision": "1"
+            }
+          },
+          "node/a721a7164429eab185c11041bf0afff9f4835c6eed0217c5b84eb9e88014de07": {
+            "intent_digest": "edd87d0c463701075d7d63fb98690467bca72a4c037a8420f422749534ee8f21",
+            "operation": {
+              "disposition": "RELEASED",
+              "evidence_ids": [
+                "00000000-0000-4000-8000-000000000064",
+                "00000000-0000-4000-8000-0000000000c8"
+              ],
+              "execution_knowledge": "ENDED",
+              "integrity": "VALID",
+              "intent_digest": "edd87d0c463701075d7d63fb98690467bca72a4c037a8420f422749534ee8f21",
+              "operation_id": "00000000-0000-4000-8000-00000000000a",
+              "outcome": "SUCCEEDED",
+              "phase": "SETTLED",
+              "revision": "4"
+            }
+          },
+          "node/cb88168142122e606e494b45f1b4e02440ab62bd28214d7921219fd219d58442": {
+            "intent_digest": "3e4aa5d943edfb55228e6308c50979833f607a32d11a9276e9c75b63c13f1e3f",
+            "operation": {
+              "disposition": "RELEASED",
+              "evidence_ids": [
+                "00000000-0000-4000-8000-000000000066",
+                "00000000-0000-4000-8000-0000000000ca"
+              ],
+              "execution_knowledge": "ENDED",
+              "integrity": "VALID",
+              "intent_digest": "3e4aa5d943edfb55228e6308c50979833f607a32d11a9276e9c75b63c13f1e3f",
+              "operation_id": "00000000-0000-4000-8000-00000000000c",
+              "outcome": "SUCCEEDED",
+              "phase": "SETTLED",
+              "revision": "4"
+            }
+          }
+        },
+        "resolved_digest": "7d4377c74c2cc94135f941327063399955d786f40f84b702c7008f56648b400e",
+        "run": "00000000-0000-4000-8000-000000000001",
+        "waits": {}
+      },
+      "step": "synthetic-operation-admitted"
+    },
+    {
+      "input_origin": "SYNTHETIC_NOT_A_VALIDATED_P_SNAPSHOT",
+      "observed_frontier": {
+        "decisions": [],
+        "handovers": [],
+        "interventions": [],
+        "operations": [],
+        "pending_operations": [
+          "00000000-0000-4000-8000-00000000000d"
+        ],
+        "reasons": [],
+        "state": "RUNNING",
+        "waits": []
+      },
+      "progress": {
+        "branches": {},
+        "cleared_interventions": {},
+        "complete": true,
+        "operations": {
+          "node/3b18094db5dc48cb65e2f14ee66251e9ef0196edd84b940be389244a455f6483": {
+            "intent_digest": "e06ce33f098b786f1794d0b53f2b6b3ff6b9392eaa3d95dc930a923b976c25db",
+            "operation": {
+              "disposition": "RELEASED",
+              "evidence_ids": [
+                "00000000-0000-4000-8000-000000000065",
+                "00000000-0000-4000-8000-0000000000c9"
+              ],
+              "execution_knowledge": "ENDED",
+              "integrity": "VALID",
+              "intent_digest": "e06ce33f098b786f1794d0b53f2b6b3ff6b9392eaa3d95dc930a923b976c25db",
+              "operation_id": "00000000-0000-4000-8000-00000000000b",
+              "outcome": "SUCCEEDED",
+              "phase": "SETTLED",
+              "revision": "4"
+            }
+          },
+          "node/8dc5fdb7c2b564bc24822d924b33168b7b119f2ebd0ed1af57a658c53efaac81": {
+            "intent_digest": "64e6b7b07d27a2e1a9263f3c1a58fdad7d1ce865ecc216eca2947a2c92292083",
+            "operation": {
+              "disposition": "HELD",
+              "evidence_ids": [],
+              "execution_knowledge": "MAY_HAVE_EXECUTED",
+              "integrity": "VALID",
+              "intent_digest": "64e6b7b07d27a2e1a9263f3c1a58fdad7d1ce865ecc216eca2947a2c92292083",
+              "operation_id": "00000000-0000-4000-8000-00000000000d",
+              "outcome": "NONE",
+              "phase": "ACTIVE",
+              "revision": "2"
+            }
+          },
+          "node/a721a7164429eab185c11041bf0afff9f4835c6eed0217c5b84eb9e88014de07": {
+            "intent_digest": "edd87d0c463701075d7d63fb98690467bca72a4c037a8420f422749534ee8f21",
+            "operation": {
+              "disposition": "RELEASED",
+              "evidence_ids": [
+                "00000000-0000-4000-8000-000000000064",
+                "00000000-0000-4000-8000-0000000000c8"
+              ],
+              "execution_knowledge": "ENDED",
+              "integrity": "VALID",
+              "intent_digest": "edd87d0c463701075d7d63fb98690467bca72a4c037a8420f422749534ee8f21",
+              "operation_id": "00000000-0000-4000-8000-00000000000a",
+              "outcome": "SUCCEEDED",
+              "phase": "SETTLED",
+              "revision": "4"
+            }
+          },
+          "node/cb88168142122e606e494b45f1b4e02440ab62bd28214d7921219fd219d58442": {
+            "intent_digest": "3e4aa5d943edfb55228e6308c50979833f607a32d11a9276e9c75b63c13f1e3f",
+            "operation": {
+              "disposition": "RELEASED",
+              "evidence_ids": [
+                "00000000-0000-4000-8000-000000000066",
+                "00000000-0000-4000-8000-0000000000ca"
+              ],
+              "execution_knowledge": "ENDED",
+              "integrity": "VALID",
+              "intent_digest": "3e4aa5d943edfb55228e6308c50979833f607a32d11a9276e9c75b63c13f1e3f",
+              "operation_id": "00000000-0000-4000-8000-00000000000c",
+              "outcome": "SUCCEEDED",
+              "phase": "SETTLED",
+              "revision": "4"
+            }
+          }
+        },
+        "resolved_digest": "7d4377c74c2cc94135f941327063399955d786f40f84b702c7008f56648b400e",
+        "run": "00000000-0000-4000-8000-000000000001",
+        "waits": {}
+      },
+      "step": "synthetic-send-entered"
+    },
+    {
+      "input_origin": "SYNTHETIC_NOT_A_VALIDATED_P_SNAPSHOT",
+      "observed_frontier": {
+        "decisions": [],
+        "handovers": [
+          "node/8dc5fdb7c2b564bc24822d924b33168b7b119f2ebd0ed1af57a658c53efaac81"
+        ],
+        "interventions": [],
+        "operations": [],
+        "pending_operations": [],
+        "reasons": [],
+        "state": "RUNNING",
+        "waits": []
+      },
+      "progress": {
+        "branches": {},
+        "cleared_interventions": {},
+        "complete": true,
+        "operations": {
+          "node/3b18094db5dc48cb65e2f14ee66251e9ef0196edd84b940be389244a455f6483": {
+            "intent_digest": "e06ce33f098b786f1794d0b53f2b6b3ff6b9392eaa3d95dc930a923b976c25db",
+            "operation": {
+              "disposition": "RELEASED",
+              "evidence_ids": [
+                "00000000-0000-4000-8000-000000000065",
+                "00000000-0000-4000-8000-0000000000c9"
+              ],
+              "execution_knowledge": "ENDED",
+              "integrity": "VALID",
+              "intent_digest": "e06ce33f098b786f1794d0b53f2b6b3ff6b9392eaa3d95dc930a923b976c25db",
+              "operation_id": "00000000-0000-4000-8000-00000000000b",
+              "outcome": "SUCCEEDED",
+              "phase": "SETTLED",
+              "revision": "4"
+            }
+          },
+          "node/8dc5fdb7c2b564bc24822d924b33168b7b119f2ebd0ed1af57a658c53efaac81": {
+            "intent_digest": "64e6b7b07d27a2e1a9263f3c1a58fdad7d1ce865ecc216eca2947a2c92292083",
+            "operation": {
+              "disposition": "HELD",
+              "evidence_ids": [
+                "00000000-0000-4000-8000-000000000067"
+              ],
+              "execution_knowledge": "ENDED",
+              "integrity": "VALID",
+              "intent_digest": "64e6b7b07d27a2e1a9263f3c1a58fdad7d1ce865ecc216eca2947a2c92292083",
+              "operation_id": "00000000-0000-4000-8000-00000000000d",
+              "outcome": "SUCCEEDED",
+              "phase": "SETTLED",
+              "revision": "3"
+            }
+          },
+          "node/a721a7164429eab185c11041bf0afff9f4835c6eed0217c5b84eb9e88014de07": {
+            "intent_digest": "edd87d0c463701075d7d63fb98690467bca72a4c037a8420f422749534ee8f21",
+            "operation": {
+              "disposition": "RELEASED",
+              "evidence_ids": [
+                "00000000-0000-4000-8000-000000000064",
+                "00000000-0000-4000-8000-0000000000c8"
+              ],
+              "execution_knowledge": "ENDED",
+              "integrity": "VALID",
+              "intent_digest": "edd87d0c463701075d7d63fb98690467bca72a4c037a8420f422749534ee8f21",
+              "operation_id": "00000000-0000-4000-8000-00000000000a",
+              "outcome": "SUCCEEDED",
+              "phase": "SETTLED",
+              "revision": "4"
+            }
+          },
+          "node/cb88168142122e606e494b45f1b4e02440ab62bd28214d7921219fd219d58442": {
+            "intent_digest": "3e4aa5d943edfb55228e6308c50979833f607a32d11a9276e9c75b63c13f1e3f",
+            "operation": {
+              "disposition": "RELEASED",
+              "evidence_ids": [
+                "00000000-0000-4000-8000-000000000066",
+                "00000000-0000-4000-8000-0000000000ca"
+              ],
+              "execution_knowledge": "ENDED",
+              "integrity": "VALID",
+              "intent_digest": "3e4aa5d943edfb55228e6308c50979833f607a32d11a9276e9c75b63c13f1e3f",
+              "operation_id": "00000000-0000-4000-8000-00000000000c",
+              "outcome": "SUCCEEDED",
+              "phase": "SETTLED",
+              "revision": "4"
+            }
+          }
+        },
+        "resolved_digest": "7d4377c74c2cc94135f941327063399955d786f40f84b702c7008f56648b400e",
+        "run": "00000000-0000-4000-8000-000000000001",
+        "waits": {}
+      },
+      "step": "synthetic-succeeded-command-resource-held"
+    },
+    {
+      "input_origin": "SYNTHETIC_NOT_A_VALIDATED_P_SNAPSHOT",
+      "observed_frontier": {
+        "decisions": [],
+        "handovers": [],
+        "interventions": [],
+        "operations": [],
+        "pending_operations": [],
+        "reasons": [],
+        "state": "COMPLETED",
+        "waits": []
+      },
+      "progress": {
+        "branches": {},
+        "cleared_interventions": {},
+        "complete": true,
+        "operations": {
+          "node/3b18094db5dc48cb65e2f14ee66251e9ef0196edd84b940be389244a455f6483": {
+            "intent_digest": "e06ce33f098b786f1794d0b53f2b6b3ff6b9392eaa3d95dc930a923b976c25db",
+            "operation": {
+              "disposition": "RELEASED",
+              "evidence_ids": [
+                "00000000-0000-4000-8000-000000000065",
+                "00000000-0000-4000-8000-0000000000c9"
+              ],
+              "execution_knowledge": "ENDED",
+              "integrity": "VALID",
+              "intent_digest": "e06ce33f098b786f1794d0b53f2b6b3ff6b9392eaa3d95dc930a923b976c25db",
+              "operation_id": "00000000-0000-4000-8000-00000000000b",
+              "outcome": "SUCCEEDED",
+              "phase": "SETTLED",
+              "revision": "4"
+            }
+          },
+          "node/8dc5fdb7c2b564bc24822d924b33168b7b119f2ebd0ed1af57a658c53efaac81": {
+            "intent_digest": "64e6b7b07d27a2e1a9263f3c1a58fdad7d1ce865ecc216eca2947a2c92292083",
+            "operation": {
+              "disposition": "RELEASED",
+              "evidence_ids": [
+                "00000000-0000-4000-8000-000000000067",
+                "00000000-0000-4000-8000-0000000000cb"
+              ],
+              "execution_knowledge": "ENDED",
+              "integrity": "VALID",
+              "intent_digest": "64e6b7b07d27a2e1a9263f3c1a58fdad7d1ce865ecc216eca2947a2c92292083",
+              "operation_id": "00000000-0000-4000-8000-00000000000d",
+              "outcome": "SUCCEEDED",
+              "phase": "SETTLED",
+              "revision": "4"
+            }
+          },
+          "node/a721a7164429eab185c11041bf0afff9f4835c6eed0217c5b84eb9e88014de07": {
+            "intent_digest": "edd87d0c463701075d7d63fb98690467bca72a4c037a8420f422749534ee8f21",
+            "operation": {
+              "disposition": "RELEASED",
+              "evidence_ids": [
+                "00000000-0000-4000-8000-000000000064",
+                "00000000-0000-4000-8000-0000000000c8"
+              ],
+              "execution_knowledge": "ENDED",
+              "integrity": "VALID",
+              "intent_digest": "edd87d0c463701075d7d63fb98690467bca72a4c037a8420f422749534ee8f21",
+              "operation_id": "00000000-0000-4000-8000-00000000000a",
+              "outcome": "SUCCEEDED",
+              "phase": "SETTLED",
+              "revision": "4"
+            }
+          },
+          "node/cb88168142122e606e494b45f1b4e02440ab62bd28214d7921219fd219d58442": {
+            "intent_digest": "3e4aa5d943edfb55228e6308c50979833f607a32d11a9276e9c75b63c13f1e3f",
+            "operation": {
+              "disposition": "RELEASED",
+              "evidence_ids": [
+                "00000000-0000-4000-8000-000000000066",
+                "00000000-0000-4000-8000-0000000000ca"
+              ],
+              "execution_knowledge": "ENDED",
+              "integrity": "VALID",
+              "intent_digest": "3e4aa5d943edfb55228e6308c50979833f607a32d11a9276e9c75b63c13f1e3f",
+              "operation_id": "00000000-0000-4000-8000-00000000000c",
+              "outcome": "SUCCEEDED",
+              "phase": "SETTLED",
+              "revision": "4"
+            }
+          }
+        },
+        "resolved_digest": "7d4377c74c2cc94135f941327063399955d786f40f84b702c7008f56648b400e",
+        "run": "00000000-0000-4000-8000-000000000001",
+        "waits": {}
+      },
+      "step": "synthetic-command-resource-released"
+    }
+  ],
+  "lost_response": [
+    {
+      "input_origin": "SYNTHETIC_NOT_A_VALIDATED_P_SNAPSHOT",
+      "observed_frontier": {
+        "decisions": [],
+        "handovers": [],
+        "interventions": [],
+        "operations": [],
+        "pending_operations": [
+          "00000000-0000-4000-8000-00000000000c"
+        ],
+        "reasons": [],
+        "state": "RUNNING",
+        "waits": []
+      },
+      "progress": {
+        "branches": {},
+        "cleared_interventions": {},
+        "complete": true,
+        "operations": {
+          "node/3b18094db5dc48cb65e2f14ee66251e9ef0196edd84b940be389244a455f6483": {
+            "intent_digest": "e06ce33f098b786f1794d0b53f2b6b3ff6b9392eaa3d95dc930a923b976c25db",
+            "operation": {
+              "disposition": "RELEASED",
+              "evidence_ids": [
+                "00000000-0000-4000-8000-000000000065",
+                "00000000-0000-4000-8000-0000000000c9"
+              ],
+              "execution_knowledge": "ENDED",
+              "integrity": "VALID",
+              "intent_digest": "e06ce33f098b786f1794d0b53f2b6b3ff6b9392eaa3d95dc930a923b976c25db",
+              "operation_id": "00000000-0000-4000-8000-00000000000b",
+              "outcome": "SUCCEEDED",
+              "phase": "SETTLED",
+              "revision": "4"
+            }
+          },
+          "node/a721a7164429eab185c11041bf0afff9f4835c6eed0217c5b84eb9e88014de07": {
+            "intent_digest": "edd87d0c463701075d7d63fb98690467bca72a4c037a8420f422749534ee8f21",
+            "operation": {
+              "disposition": "RELEASED",
+              "evidence_ids": [
+                "00000000-0000-4000-8000-000000000064",
+                "00000000-0000-4000-8000-0000000000c8"
+              ],
+              "execution_knowledge": "ENDED",
+              "integrity": "VALID",
+              "intent_digest": "edd87d0c463701075d7d63fb98690467bca72a4c037a8420f422749534ee8f21",
+              "operation_id": "00000000-0000-4000-8000-00000000000a",
+              "outcome": "SUCCEEDED",
+              "phase": "SETTLED",
+              "revision": "4"
+            }
+          },
+          "node/cb88168142122e606e494b45f1b4e02440ab62bd28214d7921219fd219d58442": {
+            "intent_digest": "3e4aa5d943edfb55228e6308c50979833f607a32d11a9276e9c75b63c13f1e3f",
+            "operation": {
+              "disposition": "HELD",
+              "evidence_ids": [],
+              "execution_knowledge": "MAY_HAVE_EXECUTED",
+              "integrity": "VALID",
+              "intent_digest": "3e4aa5d943edfb55228e6308c50979833f607a32d11a9276e9c75b63c13f1e3f",
+              "operation_id": "00000000-0000-4000-8000-00000000000c",
+              "outcome": "NONE",
+              "phase": "ACTIVE",
+              "revision": "2"
+            }
+          }
+        },
+        "resolved_digest": "7d4377c74c2cc94135f941327063399955d786f40f84b702c7008f56648b400e",
+        "run": "00000000-0000-4000-8000-000000000001",
+        "waits": {}
+      },
+      "step": "synthetic-release-send-entered"
+    },
+    {
+      "input_origin": "SYNTHETIC_NOT_A_VALIDATED_P_SNAPSHOT",
+      "observed_frontier": {
+        "decisions": [],
+        "handovers": [],
+        "interventions": [],
+        "operations": [],
+        "pending_operations": [
+          "00000000-0000-4000-8000-00000000000c"
+        ],
+        "reasons": [
+          "node/cb88168142122e606e494b45f1b4e02440ab62bd28214d7921219fd219d58442 requires reconciliation"
+        ],
+        "state": "BLOCKED",
+        "waits": []
+      },
+      "progress": {
+        "branches": {},
+        "cleared_interventions": {},
+        "complete": true,
+        "operations": {
+          "node/3b18094db5dc48cb65e2f14ee66251e9ef0196edd84b940be389244a455f6483": {
+            "intent_digest": "e06ce33f098b786f1794d0b53f2b6b3ff6b9392eaa3d95dc930a923b976c25db",
+            "operation": {
+              "disposition": "RELEASED",
+              "evidence_ids": [
+                "00000000-0000-4000-8000-000000000065",
+                "00000000-0000-4000-8000-0000000000c9"
+              ],
+              "execution_knowledge": "ENDED",
+              "integrity": "VALID",
+              "intent_digest": "e06ce33f098b786f1794d0b53f2b6b3ff6b9392eaa3d95dc930a923b976c25db",
+              "operation_id": "00000000-0000-4000-8000-00000000000b",
+              "outcome": "SUCCEEDED",
+              "phase": "SETTLED",
+              "revision": "4"
+            }
+          },
+          "node/a721a7164429eab185c11041bf0afff9f4835c6eed0217c5b84eb9e88014de07": {
+            "intent_digest": "edd87d0c463701075d7d63fb98690467bca72a4c037a8420f422749534ee8f21",
+            "operation": {
+              "disposition": "RELEASED",
+              "evidence_ids": [
+                "00000000-0000-4000-8000-000000000064",
+                "00000000-0000-4000-8000-0000000000c8"
+              ],
+              "execution_knowledge": "ENDED",
+              "integrity": "VALID",
+              "intent_digest": "edd87d0c463701075d7d63fb98690467bca72a4c037a8420f422749534ee8f21",
+              "operation_id": "00000000-0000-4000-8000-00000000000a",
+              "outcome": "SUCCEEDED",
+              "phase": "SETTLED",
+              "revision": "4"
+            }
+          },
+          "node/cb88168142122e606e494b45f1b4e02440ab62bd28214d7921219fd219d58442": {
+            "intent_digest": "3e4aa5d943edfb55228e6308c50979833f607a32d11a9276e9c75b63c13f1e3f",
+            "operation": {
+              "disposition": "QUARANTINED",
+              "evidence_ids": [],
+              "execution_knowledge": "UNKNOWN",
+              "integrity": "VALID",
+              "intent_digest": "3e4aa5d943edfb55228e6308c50979833f607a32d11a9276e9c75b63c13f1e3f",
+              "operation_id": "00000000-0000-4000-8000-00000000000c",
+              "outcome": "NONE",
+              "phase": "RECONCILING",
+              "revision": "3"
+            }
+          }
+        },
+        "resolved_digest": "7d4377c74c2cc94135f941327063399955d786f40f84b702c7008f56648b400e",
+        "run": "00000000-0000-4000-8000-000000000001",
+        "waits": {}
+      },
+      "step": "synthetic-response-loss-after-ten-planning-reads"
+    },
+    {
+      "input_origin": "SYNTHETIC_NOT_A_VALIDATED_P_SNAPSHOT",
+      "observed_frontier": {
+        "decisions": [],
+        "handovers": [],
+        "interventions": [],
+        "operations": [],
+        "pending_operations": [
+          "00000000-0000-4000-8000-00000000000c"
+        ],
+        "reasons": [
+          "node/cb88168142122e606e494b45f1b4e02440ab62bd28214d7921219fd219d58442 requires reconciliation"
+        ],
+        "state": "BLOCKED",
+        "waits": []
+      },
+      "progress": {
+        "branches": {},
+        "cleared_interventions": {},
+        "complete": true,
+        "operations": {
+          "node/3b18094db5dc48cb65e2f14ee66251e9ef0196edd84b940be389244a455f6483": {
+            "intent_digest": "e06ce33f098b786f1794d0b53f2b6b3ff6b9392eaa3d95dc930a923b976c25db",
+            "operation": {
+              "disposition": "RELEASED",
+              "evidence_ids": [
+                "00000000-0000-4000-8000-000000000065",
+                "00000000-0000-4000-8000-0000000000c9"
+              ],
+              "execution_knowledge": "ENDED",
+              "integrity": "VALID",
+              "intent_digest": "e06ce33f098b786f1794d0b53f2b6b3ff6b9392eaa3d95dc930a923b976c25db",
+              "operation_id": "00000000-0000-4000-8000-00000000000b",
+              "outcome": "SUCCEEDED",
+              "phase": "SETTLED",
+              "revision": "4"
+            }
+          },
+          "node/a721a7164429eab185c11041bf0afff9f4835c6eed0217c5b84eb9e88014de07": {
+            "intent_digest": "edd87d0c463701075d7d63fb98690467bca72a4c037a8420f422749534ee8f21",
+            "operation": {
+              "disposition": "RELEASED",
+              "evidence_ids": [
+                "00000000-0000-4000-8000-000000000064",
+                "00000000-0000-4000-8000-0000000000c8"
+              ],
+              "execution_knowledge": "ENDED",
+              "integrity": "VALID",
+              "intent_digest": "edd87d0c463701075d7d63fb98690467bca72a4c037a8420f422749534ee8f21",
+              "operation_id": "00000000-0000-4000-8000-00000000000a",
+              "outcome": "SUCCEEDED",
+              "phase": "SETTLED",
+              "revision": "4"
+            }
+          },
+          "node/cb88168142122e606e494b45f1b4e02440ab62bd28214d7921219fd219d58442": {
+            "intent_digest": "3e4aa5d943edfb55228e6308c50979833f607a32d11a9276e9c75b63c13f1e3f",
+            "operation": {
+              "disposition": "QUARANTINED",
+              "evidence_ids": [
+                "00000000-0000-4000-8000-00000000012c"
+              ],
+              "execution_knowledge": "UNKNOWN",
+              "integrity": "VALID",
+              "intent_digest": "3e4aa5d943edfb55228e6308c50979833f607a32d11a9276e9c75b63c13f1e3f",
+              "operation_id": "00000000-0000-4000-8000-00000000000c",
+              "outcome": "UNRESOLVED",
+              "phase": "SETTLED",
+              "revision": "4"
+            }
+          }
+        },
+        "resolved_digest": "7d4377c74c2cc94135f941327063399955d786f40f84b702c7008f56648b400e",
+        "run": "00000000-0000-4000-8000-000000000001",
+        "waits": {}
+      },
+      "step": "synthetic-investigation-concludes-unresolved"
+    }
+  ],
+  "outside_graph": [
+    {
+      "id": "retained-material-and-bay-occupancy",
+      "implementation_gap": "No N1 MaterialState source, alias resolution, support evaluation, or occupancy admission adapter is supplied. Command resource RELEASED never authorizes clearing these claims.",
+      "required_at_case_endpoint": [
+        "OUT-01/TRAY-01 supports PKG-01",
+        "OUT-01 occupies BAY-01"
+      ],
+      "status": "NOT_EVALUATED"
+    },
+    {
+      "id": "normal-receipt-and-service-aggregation",
+      "implementation_gap": "No authenticated HUMAN_ATTESTATION, validity procedure, or R-11 service aggregation rule is supplied. No fake Intervention substitutes for ordinary receipt.",
+      "status": "NOT_EVALUATED"
+    }
+  ],
+  "p_or_host_execution": false,
+  "resolved_digest": "7d4377c74c2cc94135f941327063399955d786f40f84b702c7008f56648b400e",
+  "schema": "rx.example-n1-planning-trace.v1",
+  "scope": "REAL_COMPILER_AND_FRONTIER_WITH_SYNTHETIC_OPERATION_INPUTS",
+  "source_digest": "212efeb42038522c5539b58a9320bb319e5b01a68250e390bf317cdb5b366212"
+}

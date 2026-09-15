@@ -1,0 +1,52 @@
+{
+  "schema": "rx.example-n1-boundary.v1",
+  "scope": "SYNTHETIC_COMMAND_PLANNING_ONLY",
+  "commissioning": "NOT_COMMISSIONED",
+  "case_instances": {
+    "site": "SITE-01",
+    "runtime": "RUNTIME-01",
+    "sender": "IN-01",
+    "sender_host": "HOST-IN",
+    "receiver": "OUT-01",
+    "receiver_host": "HOST-OUT",
+    "tray": "TRAY-01",
+    "bay": "BAY-01",
+    "parcel": "PKG-01",
+    "handover_generation": "HG-01",
+    "requester": "CLIENT-01",
+    "recipient": "RECIPIENT-01"
+  },
+  "open_items": [
+    "OPEN-MOBILE-SUPPORT",
+    "OPEN-RECEIPT"
+  ],
+  "outside_graph": [
+    {
+      "id": "retained-material-and-bay-occupancy",
+      "status": "NOT_EVALUATED",
+      "required_at_case_endpoint": [
+        "OUT-01/TRAY-01 supports PKG-01",
+        "OUT-01 occupies BAY-01"
+      ],
+      "implementation_gap": "No N1 MaterialState source, alias resolution, support evaluation, or occupancy admission adapter is supplied. Command resource RELEASED never authorizes clearing these claims."
+    },
+    {
+      "id": "normal-receipt-and-service-aggregation",
+      "status": "NOT_EVALUATED",
+      "implementation_gap": "No authenticated HUMAN_ATTESTATION, validity procedure, or R-11 service aggregation rule is supplied. No fake Intervention substitutes for ordinary receipt."
+    }
+  ],
+  "authority": "No P admission, native dispatch, commissioning, or physical evidence is produced.",
+  "open_item_inputs": {
+    "OPEN-MOBILE-SUPPORT": [
+      "Actual device/version and parcel/tray combination",
+      "Docking/braking, load/pose limits and source freshness",
+      "Support continuity throughout sender release and failure response validation"
+    ],
+    "OPEN-RECEIPT": [
+      "Recipient identity, authority and procedure revision",
+      "Observation scope, validity and duplicate/late receipt decisions",
+      "R-11 rule combining physical evidence, receipt and retained occupancy"
+    ]
+  }
+}
