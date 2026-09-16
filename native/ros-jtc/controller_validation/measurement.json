@@ -1,0 +1,226 @@
+{
+  "schema": "rx.n5-input-availability.v1",
+  "denominator": 77,
+  "denominator_source": "https://github.com/jack0682/rx_docs/blob/3f685f1e81fa11a9598c1aa3acba89222c173b61/docs/21_declaration_reuse_measurement.md",
+  "rule": "Strict input-topic correspondence, not physical adequacy or operational admission. Concrete container values count; incomplete meanings and absent values do not. No N5 field is filled with fake content hashes. N4 and N5 use different configurations; their union is cross-artifact candidate availability, not one installed baseline and not inherited reuse.",
+  "n5_filled": [
+    {
+      "id": "S04",
+      "source": "observations.json bridge_config; run.py environment",
+      "scope": "Configured /rx_test endpoints, explicit DDS domain 171, Fast DDS and LOCALHOST discovery. These are container routes, not site communication qualification."
+    },
+    {
+      "id": "S07",
+      "source": "observations.json bridge_config and commands; mock.urdf",
+      "scope": "Selected SIM-JTC-6DOF with /rx_test/controller_manager, arm_controller and N5GenericSystem. Concrete software instances, not the N1 two-Host topology."
+    },
+    {
+      "id": "S21",
+      "source": "observations.json limits and container",
+      "scope": "Real ROS controller with mock hardware; no devices/network/privilege or P/Host admission; NOT_PERFORMED and NOT_COMMISSIONED."
+    },
+    {
+      "id": "P01",
+      "source": "observations.json bridge_config.support_id",
+      "scope": "SIM-JTC-6DOF selected from the unchanged SIMULATION_FIXTURE catalog."
+    },
+    {
+      "id": "P04",
+      "source": "observations.json packages_tsv and loaded_plugin_sha256",
+      "scope": "Installed controller_manager, JTC and hardware-interface versions and hashes of libraries actually loaded by the manager."
+    },
+    {
+      "id": "P06",
+      "source": "observations.json bridge_config; run.py ACTION and subscriptions",
+      "scope": "Manager lifecycle/inspection endpoint, JTC action endpoint and read-only feedback/state subscriptions have explicit roles."
+    },
+    {
+      "id": "P07",
+      "source": "run.py imports and Bridge calls; ../bridge.cpp",
+      "scope": "ListControllers plus FollowJointTrajectory SendGoal/GetResult/CancelGoal and controller-state/feedback message types selected. Not an arbitrary endpoint name alone."
+    },
+    {
+      "id": "P09",
+      "source": "controllers.yaml joints; goal.json joints; observations.json hello and claimed interfaces",
+      "scope": "Complete joint1 through joint6 ordering selected and checked against the catalog and real manager claims."
+    },
+    {
+      "id": "P11",
+      "source": "observations.json exchanges first/restarted result queries",
+      "scope": "Caller-supplied UUID accepted and queried at the same running controller after bridge restart. Availability of a live-server cache only; no controller-reboot retention guarantee."
+    },
+    {
+      "id": "P17",
+      "source": "run.py create_subscription; observations.json action_feedback, controller_state_samples and packages_tsv",
+      "scope": "control_msgs/JointTrajectoryControllerState and FollowJointTrajectory feedback selected and received under the recorded control-msgs version. Software/mock observations, not parcel/support evidence."
+    },
+    {
+      "id": "P19",
+      "source": "observations.json exchanges; ../bridge.cpp inspect and result",
+      "scope": "Current controller activation/interface observation is queried separately from the historical result of a particular goal UUID. A fresh bridge can query that cache without owning cancellation."
+    },
+    {
+      "id": "P31",
+      "source": "goal.json path_tolerance and goal_tolerance",
+      "scope": "Explicit positive position/velocity/acceleration tolerances of 0.1 per joint, inherited from the existing bridge test as software parameters only."
+    },
+    {
+      "id": "P33",
+      "source": "goal.json goal_time_ns; observations.json bridge_config.timeout_ms",
+      "scope": "100 ms goal-time tolerance and 150 ms bridge RPC timeout. Not a physical stop deadline or the N4 5000 ms execution timeout."
+    },
+    {
+      "id": "P52",
+      "source": "observations.json; baseline.json",
+      "scope": "Actual controller/mock-hardware test artifact with input/library hashes, raw RPC replies, feedback, lifecycle commands and logs. Not a physical device test."
+    },
+    {
+      "id": "P53",
+      "source": "observations.json observed_at",
+      "scope": "UTC timestamp of this completed container test, corresponding to 2026-09-16 KST."
+    },
+    {
+      "id": "P54",
+      "source": "observations.json packages_tsv, container.image_id and input_sha256",
+      "scope": "Versions of the measured controller stack, exact image identity and executed input hashes."
+    },
+    {
+      "id": "P55",
+      "source": "observations.json container, bridge_config, manager_argv and commands",
+      "scope": "Inspected Linux arm64 non-root isolated container and explicit mock component, controller configuration and invocation conditions."
+    },
+    {
+      "id": "P56",
+      "source": "observations.json limits and controller_manager_log; README.md",
+      "scope": "Observed test scope and limitations: no production Authority/generation proof, physical timing/support/stop, Host/P admission or N1 operation execution; raw diagnostics retained."
+    }
+  ],
+  "n5_unfilled_or_partial": [
+    "P02",
+    "P03",
+    "P05",
+    "P08",
+    "P10",
+    "P12",
+    "P13",
+    "P14",
+    "P15",
+    "P16",
+    "P18",
+    "P20",
+    "P21",
+    "P22",
+    "P23",
+    "P24",
+    "P25",
+    "P26",
+    "P27",
+    "P28",
+    "P29",
+    "P30",
+    "P32",
+    "P34",
+    "P35",
+    "P36",
+    "P37",
+    "P38",
+    "P39",
+    "P40",
+    "P41",
+    "P42",
+    "P43",
+    "P44",
+    "P45",
+    "P46",
+    "P47",
+    "P48",
+    "P49",
+    "P50",
+    "P51",
+    "S01",
+    "S02",
+    "S03",
+    "S05",
+    "S06",
+    "S08",
+    "S09",
+    "S10",
+    "S11",
+    "S12",
+    "S13",
+    "S14",
+    "S15",
+    "S16",
+    "S17",
+    "S18",
+    "S19",
+    "S20"
+  ],
+  "n5_placeholder_only": [],
+  "n4_filled": [
+    "P20",
+    "P33",
+    "P39",
+    "P40",
+    "S07",
+    "S13",
+    "S20",
+    "S21"
+  ],
+  "new_relative_to_n4": [
+    "P01",
+    "P04",
+    "P06",
+    "P07",
+    "P09",
+    "P11",
+    "P17",
+    "P19",
+    "P31",
+    "P52",
+    "P53",
+    "P54",
+    "P55",
+    "P56",
+    "S04"
+  ],
+  "overlap_ids_not_equal_values": {
+    "S07": "N1 two-Host case versus a single generic controller/mock system.",
+    "S21": "N1 command-planning boundary versus real ROS protocol/mock-hardware boundary.",
+    "P33": "Different timeout meanings and values. ID overlap is not value equivalence."
+  },
+  "union_availability": [
+    "P01",
+    "P04",
+    "P06",
+    "P07",
+    "P09",
+    "P11",
+    "P17",
+    "P19",
+    "P20",
+    "P31",
+    "P33",
+    "P39",
+    "P40",
+    "P52",
+    "P53",
+    "P54",
+    "P55",
+    "P56",
+    "S04",
+    "S07",
+    "S13",
+    "S20",
+    "S21"
+  ],
+  "summary": {
+    "n5_filled": 18,
+    "n5_unfilled": 59,
+    "n4_filled": 8,
+    "overlap": 3,
+    "new_relative_n4": 15,
+    "union_availability": 23,
+    "union_unfilled": 54
+  }
+}

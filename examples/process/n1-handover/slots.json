@@ -1,0 +1,474 @@
+{
+  "schema": "rx.example-n1-slot-measurement.v1",
+  "denominator_source": "https://github.com/jack0682/rx_docs/blob/d39bac906681adb7eb75006f46f458eab11645ca/docs/21_declaration_reuse_measurement.md#2-%EA%B3%A0%EC%A0%95-%EC%8A%AC%EB%A1%AF-%EB%AA%A9%EB%A1%9D",
+  "measurement_inputs": [
+    "source.json",
+    "bindings.json",
+    "boundary.json"
+  ],
+  "rule": "Complete explicit simulation input values count, without requiring physical qualification. Names, partial topics, absent evidence and placeholder-only bodies do not count. This is a new N1 input measurement, not inherited/declared/free relabeling.",
+  "slots": [
+    {
+      "id": "S01",
+      "status": "unfilled",
+      "source": "",
+      "reason": "No complete value for this input topic is supplied by the selected N1 source, bindings and boundary declaration. Planning tests are not a device BindingProfile or installation validation."
+    },
+    {
+      "id": "S02",
+      "status": "unfilled",
+      "source": "",
+      "reason": "No complete value for this input topic is supplied by the selected N1 source, bindings and boundary declaration. Planning tests are not a device BindingProfile or installation validation."
+    },
+    {
+      "id": "S03",
+      "status": "placeholder_only",
+      "source": "bindings.json#/*/intent/body/program",
+      "reason": "Program and parameter references use rx.development.placeholder.v1; no executable program bytes."
+    },
+    {
+      "id": "S04",
+      "status": "unfilled",
+      "source": "",
+      "reason": "No complete value for this input topic is supplied by the selected N1 source, bindings and boundary declaration. Planning tests are not a device BindingProfile or installation validation."
+    },
+    {
+      "id": "S05",
+      "status": "unfilled",
+      "source": "",
+      "reason": "No complete value for this input topic is supplied by the selected N1 source, bindings and boundary declaration. Planning tests are not a device BindingProfile or installation validation."
+    },
+    {
+      "id": "S06",
+      "status": "unfilled",
+      "source": "",
+      "reason": "No complete value for this input topic is supplied by the selected N1 source, bindings and boundary declaration. Planning tests are not a device BindingProfile or installation validation."
+    },
+    {
+      "id": "S07",
+      "status": "simulation_value",
+      "source": "boundary.json#/case_instances; bindings.json#/*/host; bindings.json#/*/intent/target",
+      "reason": "N1 logical instances selected; no deployed installation or model is asserted."
+    },
+    {
+      "id": "S08",
+      "status": "unfilled",
+      "source": "",
+      "reason": "No complete value for this input topic is supplied by the selected N1 source, bindings and boundary declaration. Planning tests are not a device BindingProfile or installation validation."
+    },
+    {
+      "id": "S09",
+      "status": "unfilled",
+      "source": "",
+      "reason": "No complete value for this input topic is supplied by the selected N1 source, bindings and boundary declaration. Planning tests are not a device BindingProfile or installation validation."
+    },
+    {
+      "id": "S10",
+      "status": "unfilled",
+      "source": "",
+      "reason": "No complete value for this input topic is supplied by the selected N1 source, bindings and boundary declaration. Planning tests are not a device BindingProfile or installation validation."
+    },
+    {
+      "id": "S11",
+      "status": "unfilled",
+      "source": "",
+      "reason": "No complete value for this input topic is supplied by the selected N1 source, bindings and boundary declaration. Planning tests are not a device BindingProfile or installation validation."
+    },
+    {
+      "id": "S12",
+      "status": "unfilled",
+      "source": "",
+      "reason": "No complete value for this input topic is supplied by the selected N1 source, bindings and boundary declaration. Planning tests are not a device BindingProfile or installation validation."
+    },
+    {
+      "id": "S13",
+      "status": "simulation_value",
+      "source": "source.json#/flows/0/nodes/0/body/children",
+      "reason": "Four-command sequence, with no parallel branch; physical support/receipt remain outside it."
+    },
+    {
+      "id": "S14",
+      "status": "unfilled",
+      "source": "",
+      "reason": "No complete value for this input topic is supplied by the selected N1 source, bindings and boundary declaration. Planning tests are not a device BindingProfile or installation validation."
+    },
+    {
+      "id": "S15",
+      "status": "unfilled",
+      "source": "",
+      "reason": "No complete value for this input topic is supplied by the selected N1 source, bindings and boundary declaration. Planning tests are not a device BindingProfile or installation validation."
+    },
+    {
+      "id": "S16",
+      "status": "unfilled",
+      "source": "",
+      "reason": "No complete value for this input topic is supplied by the selected N1 source, bindings and boundary declaration. Planning tests are not a device BindingProfile or installation validation."
+    },
+    {
+      "id": "S17",
+      "status": "unfilled",
+      "source": "",
+      "reason": "No complete value for this input topic is supplied by the selected N1 source, bindings and boundary declaration. Planning tests are not a device BindingProfile or installation validation."
+    },
+    {
+      "id": "S18",
+      "status": "unfilled",
+      "source": "",
+      "reason": "No complete value for this input topic is supplied by the selected N1 source, bindings and boundary declaration. Planning tests are not a device BindingProfile or installation validation."
+    },
+    {
+      "id": "S19",
+      "status": "unfilled",
+      "source": "",
+      "reason": "No complete value for this input topic is supplied by the selected N1 source, bindings and boundary declaration. Planning tests are not a device BindingProfile or installation validation."
+    },
+    {
+      "id": "S20",
+      "status": "simulation_value",
+      "source": "boundary.json#/open_item_inputs",
+      "reason": "Two selected open items and their specific missing input bundles, not resolved items."
+    },
+    {
+      "id": "S21",
+      "status": "simulation_value",
+      "source": "boundary.json#/scope; boundary.json#/commissioning; boundary.json#/outside_graph",
+      "reason": "Synthetic command planning only; NOT_COMMISSIONED; named material/receipt boundaries."
+    },
+    {
+      "id": "P01",
+      "status": "unfilled",
+      "source": "",
+      "reason": "No complete value for this input topic is supplied by the selected N1 source, bindings and boundary declaration. Planning tests are not a device BindingProfile or installation validation."
+    },
+    {
+      "id": "P02",
+      "status": "unfilled",
+      "source": "",
+      "reason": "No complete value for this input topic is supplied by the selected N1 source, bindings and boundary declaration. Planning tests are not a device BindingProfile or installation validation."
+    },
+    {
+      "id": "P03",
+      "status": "unfilled",
+      "source": "",
+      "reason": "No complete value for this input topic is supplied by the selected N1 source, bindings and boundary declaration. Planning tests are not a device BindingProfile or installation validation."
+    },
+    {
+      "id": "P04",
+      "status": "unfilled",
+      "source": "",
+      "reason": "No complete value for this input topic is supplied by the selected N1 source, bindings and boundary declaration. Planning tests are not a device BindingProfile or installation validation."
+    },
+    {
+      "id": "P05",
+      "status": "unfilled",
+      "source": "",
+      "reason": "No complete value for this input topic is supplied by the selected N1 source, bindings and boundary declaration. Planning tests are not a device BindingProfile or installation validation."
+    },
+    {
+      "id": "P06",
+      "status": "unfilled",
+      "source": "",
+      "reason": "No complete value for this input topic is supplied by the selected N1 source, bindings and boundary declaration. Planning tests are not a device BindingProfile or installation validation."
+    },
+    {
+      "id": "P07",
+      "status": "unfilled",
+      "source": "",
+      "reason": "No complete value for this input topic is supplied by the selected N1 source, bindings and boundary declaration. Planning tests are not a device BindingProfile or installation validation."
+    },
+    {
+      "id": "P08",
+      "status": "unfilled",
+      "source": "",
+      "reason": "No complete value for this input topic is supplied by the selected N1 source, bindings and boundary declaration. Planning tests are not a device BindingProfile or installation validation."
+    },
+    {
+      "id": "P09",
+      "status": "unfilled",
+      "source": "",
+      "reason": "No complete value for this input topic is supplied by the selected N1 source, bindings and boundary declaration. Planning tests are not a device BindingProfile or installation validation."
+    },
+    {
+      "id": "P10",
+      "status": "unfilled",
+      "source": "",
+      "reason": "No complete value for this input topic is supplied by the selected N1 source, bindings and boundary declaration. Planning tests are not a device BindingProfile or installation validation."
+    },
+    {
+      "id": "P11",
+      "status": "unfilled",
+      "source": "",
+      "reason": "No complete value for this input topic is supplied by the selected N1 source, bindings and boundary declaration. Planning tests are not a device BindingProfile or installation validation."
+    },
+    {
+      "id": "P12",
+      "status": "unfilled",
+      "source": "",
+      "reason": "No complete value for this input topic is supplied by the selected N1 source, bindings and boundary declaration. Planning tests are not a device BindingProfile or installation validation."
+    },
+    {
+      "id": "P13",
+      "status": "unfilled",
+      "source": "",
+      "reason": "No complete value for this input topic is supplied by the selected N1 source, bindings and boundary declaration. Planning tests are not a device BindingProfile or installation validation."
+    },
+    {
+      "id": "P14",
+      "status": "unfilled",
+      "source": "",
+      "reason": "No complete value for this input topic is supplied by the selected N1 source, bindings and boundary declaration. Planning tests are not a device BindingProfile or installation validation."
+    },
+    {
+      "id": "P15",
+      "status": "unfilled",
+      "source": "",
+      "reason": "No complete value for this input topic is supplied by the selected N1 source, bindings and boundary declaration. Planning tests are not a device BindingProfile or installation validation."
+    },
+    {
+      "id": "P16",
+      "status": "placeholder_only",
+      "source": "bindings.json#/*/intent/kind; bindings.json#/*/intent/body",
+      "reason": "FINITE_ACTION syntax plus placeholder bodies does not establish a supported kind/body capability."
+    },
+    {
+      "id": "P17",
+      "status": "unfilled",
+      "source": "",
+      "reason": "No complete value for this input topic is supplied by the selected N1 source, bindings and boundary declaration. Planning tests are not a device BindingProfile or installation validation."
+    },
+    {
+      "id": "P18",
+      "status": "unfilled",
+      "source": "",
+      "reason": "No complete value for this input topic is supplied by the selected N1 source, bindings and boundary declaration. Planning tests are not a device BindingProfile or installation validation."
+    },
+    {
+      "id": "P19",
+      "status": "unfilled",
+      "source": "",
+      "reason": "No complete value for this input topic is supplied by the selected N1 source, bindings and boundary declaration. Planning tests are not a device BindingProfile or installation validation."
+    },
+    {
+      "id": "P20",
+      "status": "simulation_value",
+      "source": "bindings.json#/*/intent/resource_set",
+      "reason": "Explicit logical command conflict sets, including PKG-01/HG-01 across Hosts. No physical alias/installation validation."
+    },
+    {
+      "id": "P21",
+      "status": "unfilled",
+      "source": "",
+      "reason": "No complete value for this input topic is supplied by the selected N1 source, bindings and boundary declaration. Planning tests are not a device BindingProfile or installation validation."
+    },
+    {
+      "id": "P22",
+      "status": "unfilled",
+      "source": "",
+      "reason": "No complete value for this input topic is supplied by the selected N1 source, bindings and boundary declaration. Planning tests are not a device BindingProfile or installation validation."
+    },
+    {
+      "id": "P23",
+      "status": "unfilled",
+      "source": "",
+      "reason": "No complete value for this input topic is supplied by the selected N1 source, bindings and boundary declaration. Planning tests are not a device BindingProfile or installation validation."
+    },
+    {
+      "id": "P24",
+      "status": "unfilled",
+      "source": "",
+      "reason": "No complete value for this input topic is supplied by the selected N1 source, bindings and boundary declaration. Planning tests are not a device BindingProfile or installation validation."
+    },
+    {
+      "id": "P25",
+      "status": "unfilled",
+      "source": "",
+      "reason": "No complete value for this input topic is supplied by the selected N1 source, bindings and boundary declaration. Planning tests are not a device BindingProfile or installation validation."
+    },
+    {
+      "id": "P26",
+      "status": "unfilled",
+      "source": "",
+      "reason": "No complete value for this input topic is supplied by the selected N1 source, bindings and boundary declaration. Planning tests are not a device BindingProfile or installation validation."
+    },
+    {
+      "id": "P27",
+      "status": "unfilled",
+      "source": "",
+      "reason": "No complete value for this input topic is supplied by the selected N1 source, bindings and boundary declaration. Planning tests are not a device BindingProfile or installation validation."
+    },
+    {
+      "id": "P28",
+      "status": "unfilled",
+      "source": "",
+      "reason": "No complete value for this input topic is supplied by the selected N1 source, bindings and boundary declaration. Planning tests are not a device BindingProfile or installation validation."
+    },
+    {
+      "id": "P29",
+      "status": "unfilled",
+      "source": "",
+      "reason": "No complete value for this input topic is supplied by the selected N1 source, bindings and boundary declaration. Planning tests are not a device BindingProfile or installation validation."
+    },
+    {
+      "id": "P30",
+      "status": "unfilled",
+      "source": "",
+      "reason": "No complete value for this input topic is supplied by the selected N1 source, bindings and boundary declaration. Planning tests are not a device BindingProfile or installation validation."
+    },
+    {
+      "id": "P31",
+      "status": "unfilled",
+      "source": "",
+      "reason": "No complete value for this input topic is supplied by the selected N1 source, bindings and boundary declaration. Planning tests are not a device BindingProfile or installation validation."
+    },
+    {
+      "id": "P32",
+      "status": "unfilled",
+      "source": "",
+      "reason": "No complete value for this input topic is supplied by the selected N1 source, bindings and boundary declaration. Planning tests are not a device BindingProfile or installation validation."
+    },
+    {
+      "id": "P33",
+      "status": "simulation_value",
+      "source": "bindings.json#/*/intent/execution_timeout_ms",
+      "reason": "5000 ms copied unchanged from the existing material-supply fixture; not a validated physical timeout."
+    },
+    {
+      "id": "P34",
+      "status": "unfilled",
+      "source": "",
+      "reason": "No complete value for this input topic is supplied by the selected N1 source, bindings and boundary declaration. Planning tests are not a device BindingProfile or installation validation."
+    },
+    {
+      "id": "P35",
+      "status": "unfilled",
+      "source": "",
+      "reason": "No complete value for this input topic is supplied by the selected N1 source, bindings and boundary declaration. Planning tests are not a device BindingProfile or installation validation."
+    },
+    {
+      "id": "P36",
+      "status": "unfilled",
+      "source": "",
+      "reason": "No complete value for this input topic is supplied by the selected N1 source, bindings and boundary declaration. Planning tests are not a device BindingProfile or installation validation."
+    },
+    {
+      "id": "P37",
+      "status": "unfilled",
+      "source": "",
+      "reason": "No complete value for this input topic is supplied by the selected N1 source, bindings and boundary declaration. Planning tests are not a device BindingProfile or installation validation."
+    },
+    {
+      "id": "P38",
+      "status": "unfilled",
+      "source": "",
+      "reason": "No complete value for this input topic is supplied by the selected N1 source, bindings and boundary declaration. Planning tests are not a device BindingProfile or installation validation."
+    },
+    {
+      "id": "P39",
+      "status": "simulation_value",
+      "source": "bindings.json#/*/intent/prepare_validity_ms",
+      "reason": "1000 ms copied unchanged from the existing material-supply fixture; no timing evidence."
+    },
+    {
+      "id": "P40",
+      "status": "simulation_value",
+      "source": "bindings.json#/*/intent/execution_timeout_ms",
+      "reason": "Same 5000 ms input as P33, retained as two fixed doc21 slots, not two independent decisions."
+    },
+    {
+      "id": "P41",
+      "status": "unfilled",
+      "source": "",
+      "reason": "No complete value for this input topic is supplied by the selected N1 source, bindings and boundary declaration. Planning tests are not a device BindingProfile or installation validation."
+    },
+    {
+      "id": "P42",
+      "status": "unfilled",
+      "source": "",
+      "reason": "No complete value for this input topic is supplied by the selected N1 source, bindings and boundary declaration. Planning tests are not a device BindingProfile or installation validation."
+    },
+    {
+      "id": "P43",
+      "status": "unfilled",
+      "source": "",
+      "reason": "No complete value for this input topic is supplied by the selected N1 source, bindings and boundary declaration. Planning tests are not a device BindingProfile or installation validation."
+    },
+    {
+      "id": "P44",
+      "status": "unfilled",
+      "source": "",
+      "reason": "No complete value for this input topic is supplied by the selected N1 source, bindings and boundary declaration. Planning tests are not a device BindingProfile or installation validation."
+    },
+    {
+      "id": "P45",
+      "status": "unfilled",
+      "source": "",
+      "reason": "No complete value for this input topic is supplied by the selected N1 source, bindings and boundary declaration. Planning tests are not a device BindingProfile or installation validation."
+    },
+    {
+      "id": "P46",
+      "status": "unfilled",
+      "source": "",
+      "reason": "No complete value for this input topic is supplied by the selected N1 source, bindings and boundary declaration. Planning tests are not a device BindingProfile or installation validation."
+    },
+    {
+      "id": "P47",
+      "status": "unfilled",
+      "source": "",
+      "reason": "No complete value for this input topic is supplied by the selected N1 source, bindings and boundary declaration. Planning tests are not a device BindingProfile or installation validation."
+    },
+    {
+      "id": "P48",
+      "status": "unfilled",
+      "source": "",
+      "reason": "No complete value for this input topic is supplied by the selected N1 source, bindings and boundary declaration. Planning tests are not a device BindingProfile or installation validation."
+    },
+    {
+      "id": "P49",
+      "status": "unfilled",
+      "source": "",
+      "reason": "No complete value for this input topic is supplied by the selected N1 source, bindings and boundary declaration. Planning tests are not a device BindingProfile or installation validation."
+    },
+    {
+      "id": "P50",
+      "status": "unfilled",
+      "source": "",
+      "reason": "No complete value for this input topic is supplied by the selected N1 source, bindings and boundary declaration. Planning tests are not a device BindingProfile or installation validation."
+    },
+    {
+      "id": "P51",
+      "status": "unfilled",
+      "source": "",
+      "reason": "No complete value for this input topic is supplied by the selected N1 source, bindings and boundary declaration. Planning tests are not a device BindingProfile or installation validation."
+    },
+    {
+      "id": "P52",
+      "status": "unfilled",
+      "source": "",
+      "reason": "No complete value for this input topic is supplied by the selected N1 source, bindings and boundary declaration. Planning tests are not a device BindingProfile or installation validation."
+    },
+    {
+      "id": "P53",
+      "status": "unfilled",
+      "source": "",
+      "reason": "No complete value for this input topic is supplied by the selected N1 source, bindings and boundary declaration. Planning tests are not a device BindingProfile or installation validation."
+    },
+    {
+      "id": "P54",
+      "status": "unfilled",
+      "source": "",
+      "reason": "No complete value for this input topic is supplied by the selected N1 source, bindings and boundary declaration. Planning tests are not a device BindingProfile or installation validation."
+    },
+    {
+      "id": "P55",
+      "status": "unfilled",
+      "source": "",
+      "reason": "No complete value for this input topic is supplied by the selected N1 source, bindings and boundary declaration. Planning tests are not a device BindingProfile or installation validation."
+    },
+    {
+      "id": "P56",
+      "status": "unfilled",
+      "source": "",
+      "reason": "No complete value for this input topic is supplied by the selected N1 source, bindings and boundary declaration. Planning tests are not a device BindingProfile or installation validation."
+    }
+  ]
+}

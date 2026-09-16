@@ -1,0 +1,71 @@
+<?xml version="1.0"?>
+<!-- Nonphysical topology for GenericSystem only; no geometry, loads or robot limits. -->
+<robot name="rx_n5_generic_system">
+  <link name="base"/>
+  <link name="link1"/>
+  <joint name="joint1" type="continuous">
+    <parent link="base"/>
+    <child link="link1"/>
+  </joint>
+  <link name="link2"/>
+  <joint name="joint2" type="continuous">
+    <parent link="link1"/>
+    <child link="link2"/>
+  </joint>
+  <link name="link3"/>
+  <joint name="joint3" type="continuous">
+    <parent link="link2"/>
+    <child link="link3"/>
+  </joint>
+  <link name="link4"/>
+  <joint name="joint4" type="continuous">
+    <parent link="link3"/>
+    <child link="link4"/>
+  </joint>
+  <link name="link5"/>
+  <joint name="joint5" type="continuous">
+    <parent link="link4"/>
+    <child link="link5"/>
+  </joint>
+  <link name="link6"/>
+  <joint name="joint6" type="continuous">
+    <parent link="link5"/>
+    <child link="link6"/>
+  </joint>
+  <ros2_control name="N5GenericSystem" type="system">
+    <hardware>
+      <plugin>mock_components/GenericSystem</plugin>
+      <param name="calculate_dynamics">false</param>
+    </hardware>
+    <joint name="joint1">
+      <command_interface name="position"/>
+      <state_interface name="position"><param name="initial_value">0.0</param></state_interface>
+      <state_interface name="velocity"><param name="initial_value">0.0</param></state_interface>
+    </joint>
+    <joint name="joint2">
+      <command_interface name="position"/>
+      <state_interface name="position"><param name="initial_value">0.0</param></state_interface>
+      <state_interface name="velocity"><param name="initial_value">0.0</param></state_interface>
+    </joint>
+    <joint name="joint3">
+      <command_interface name="position"/>
+      <state_interface name="position"><param name="initial_value">0.0</param></state_interface>
+      <state_interface name="velocity"><param name="initial_value">0.0</param></state_interface>
+    </joint>
+    <joint name="joint4">
+      <command_interface name="position"/>
+      <state_interface name="position"><param name="initial_value">0.0</param></state_interface>
+      <state_interface name="velocity"><param name="initial_value">0.0</param></state_interface>
+    </joint>
+    <joint name="joint5">
+      <command_interface name="position"/>
+      <state_interface name="position"><param name="initial_value">0.0</param></state_interface>
+      <state_interface name="velocity"><param name="initial_value">0.0</param></state_interface>
+    </joint>
+    <joint name="joint6">
+      <command_interface name="position"/>
+      <state_interface name="position"><param name="initial_value">0.0</param></state_interface>
+      <state_interface name="velocity"><param name="initial_value">0.0</param></state_interface>
+    </joint>
+  </ros2_control>
+</robot>
