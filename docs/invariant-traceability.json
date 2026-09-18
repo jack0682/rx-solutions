@@ -5,8 +5,8 @@
   "source_limit": "IDs come from local vendored documents. cell_operations/v1.0/05_validation_audit.md is outside the four normative-document hashes and can drift independently between repositories.",
   "summary": {
     "total": 30,
-    "declared": 8,
-    "uncovered": 22
+    "declared": 7,
+    "uncovered": 23
   },
   "invariants": [
     {
@@ -70,15 +70,9 @@
     },
     {
       "id": "I08",
-      "status": "declared",
-      "reason": "JTC adapter shutdown after terminal completion; this does not prove the platform RELEASED ledger.",
-      "tests": [
-        {
-          "file": "runtime/rx-host/tests/ros_jtc.rs",
-          "name": "action_completion_does_not_close_bridge_until_support_and_child_exit_are_proven",
-          "reason": "After successful terminal capture, denies shutdown without client-drop permission or child exit, and reports safe_to_drop only when both are satisfied."
-        }
-      ]
+      "status": "uncovered",
+      "reason": "The reviewed JTC test separates terminal completion from safe adapter shutdown, but does not assert platform resource disposition or RELEASED. It remains adjacent shutdown evidence, not a declared resource-release trace.",
+      "tests": []
     },
     {
       "id": "I09",

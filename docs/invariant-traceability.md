@@ -2,7 +2,7 @@
 
 The [machine-readable map](invariant-traceability.json) answers which existing local test declarations have been explicitly linked to each of the 30 contract IDs. It contains both I01-I12 and OI01-OI18, including entries with no declared link.
 
-This revision declares scenario evidence for **8/30 IDs** and leaves **22/30 uncovered**. `uncovered` means no reviewed test binding is declared here; it does not prove that relevant tests are absent. `declared` means only the scenario and boundary stated in that entry. It does not mean exhaustive invariant conformance, formal verification or physical qualification. Individual test links carry a source-reading rationale.
+This revision declares scenario evidence for **7/30 IDs** and leaves **23/30 uncovered**. `uncovered` means no reviewed test binding is declared here; it does not prove that relevant tests are absent. `declared` means only the scenario and boundary stated in that entry. It does not mean exhaustive invariant conformance, formal verification or physical qualification. Individual test links carry a source-reading rationale.
 
 ## What the checker establishes
 
@@ -25,7 +25,7 @@ print(next(entry for entry in value["invariants"] if entry["id"] == "OI07"))
 PYTHON
 ```
 
-OI07 is **uncovered** in this repository. Generic controller ownership/reservation and adapter shutdown tests do not stage two material-support releases that rely on reciprocal current-support PASS. Naming those tests as complete material-support evidence would overstate their assertions. Other intentionally undeclared entries also explain the missing reviewed connection. No test or production behavior was changed to fill this map.
+OI07 is **uncovered** in this repository. Generic controller ownership/reservation and adapter shutdown tests do not stage two material-support releases that rely on reciprocal current-support PASS. Naming those tests as complete material-support evidence would overstate their assertions. I08 also remains uncovered here: the reviewed JTC test checks safe adapter shutdown after completion, not the platform resource-release disposition. The platform map has direct release-condition assertions. Other intentionally undeclared entries also explain the missing reviewed connection. No test or production behavior was changed to fill this map.
 
 ## Source and maintenance limits
 
