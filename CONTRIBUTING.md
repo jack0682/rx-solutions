@@ -61,6 +61,7 @@ The Rust toolchain in `rust-toolchain.toml`, Python 3, Node.js 24 and npm are re
 python3 .github/test_repository.py
 python3 .github/test_commit_policy.py
 python3 tools/check_repository.py
+python3 tools/check_invariant_traceability.py
 python3 tools/check_device_catalog_sources.py
 python3 tools/test_native_inventory.py
 cargo fmt --all -- --check
@@ -93,3 +94,7 @@ The platform command `python3 tools/check_host_sdk.py ../rx-solutions/sdk` check
 ## License and security
 
 Contributions use the [Apache License 2.0](LICENSE). Submit only material you have the right to contribute, and preserve licenses and notices for third-party code, documents and assets. [NOTICE](NOTICE) contains RX notices and does not replace notices for external dependencies. Do not include credentials, equipment addresses or personal information in public PRs or issues. Follow the [security policy](SECURITY.md) when reporting vulnerabilities.
+
+## Invariant traceability
+
+The required repository job checks the [local invariant map](docs/invariant-traceability.md) against vendored definition IDs and named test declarations. It checks structure and references, not whether the tests semantically establish the invariants; uncovered entries remain explicit.
