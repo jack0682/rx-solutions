@@ -79,6 +79,29 @@ fn profile() -> Profile {
         authority_max_age_ms: Counter(100),
     }
 }
+#[test]
+fn simulation_fixture_profile_cannot_claim_physical_equipment() {
+    let simulation = profile();
+    let catalog = rx_solution_catalog::builtin_catalog().unwrap();
+    assert_eq!(
+        catalog
+            .profile(&simulation.bridge.support_id)
+            .unwrap()
+            .evidence_level,
+        rx_solution_catalog::EvidenceLevel::SimulationFixture
+    );
+    simulation.validate().unwrap();
+
+    // Every field except the environment is identical to the accepted input.
+    let mut physical = simulation;
+    physical.environment = Environment::Physical;
+    let result = physical.validate();
+    assert!(
+        matches!(result, Err(HostError::Invalid(_))),
+        "physical fixture validation returned {result:?}"
+    );
+}
+
 fn intent(p: &Profile) -> Intent {
     let t = &p.trajectories[0];
     Intent {
