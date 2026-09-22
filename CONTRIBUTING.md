@@ -16,7 +16,7 @@ All PRs use merge commits. Squash and rebase merges are disabled so that reviewe
 
 ## Signed commits and the daily workflow
 
-Every commit, including merges, needs both a matching author `Signed-off-by` trailer and a verified OpenPGP signature. Read the [Developer Certificate of Origin](https://developercertificate.org/) before signing off. The trailer records your certification of contribution rights; the cryptographic signature authenticates the commit. Neither substitutes for the other.
+Every new commit, including merges, needs both a matching author `Signed-off-by` trailer and a verified OpenPGP signature. Read the [Developer Certificate of Origin](https://developercertificate.org/) before signing off. The trailer records your certification of contribution rights; the cryptographic signature authenticates the commit. Neither substitutes for the other. The two exact, unresolved historical exceptions and full-head CI scope are documented in [Recorded historical DCO incidents](GOVERNANCE.md#recorded-historical-dco-incidents); they do not certify the original authors retroactively.
 
 Configure a verified GitHub email and register your public GPG key, then install the repository's local hooks. See the [repository governance guide](GOVERNANCE.md) for key setup, branch updates, merge and recovery instructions.
 
@@ -61,6 +61,7 @@ The Rust toolchain in `rust-toolchain.toml`, Python 3, Node.js 24 and npm are re
 python3 .github/test_repository.py
 python3 .github/test_commit_policy.py
 python3 tools/check_repository.py
+python3 tools/check_invariant_traceability.py
 python3 tools/check_device_catalog_sources.py
 python3 tools/test_native_inventory.py
 cargo fmt --all -- --check
@@ -93,3 +94,7 @@ The platform command `python3 tools/check_host_sdk.py ../rx-solutions/sdk` check
 ## License and security
 
 Contributions use the [Apache License 2.0](LICENSE). Submit only material you have the right to contribute, and preserve licenses and notices for third-party code, documents and assets. [NOTICE](NOTICE) contains RX notices and does not replace notices for external dependencies. Do not include credentials, equipment addresses or personal information in public PRs or issues. Follow the [security policy](SECURITY.md) when reporting vulnerabilities.
+
+## Invariant traceability
+
+The required repository job checks the [local invariant map](docs/invariant-traceability.md) against vendored definition IDs and named test declarations. It checks structure and references, not whether the tests semantically establish the invariants; uncovered entries remain explicit.
