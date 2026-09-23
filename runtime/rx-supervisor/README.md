@@ -169,7 +169,7 @@ reopen in another manager process. It additionally exercises abnormal child
 exit and manager-object recreation while a real child remains alive, labeling
 that last probe separately. Independent functional/physical qualification,
 positive work-use permission, positive binding acceptance, multi-host operation and Linux
-resource enforcement remain unsupported. F3, F4 and F5 below extend this same procedure.
+resource enforcement remain unsupported. F3 through F6 below extend this same procedure.
 
 ## Explicit software recovery disposition (F3)
 
@@ -252,11 +252,11 @@ stop, admission, disposition or persistent history write. Results are snapshots;
 plain `query()` does not probe or restore a cached readiness judgment.
 
 Work-use authority belongs to operating-area task judgment. The host has no
-Granted variant, positive credential constructor or issuer. `NoWorkUseProvider`
+positive credential constructor or issuer. F6 below adds a proof-bearing reply. `NoWorkUseProvider`
 reports UNSUPPORTED with a named provider-connection condition. An actual adapter's
 reported DENIED decision has its own reference and named reasons; it is distinct
 from an unconnected or not-yet-evaluated provider. Positive operating-area provider
-connection/verification is unsupported, not a design claim of permanent refusal.
+service connection is unsupported, not a design claim of permanent refusal.
 This is not HTTP access-control or a business-work dispatcher.
 
 The two `View` fields now contain typed assessments rather than strings. This is
@@ -328,8 +328,8 @@ phase and source. Another registration, a restarted execution, changed settings
 or a replayed response cannot inherit it. Persisted samples are inert history,
 not deserializable current-observation capabilities.
 
-Initial and replacement `BindingJudgment` requests are distinct. Their reply has
-no positive variant; default provider absence is UNSUPPORTED, and a reported
+Initial and replacement `BindingJudgment` requests are distinct. A positive reply
+requires the externally verified F6 proof below; default provider absence is UNSUPPORTED, and a reported
 DENIED response has its own decision reference. The host issues neither binding
 acceptance nor work permission. Same-format replacement does not modify old
 relationships/runs/results. Explicitly tracking a new diagnostic relationship
@@ -341,15 +341,76 @@ reverse shutdown blocking) remain unchanged. Local diagnostic documents are
 additive; older code is not claimed to enforce their semantics. There is no
 automatic deletion/expiry: limits are 64 relationships and 512 runs per consumer,
 and 16 samples per run with a reserved finish slot. Archival, cancellation,
-automatic scheduling, multi-hop graphs and positive provider integrations remain
+automatic scheduling, multi-hop graphs and actual operating-area provider connections remain
 outside this implementation. Existing control-effect signal-race limitations
 also remain.
 
-The same real Linux passage now has six workers and 24 observed stages. Its added
+The F5 segment has six workers and 24 observed stages including its baseline. Its added
 segment uses the installed report producer, a registered framework consumer,
 actual persisted results, scoped loss reactions, same-format replacement rejection
 and completion of unrelated catalog-summary work. These observations do not prove
 physical operation, collaborative resources or Linux resource enforcement.
+
+## Verified external decisions (F6)
+
+F4 work use and F5 initial/replacement acceptance can now receive a
+`Verified(Box<VerifiedDecision>)` reply. There is no boolean grant constructor.
+The display state VERIFIED records verification at that assessment; it is not a
+live credential. Only the receiving path checks a live proof against its sealed
+current request. Work use, initial binding and replacement binding have distinct
+signed kinds and cannot be substituted for one another. Signature success does
+not promote readiness, start execution, rewrite results or apply a replacement.
+
+Optional author-owned `decision_policy` fields in Program and the diagnostic
+Catalog declare issuer/key, exact operating area/roles/kinds and maximum lifetime.
+They have no Deserialize, site/env loader or arbitrary-key public verifier. Policy
+is included in the registered catalog digest, and current revision/catalog is
+checked before creating a sealed request. Changed keys cannot reuse an accepted
+pin. None is omitted, preserving default catalog/plan digest inputs. Rust Program
+literals need `decision_policy: None`; diagnostic Catalog literals likewise need
+the optional field. Positive enum variants affect exhaustive matches. F5
+AcceptanceAssessment now uses read-only accessors instead of mutable public fields.
+The shared SDK, normative documents, wire/proto and manifests remain unchanged.
+
+This boundary trusts author Rust and trusted registration callers. It protects
+against untrusted site/decision input, not arbitrary author code changes, registry
+misuse, OS/image replacement or malicious in-process code. An authenticated,
+immutable release root is a named unsupported requirement for that stronger model.
+**Every default production catalog has no anchors, so the shipped defaults cannot
+approve anything.** Actual operating-area service/RPC integration is unsupported.
+
+A receiver creates a fresh epoch and challenge nonce with the complete target,
+policy fingerprint and local `Instant`. External signing covers an explicit
+APPROVE verdict, challenge, decision ID and TTL. Verification reuses the vendored
+`rx_package::verify_detached_message` (strict Ed25519); production code never signs
+or reads a private key. Policy TTL is positive and capped at 60000ms; each issuer
+can require a shorter maximum. The deadline starts at challenge creation, not
+receipt/import time. Delayed import, reimport, cloning and decision-ID reuse
+cannot extend it. Remote wall-clock expiry is not an input.
+
+Live proofs have private fields and no Deserialize. Clones share a bounded
+512-entry receiver ledger, original deadline and signed revocation state. Dropping
+the owner invalidates all retained requests/challenges/proofs; reopening creates
+a new epoch. Signed exact-decision revocation blocks subsequent receiving checks
+and reimports. There is no automatic renewal or remote revocation feed.
+
+Explicit `record_verified_decision` and `record_verified_revocation` calls append
+inert references/digests to the registration repository. They do not make ordinary
+assessment write history, change old results, or restore a live lease from stored
+JSON. Old positive display snapshots remain historical; they must not be treated
+as current permission after expiry/revocation. This is not a physical command gate
+or a claim of atomic authorization through subsequent device dispatch.
+
+The same Linux passage has seven workers and 32 observed stages. Its F6 segment
+uses deliberately authored test catalogs and fresh ephemeral keys in a separate
+OpenSSL process. The private keys never enter production APIs or commits. Tests
+require an OpenSSL 3 CLI supporting Ed25519; the fixture uses
+[`pkeyutl -sign -rawin`](https://docs.openssl.org/3.0/man1/openssl-pkeyutl/).
+These positives prove that the test issuer held its key and signed the exact
+statement, not that a real operating area approved work or that the decision was
+correct. Actual device operation, collaborative resources, Linux enforcement,
+external recovery investigation, the control-effect signal issue and multi-host
+operation remain outside this verification boundary.
 
 ## Further connections
 

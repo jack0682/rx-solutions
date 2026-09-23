@@ -31,6 +31,7 @@ pub enum ReportOrigin {
     StartupCatalogDerived,
     InstanceEnvironment,
     OperatingAreaReport,
+    VerifiedExternalDecision,
     ProviderUnavailable,
 }
 #[derive(Clone, Debug, Serialize)]
@@ -453,10 +454,12 @@ impl ReadinessAssessment {
         }
     }
 }
-/// Deliberately no Granted variant or credential constructor in the host crate.
+/// Display of a past assessment, not a credential. Only a proof-bearing reply
+/// can produce Verified in the receiving API. No Deserialize or grant issuer.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum WorkUseState {
+    Verified,
     NotEvaluated,
     Denied,
     Unsupported,
@@ -466,17 +469,24 @@ pub struct WorkUseRequest {
     scope: UseScope,
     subject: UseSubject,
     readiness: ReadinessAssessment,
+    #[serde(skip)]
+    decision: Option<crate::decision::Request>,
 }
 impl WorkUseRequest {
+    pub fn decision_request(&self) -> Option<&crate::decision::Request> {
+        self.decision.as_ref()
+    }
     pub(crate) fn new(
         scope: UseScope,
         subject: UseSubject,
         readiness: ReadinessAssessment,
+        decision: Option<crate::decision::Request>,
     ) -> Self {
         Self {
             scope,
             subject,
             readiness,
+            decision,
         }
     }
     pub fn scope(&self) -> &UseScope {
@@ -489,9 +499,10 @@ impl WorkUseRequest {
         &self.readiness
     }
 }
-/// A negative judgment reported by an operating-area adapter, never a host grant.
+/// A reported judgment or externally verified proof, never a host-issued grant.
 /// The integration is responsible for the truth/provenance of a reported denial.
 pub enum WorkUseReply {
+    Verified(Box<crate::decision::VerifiedDecision>),
     NotEvaluated {
         conditions: BTreeMap<Name, String>,
     },
@@ -504,7 +515,8 @@ pub enum WorkUseReply {
     },
 }
 /// Work-use authority belongs to operating-area task judgment. Positive provider
-/// connection/verification is unsupported here; this port cannot issue a grant.
+/// connection is absent by default. Verification uses author-pinned policy;
+/// this port cannot construct a verified decision without external signed bytes.
 pub trait WorkUsePort {
     fn assess(&self, _request: &WorkUseRequest) -> WorkUseReply {
         WorkUseReply::Unsupported{conditions:[(n("work-use/operating-area-provider"),"operating-area positive work-use provider is not connected; the host is not an issuer".into())].into()}
@@ -521,8 +533,13 @@ pub struct WorkUseAssessment {
     conditions: Vec<ConditionAssessment>,
     decision_reference: Option<Name>,
     positive_provider: &'static str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    verified_decision: Option<crate::decision::Reference>,
 }
 impl WorkUseAssessment {
+    pub fn verified_decision(&self) -> Option<&crate::decision::Reference> {
+        self.verified_decision.as_ref()
+    }
     pub fn state(&self) -> WorkUseState {
         self.state
     }
@@ -542,11 +559,42 @@ impl WorkUseAssessment {
                 observed: None,
             }],
             decision_reference: None,
+            verified_decision: None,
             positive_provider: "UNSUPPORTED: operating-area positive permission provider connection",
         }
     }
     pub(crate) fn assessed(request: &WorkUseRequest, reply: WorkUseReply) -> Self {
+        if let WorkUseReply::Verified(proof) = reply {
+            let checked = request
+                .decision
+                .as_ref()
+                .ok_or(crate::decision::Failure::Unconfigured)
+                .and_then(|r| r.check(&proof));
+            let (state, condition_state, reason, reference) = match checked {
+                Ok(reference) => (WorkUseState::Verified, ConditionState::Satisfied,
+                    "external issuer key possession and exact current context verified; not correctness, readiness, binding acceptance or physical qualification".into(), Some(reference)),
+                Err(error) => (WorkUseState::Denied, ConditionState::NotMet, error.to_string(), None),
+            };
+            return Self {
+                state,
+                scope: Some(request.scope.clone()),
+                subject: Some(request.subject.clone()),
+                conditions: vec![ConditionAssessment {
+                    name: n("work-use/external-decision"),
+                    state: condition_state,
+                    reason,
+                    origin: ReportOrigin::VerifiedExternalDecision,
+                    observed: None,
+                }],
+                decision_reference: reference
+                    .as_ref()
+                    .map(|r| n(&format!("decision/{}", r.decision))),
+                positive_provider: "external signed-decision verification only; operating-area service connection unsupported",
+                verified_decision: reference,
+            };
+        }
         let (state, decision, conditions, origin) = match reply {
+            WorkUseReply::Verified(_) => unreachable!("handled above"),
             WorkUseReply::NotEvaluated { conditions } => (
                 WorkUseState::NotEvaluated,
                 None,
@@ -587,6 +635,7 @@ impl WorkUseAssessment {
             .into();
         }
         let condition_state = match state {
+            WorkUseState::Verified => ConditionState::Satisfied,
             WorkUseState::NotEvaluated => ConditionState::NotEvaluated,
             WorkUseState::Denied => ConditionState::NotMet,
             WorkUseState::Unsupported => ConditionState::Unsupported,
@@ -606,6 +655,7 @@ impl WorkUseAssessment {
                 })
                 .collect(),
             decision_reference: decision,
+            verified_decision: None,
             positive_provider: "UNSUPPORTED: operating-area positive permission provider connection",
         }
     }

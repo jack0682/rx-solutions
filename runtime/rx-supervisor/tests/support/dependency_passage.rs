@@ -94,7 +94,7 @@ pub(super) fn run(data: &Path) {
             &d::NoBindingJudgment,
         )
         .unwrap();
-    assert_eq!(initial.state, WorkUseState::Unsupported);
+    assert_eq!(initial.state(), WorkUseState::Unsupported);
     let unstarted = consumer.inspect(&prep.id, None, None, &mut source).unwrap();
     assert_eq!(unstarted.new_assignment.state, ConditionState::NotEvaluated);
     emit(
@@ -311,7 +311,7 @@ pub(super) fn run(data: &Path) {
             &d::NoBindingJudgment,
         )
         .unwrap();
-    assert_eq!(judgment.state, WorkUseState::Unsupported);
+    assert_eq!(judgment.state(), WorkUseState::Unsupported);
     assert_eq!(
         consumer
             .inspect(

@@ -47,6 +47,7 @@ fn program() -> Program {
             port_parameter: n("port"),
         },
         functional_readiness: None,
+        decision_policy: None,
         execution_requirements: Some(Requirements(BTreeMap::new())),
     }
 }

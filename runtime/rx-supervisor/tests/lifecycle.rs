@@ -30,6 +30,7 @@ fn support() -> DeviceCatalog {
 fn program(effect: Effect) -> Program {
     Program {
         functional_readiness: None,
+        decision_policy: None,
         execution_requirements: None,
         id: name("test/service"),
         effect,

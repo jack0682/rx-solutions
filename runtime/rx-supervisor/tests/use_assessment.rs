@@ -246,6 +246,7 @@ HTTPServer(('127.0.0.1',int(sys.argv[2])),Handler).serve_forever()
                 port_parameter: n("port"),
             }
         },
+        decision_policy: None,
         execution_requirements: Some(Requirements(BTreeMap::new())),
         functional_readiness: declared.then(contract),
     };

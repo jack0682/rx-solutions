@@ -55,6 +55,9 @@ pub struct Program {
     /// Omission preserves legacy catalog/plan digest inputs.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub functional_readiness: Option<crate::use_assessment::ReadinessContract>,
+    /// Optional author-owned external decision anchors; never loaded from site input.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub decision_policy: Option<crate::decision::Policy>,
 }
 #[derive(Clone, Debug, Serialize)]
 pub enum Argument {

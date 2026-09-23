@@ -30,6 +30,9 @@ impl Plan {
             let program = programs
                 .get(&p.program)
                 .ok_or_else(|| Error::Invalid("program not in release catalog".into()))?;
+            if let Some(policy) = &program.decision_policy {
+                policy.fingerprint().map_err(Error::Invalid)?;
+            }
             if let Some(requirements) = &program.execution_requirements {
                 requirements.validate()?;
             }
