@@ -67,7 +67,7 @@ pub struct Supervisor<R, B, A> {
     retry_after: BTreeMap<Name, Instant>,
     stop_latched: bool,
     observed_guarded_exits: BTreeMap<Id, GuardedExit>,
-    execution_admission: BTreeMap<Name, crate::execution::Status>,
+    execution_admission: BTreeMap<Name, (crate::execution::Request, crate::execution::Status)>,
 }
 impl<R: Repository, B: Backend, A: LifecycleAuthority> Supervisor<R, B, A> {
     pub fn open(
@@ -239,8 +239,14 @@ impl<R: Repository, B: Backend, A: LifecycleAuthority> Supervisor<R, B, A> {
     fn execution_status(&self, state: &State) -> BTreeMap<Name, crate::execution::Status> {
         use crate::execution::{Application, Status};
         self.plan.processes.iter().map(|process| {
-            let value = self.execution_admission.get(&process.id).cloned().unwrap_or_else(|| {
-                let requested = self.programs[&process.program].execution_requirements.clone();
+            let program = &self.programs[&process.program];
+            let requested = program.execution_requirements.clone();
+            let current_request = state.records[&process.id].instance.as_ref().zip(requested.as_ref())
+                .map(|(instance, requirements)| crate::execution::Request::new(program.id.clone(),
+                    process.id.clone(), instance.clone(), state.plan_digest, requirements.clone()));
+            let value = self.execution_admission.get(&process.id)
+                .filter(|(request,_)| current_request.as_ref()==Some(request))
+                .map(|(_,status)| status.clone()).unwrap_or_else(|| {
                 let application = if requested.is_none() {
                     Application::LegacyNotDeclared
                 } else if state.records[&process.id].attempts.0 > 0
@@ -341,7 +347,8 @@ impl<R: Repository, B: Backend, A: LifecycleAuthority> Supervisor<R, B, A> {
             }
             _ => {}
         }
-        self.execution_admission.insert(process.id.clone(), status);
+        self.execution_admission
+            .insert(process.id.clone(), (request.clone(), status));
         outcome
     }
     pub fn tick(&mut self) -> Result<Status> {

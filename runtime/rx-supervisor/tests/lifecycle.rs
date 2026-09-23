@@ -15,6 +15,9 @@ use std::{
     },
     time::Duration,
 };
+
+#[path = "support/execution_retry.rs"]
+mod execution_retry;
 fn name(s: &str) -> Name {
     Name::new(s).unwrap()
 }
