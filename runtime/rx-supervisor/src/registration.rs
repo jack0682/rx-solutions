@@ -100,8 +100,8 @@ pub struct View {
     pub executions: Vec<Execution>,
     pub recovery: RecoveryView,
     pub execution_ownership: &'static str,
-    pub functional_readiness: &'static str,
-    pub work_use_permission: &'static str,
+    pub functional_readiness: crate::use_assessment::ReadinessAssessment,
+    pub work_use_permission: crate::use_assessment::WorkUseAssessment,
 }
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -280,14 +280,17 @@ impl<R: Repository> Registry<R> {
     /// Independent of any execution manager, plan or live process.
     pub fn query(&mut self, id: &Id) -> Result<View> {
         self.repository.transact(|tx| {
-            let executions=executions(tx,id)?;
-            let recovery=recovery::view(tx,id,&executions)?;
+            let executions = executions(tx, id)?;
+            let recovery = recovery::view(tx, id, &executions)?;
             Ok(View {
-            registration: load(tx, id)?, executions, recovery,
-            execution_ownership: "NOT_ESTABLISHED_BY_PERSISTENT_RECORDS",
-            functional_readiness: "UNSUPPORTED: F2 does not assess functional readiness",
-            work_use_permission: "UNSUPPORTED: registration and process liveness do not permit work use",
-        })})
+                registration: load(tx, id)?,
+                executions,
+                recovery,
+                execution_ownership: "NOT_ESTABLISHED_BY_PERSISTENT_RECORDS",
+                functional_readiness: crate::use_assessment::ReadinessAssessment::not_evaluated(),
+                work_use_permission: crate::use_assessment::WorkUseAssessment::not_evaluated(),
+            })
+        })
     }
     pub fn list(&mut self) -> Result<Vec<VersionedRegistration>> {
         self.repository.transact(|tx| {

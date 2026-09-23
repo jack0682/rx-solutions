@@ -7,6 +7,7 @@ pub mod process;
 pub mod registered;
 pub mod registration;
 pub mod supervisor;
+pub mod use_assessment;
 pub use supervisor::Supervisor;
 #[derive(Debug, thiserror::Error)]
 pub enum Error {

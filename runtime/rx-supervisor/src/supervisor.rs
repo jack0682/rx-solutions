@@ -172,6 +172,58 @@ impl<R: Repository, B: Backend, A: LifecycleAuthority> Supervisor<R, B, A> {
             )
         })?)
     }
+    /// Observe without tick/admission/start/stop or any persistent state change.
+    pub(crate) fn observe_use_status(
+        &mut self,
+        request: &crate::use_assessment::StatusObservationRequest,
+    ) -> Result<crate::use_assessment::StatusObservationResult> {
+        use crate::use_assessment::StatusObservationResult as R;
+        let subject = request.subject();
+        let state = self.state()?;
+        let process = self
+            .plan
+            .processes
+            .iter()
+            .find(|p| p.id == subject.selection)
+            .ok_or_else(|| Error::Invalid("assessment selection absent".into()))?;
+        let record = &state.records[&process.id];
+        if subject.run != self.plan.id
+            || subject.program != process.program
+            || subject.instance != record.instance
+            || subject.pid != record.pid
+        {
+            return Ok(R::NotMet {
+                condition: name("readiness/current-execution"),
+                reason: "assessment context no longer matches current execution".into(),
+            });
+        }
+        if !matches!(
+            record.phase,
+            Phase::Starting | Phase::ProcessReady | Phase::Unready
+        ) {
+            return Ok(R::NotEvaluated {
+                condition: name("execution/current-owner"),
+                reason: format!(
+                    "phase {:?} supplies no current running observation context",
+                    record.phase
+                ),
+            });
+        }
+        let Some(instance) = &record.instance else {
+            return Ok(R::NotEvaluated {
+                condition: name("execution/instance"),
+                reason: "no execution instance".into(),
+            });
+        };
+        let program = &self.programs[&process.program];
+        if program.effect != Effect::NonActuating
+            || !matches!(program.ready, ReadyProbe::HttpStatus { .. })
+        {
+            return Ok(R::Unsupported{condition:name("readiness/status-source"),reason:"this source supports only authored non-actuating HttpStatus programs; AliveOnly is never functional evidence".into()});
+        }
+        let launch = process.launch(program, instance.clone())?;
+        self.backend.observe_status(&launch, request)
+    }
     /// Read the current owner's requirement observations without admission,
     /// spawning, readiness probes or lifecycle-authority evaluation.
     pub fn execution_admission(&mut self) -> Result<BTreeMap<Name, crate::execution::Status>> {

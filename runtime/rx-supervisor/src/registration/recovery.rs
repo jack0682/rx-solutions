@@ -312,7 +312,7 @@ pub(super) fn view(
         limitations: vec![
             "external investigation provider after total manager-process/Child-handle loss is unsupported",
             "confirmed closure without the original saved PID binding is unsupported",
-            "functional readiness and work-use permission unsupported",
+            "recovery disposition supplies neither a functional-readiness assessment nor work-use permission",
             "resource recovery, F1 receipt restoration and physical outcome confirmation not claimed",
         ],
     })

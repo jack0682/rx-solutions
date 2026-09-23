@@ -13,6 +13,10 @@ use rx_supervisor::{
     process::{Backend, OsProcesses, SpawnFailure},
     registered::{RegisteredSupervisor, catalog_reference},
     registration::*,
+    use_assessment::{
+        ConditionState, NoWorkUseProvider, ReportOrigin, StatusObservationRequest,
+        StatusObservationResult, UseScope, WorkUseState,
+    },
 };
 use serde_json::{Value, json};
 use std::{
@@ -81,6 +85,13 @@ impl Drop for Owned {
     }
 }
 impl Backend for Owned {
+    fn observe_status(
+        &mut self,
+        launch: &Launch,
+        request: &StatusObservationRequest,
+    ) -> Result<StatusObservationResult> {
+        self.0.borrow_mut().observe_status(launch, request)
+    }
     fn spawn(
         &mut self,
         l: &Launch,
@@ -252,6 +263,83 @@ fn passage_worker() {
             "admitted-and-observed",
             "full F1 NoRequirements receipt plus instance-correlated HTTP report; no resource enforcement or work-use permission",
             json!({"registration":s.query().unwrap(),"lifecycle":report,"health":health}),
+        );
+        let before_history = s.history().unwrap();
+        let not_ready = s
+            .assess_use(
+                UseScope {
+                    operating_area: n("passage/diagnostics"),
+                    role: n("diagnostics/operator-connected"),
+                },
+                &NoWorkUseProvider,
+            )
+            .unwrap();
+        assert_eq!(
+            s.state().unwrap().records[&n("status")].phase,
+            Phase::ProcessReady
+        );
+        assert_eq!(
+            not_ready.functional_readiness.state(),
+            ConditionState::NotMet
+        );
+        let delegation = not_ready
+            .functional_readiness
+            .conditions()
+            .iter()
+            .find(|c| c.name == n("operator/api-delegation"))
+            .unwrap();
+        assert_eq!(delegation.origin, ReportOrigin::ReleaseDeclaration);
+        assert_eq!(delegation.observed, Some(json!("NOT_CONNECTED")));
+        assert_eq!(
+            not_ready.work_use_permission.state(),
+            WorkUseState::Unsupported
+        );
+        emit(
+            "process-ready-but-use-conditions-not-met",
+            "current instance is ProcessReady, but the component reports the static release declaration NOT_CONNECTED; this is not a failed live operator-connectivity probe",
+            json!(not_ready),
+        );
+        let reported_ready = s
+            .assess_use(
+                UseScope {
+                    operating_area: n("passage/diagnostics"),
+                    role: n("diagnostics/support-summary"),
+                },
+                &NoWorkUseProvider,
+            )
+            .unwrap();
+        assert_eq!(
+            reported_ready.functional_readiness.state(),
+            ConditionState::Satisfied
+        );
+        assert!(
+            reported_ready
+                .functional_readiness
+                .conditions()
+                .iter()
+                .any(|c| c.name == n("report/current-instance")
+                    && c.state == ConditionState::Satisfied)
+        );
+        assert_eq!(
+            reported_ready.work_use_permission.state(),
+            WorkUseState::Unsupported
+        );
+        assert!(
+            reported_ready
+                .work_use_permission
+                .conditions()
+                .iter()
+                .any(|c| c.name == n("work-use/operating-area-provider"))
+        );
+        assert_eq!(s.history().unwrap(), before_history);
+        assert_eq!(
+            s.query().unwrap().functional_readiness.state(),
+            ConditionState::NotEvaluated
+        );
+        emit(
+            "reported-conditions-met-but-work-use-unavailable",
+            "readonly support-summary report matches authored conditions; counts are startup audit/catalog derived, instance is environment derived; positive operating-area provider is unconnected, not an authority-issued denial or grant",
+            json!(reported_ready),
         );
         s.request_stop().unwrap();
         let report = stopped(&mut s);
@@ -578,6 +666,6 @@ fn real_registration_passage() {
     emit(
         "passage-complete",
         "all asserted transitions executed; component registration persists independently of manager process lifetime",
-        json!({"limitations":["functional readiness unsupported","work-use permission unsupported","dependency binding unsupported","external investigation provider after total manager-process/Child-handle loss unsupported","direct child exit does not establish descendant termination or resource recovery","multi-host unsupported","Linux resource enforcement not implemented","no physical equipment qualification"],"evidence":"actual Linux service and SQLite, owned-exit disposition and explicit new-instance resume; no synthetic release installation"}),
+        json!({"limitations":["readiness is only authored comparison of component self-report, not independent functional or physical qualification","positive operating-area work-use provider connection unsupported; host has no grant issuer","actual device operations, collaborative resource binding and dependency binding unsupported","external investigation provider after total manager-process/Child-handle loss unsupported","direct child exit does not establish descendant termination or resource recovery","multi-host unsupported","Linux resource enforcement not implemented","no physical equipment qualification"],"evidence":"actual Linux service and SQLite, owned-exit disposition, explicit new-instance resume and two scoped self-report/work-use assessments; no synthetic release installation"}),
     );
 }

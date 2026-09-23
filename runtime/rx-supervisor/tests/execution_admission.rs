@@ -73,6 +73,7 @@ fn program(requested: Option<Requirements>) -> Program {
         fixed_arguments: vec![],
         arguments: BTreeMap::new(),
         ready: ReadyProbe::AliveOnly,
+        functional_readiness: None,
         execution_requirements: requested,
     }
 }

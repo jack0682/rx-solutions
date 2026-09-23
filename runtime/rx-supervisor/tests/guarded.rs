@@ -22,6 +22,7 @@ fn catalog() -> DeviceCatalog {
 }
 fn program() -> Program {
     Program {
+        functional_readiness: None,
         execution_requirements: None,
         id: n("test/guarded"),
         effect: Effect::ProtocolGuardedService,
