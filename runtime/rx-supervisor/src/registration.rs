@@ -4,6 +4,7 @@ use rx_domain::{canonical, types::*};
 use rx_ports::{Document, Record, Repository, StoreError, StoredEvent, Transaction};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
+pub mod diagnostic;
 mod recovery;
 pub use recovery::*;
 
