@@ -92,7 +92,9 @@ impl<R: Repository, B: Backend, A: LifecycleAuthority> Supervisor<R, B, A> {
             if let Some(old) = tx.get(&name(KEY))? {
                 let mut state = decode(&old)?;
                 if state.plan != plan.id || state.plan_digest != digest {
-                    return Err(StoreError::KeyConflict);
+                    return Err(StoreError::Invalid(
+                        "saved supervisor plan/catalog digest differs: program declaration or plan changed; preserve and inspect the old store, do not migrate or erase unresolved executions".into(),
+                    ));
                 }
                 for record in state.records.values_mut() {
                     if matches!(

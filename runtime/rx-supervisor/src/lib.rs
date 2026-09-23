@@ -4,6 +4,8 @@ pub mod initialization;
 pub mod model;
 mod plan;
 pub mod process;
+pub mod registered;
+pub mod registration;
 pub mod supervisor;
 pub use supervisor::Supervisor;
 #[derive(Debug, thiserror::Error)]
