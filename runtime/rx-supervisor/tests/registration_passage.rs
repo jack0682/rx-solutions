@@ -27,8 +27,12 @@ use std::{
     rc::Rc,
     time::{Duration, Instant},
 };
+#[path = "support/decision_passage.rs"]
+mod decision_passage;
 #[path = "support/dependency_passage.rs"]
 mod dependency_passage;
+#[path = "support/external_signer.rs"]
+mod external_signer;
 
 fn n(s: &str) -> Name {
     Name::new(s).unwrap()
@@ -208,6 +212,10 @@ fn stopped(s: &mut Managed) -> Status {
 fn passage_worker() {
     let data = PathBuf::from(std::env::var("RX_PASSAGE_DATA").unwrap());
     let stage = std::env::var("RX_PASSAGE_STAGE").unwrap();
+    if stage == "decisions" {
+        decision_passage::run(&data);
+        return;
+    }
     if stage == "dependencies" {
         dependency_passage::run(&data);
         return;
@@ -666,6 +674,7 @@ fn real_registration_passage() {
         "loss",
         "manager-reopen",
         "dependencies",
+        "decisions",
     ] {
         let result = Command::new(std::env::current_exe().unwrap())
             .args(["--ignored", "--exact", "passage_worker", "--nocapture"])
@@ -680,9 +689,11 @@ fn real_registration_passage() {
     emit(
         "passage-complete",
         "all asserted transitions executed; component registration persists independently of manager process lifetime",
-        json!({"limitations":["readiness is only authored comparison of component self-report, not independent functional or physical qualification","positive operating-area work-use provider connection unsupported; host has no grant issuer","actual device operations, collaborative resource binding and multi-hop dependency execution unsupported","external investigation provider after total manager-process/Child-handle loss unsupported","direct child exit does not establish descendant termination or resource recovery","multi-host unsupported","Linux resource enforcement not implemented",
-                "positive consumer-side binding acceptance unsupported; diagnostic tracking is not a work binding",
+        json!({"limitations":["readiness is only authored comparison of component self-report, not independent functional or physical qualification","actual operating-area service connection unsupported; default production catalogs have no anchors and cannot approve","actual device operations, collaborative resource binding and multi-hop dependency execution unsupported","external investigation provider after total manager-process/Child-handle loss unsupported","direct child exit does not establish descendant termination or resource recovery","multi-host unsupported","Linux resource enforcement not implemented",
+                "default production binding acceptance remains unconfigured; diagnostic tracking is not acceptance and verified acceptance does not apply replacement",
                 "dependency availability is checked at explicit checkpoints, not continuously between samples",
-                "control-effect group-target signal race remains unresolved","no physical equipment qualification"],"evidence":"actual Linux service and SQLite, owned-exit disposition, explicit new-instance resume, scoped self-report/work-use assessments and diagnostic dependency consumption; no synthetic release installation"}),
+                "control-effect group-target signal race remains unresolved","authenticated immutable release root and malicious author/registry/OS replacement isolation unsupported",
+                "test issuer signatures prove key possession, not real operating-area approval or correctness",
+                "no physical equipment qualification"],"evidence":"actual Linux service and SQLite, owned-exit disposition, explicit new-instance resume, scoped self-report/work-use assessments, diagnostic dependency consumption and externally signed test decisions; no synthetic release installation"}),
     );
 }

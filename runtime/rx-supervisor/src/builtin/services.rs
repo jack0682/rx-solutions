@@ -234,6 +234,7 @@ pub fn add_guarded_services(
                 id.clone(),
                 Program {
                     functional_readiness: None,
+                    decision_policy: None,
                     execution_requirements: None,
                     id,
                     effect: Effect::ProtocolGuardedService,

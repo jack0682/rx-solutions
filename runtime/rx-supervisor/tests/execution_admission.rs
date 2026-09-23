@@ -74,6 +74,7 @@ fn program(requested: Option<Requirements>) -> Program {
         arguments: BTreeMap::new(),
         ready: ReadyProbe::AliveOnly,
         functional_readiness: None,
+        decision_policy: None,
         execution_requirements: requested,
     }
 }

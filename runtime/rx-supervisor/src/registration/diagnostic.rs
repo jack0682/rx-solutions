@@ -35,10 +35,15 @@ pub enum Dependency {
 pub struct Catalog {
     pub program: Name,
     pub version: Counter,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub decision_policy: Option<crate::decision::Policy>,
     pub profiles: BTreeMap<Name, Dependency>,
 }
 impl Catalog {
     pub fn reference(&self) -> Result<CatalogReference> {
+        if let Some(policy) = &self.decision_policy {
+            policy.fingerprint().map_err(|e| invalid(&e))?;
+        }
         if self.version.0 == 0 || self.profiles.is_empty() || self.profiles.len() > 16 {
             return Err(invalid(
                 "diagnostic catalog requires version and 1..16 profiles",
@@ -81,6 +86,7 @@ pub fn catalog() -> Catalog {
     Catalog {
         program: name("rx/diagnostic-consumer"),
         version: Counter(1),
+        decision_policy: None,
         profiles,
     }
 }
@@ -294,11 +300,20 @@ pub struct AcceptanceRequest {
     pub kind: AcceptanceKind,
     pub binding: TrackedBinding,
     pub proposed_provider: Option<RegistrationRef>,
+    pub proposed_generation: Option<Generation>,
+    #[serde(skip)]
+    decision: Option<crate::decision::Request>,
 }
-/// Neither initial nor replacement acceptance has a positive variant. Diagnostic
-/// tracking/execution is not an accepted work binding. Positive integration is unsupported.
+impl AcceptanceRequest {
+    pub fn decision_request(&self) -> Option<&crate::decision::Request> {
+        self.decision.as_ref()
+    }
+}
+/// Positive acceptance carries a verified external decision, never a host grant.
+/// Diagnostic tracking/execution alone is not an accepted work binding.
 #[derive(Clone, Debug, Serialize)]
 pub enum AcceptanceReply {
+    Verified(Box<crate::decision::VerifiedDecision>),
     NotEvaluated {
         condition: Name,
         reason: String,
@@ -323,11 +338,33 @@ pub struct NoBindingJudgment;
 impl BindingJudgment for NoBindingJudgment {}
 #[derive(Clone, Debug, Serialize)]
 pub struct AcceptanceAssessment {
-    pub request: AcceptanceRequest,
-    pub state: WorkUseState,
-    pub condition: Name,
-    pub reason: String,
-    pub decision_reference: Option<Name>,
+    request: AcceptanceRequest,
+    state: WorkUseState,
+    condition: Name,
+    reason: String,
+    decision_reference: Option<Name>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    verified_decision: Option<crate::decision::Reference>,
+}
+impl AcceptanceAssessment {
+    pub fn request(&self) -> &AcceptanceRequest {
+        &self.request
+    }
+    pub fn state(&self) -> WorkUseState {
+        self.state
+    }
+    pub fn condition(&self) -> &Name {
+        &self.condition
+    }
+    pub fn reason(&self) -> &str {
+        &self.reason
+    }
+    pub fn decision_reference(&self) -> Option<&Name> {
+        self.decision_reference.as_ref()
+    }
+    pub fn verified_decision(&self) -> Option<&crate::decision::Reference> {
+        self.verified_decision.as_ref()
+    }
 }
 
 struct Observed {

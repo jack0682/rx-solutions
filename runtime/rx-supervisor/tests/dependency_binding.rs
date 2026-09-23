@@ -121,6 +121,7 @@ HTTPServer(('127.0.0.1',int(sys.argv[2])),H).serve_forever()
         ready: ReadyProbe::HttpStatus {
             port_parameter: n("port"),
         },
+        decision_policy: None,
         execution_requirements: Some(Requirements(BTreeMap::new())),
         functional_readiness: Some(ReadinessContract(
             [(
@@ -453,9 +454,9 @@ fn same_format_registration_and_same_registration_new_execution_do_not_inherit_b
             &NoBindingJudgment,
         )
         .unwrap();
-    assert_eq!(initial.state, WorkUseState::Unsupported);
-    assert_eq!(changed.state, WorkUseState::Unsupported);
-    assert_ne!(initial.request.kind, changed.request.kind);
+    assert_eq!(initial.state(), WorkUseState::Unsupported);
+    assert_eq!(changed.state(), WorkUseState::Unsupported);
+    assert_ne!(initial.request().kind, changed.request().kind);
     assert_eq!(
         c.inspect(&b.id, Some(&r.id), None, &mut f.managed)
             .unwrap()
@@ -668,16 +669,16 @@ fn absent_and_malformed_sources_and_explicit_denial_have_named_distinct_states()
     let denied = c
         .assess_binding(&b.id, AcceptanceKind::Initial, None, &Denial)
         .unwrap();
-    assert_eq!(denied.state, WorkUseState::Denied);
-    assert!(denied.decision_reference.is_some());
+    assert_eq!(denied.state(), WorkUseState::Denied);
+    assert!(denied.decision_reference().is_some());
     let absent = c
         .assess_binding(&b.id, AcceptanceKind::Initial, None, &NoBindingJudgment)
         .unwrap();
-    assert_eq!(absent.state, WorkUseState::Unsupported);
+    assert_eq!(absent.state(), WorkUseState::Unsupported);
     let malformed = c
         .assess_binding(&b.id, AcceptanceKind::Initial, None, &MalformedJudgment)
         .unwrap();
-    assert_eq!(malformed.condition, n("binding/provider-response"));
+    assert_eq!(*malformed.condition(), n("binding/provider-response"));
     assert!(
         c.assess_binding(&b.id, AcceptanceKind::Replacement, None, &Denial)
             .is_err()

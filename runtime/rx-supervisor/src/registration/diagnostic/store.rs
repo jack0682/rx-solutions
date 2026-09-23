@@ -163,6 +163,7 @@ pub struct Consumer<R> {
     registry: Registry<R>,
     consumer: RegistrationRef,
     catalog: Catalog,
+    decision_gate: crate::decision::Gate,
 }
 impl<R: Repository> Consumer<R> {
     pub fn open(mut registry: Registry<R>, component: Id, catalog: Catalog) -> Result<Self> {
@@ -176,10 +177,27 @@ impl<R: Repository> Consumer<R> {
             registry,
             consumer: RegistrationRef::from_registration(&current),
             catalog,
+            decision_gate: crate::decision::Gate::new(),
         })
     }
     pub fn into_registry(self) -> Registry<R> {
         self.registry
+    }
+    pub fn record_verified_decision(
+        &mut self,
+        proof: &crate::decision::VerifiedDecision,
+    ) -> Result<DecisionRecord> {
+        self.registry.record_verified_decision(proof)
+    }
+    pub fn record_verified_revocation(
+        &mut self,
+        proof: &crate::decision::VerifiedRevocation,
+    ) -> Result<DecisionRevocationRecord> {
+        self.registry.record_verified_revocation(proof)
+    }
+    pub fn recorded_decision(&mut self, decision: &Id) -> Result<DecisionRecord> {
+        self.registry
+            .recorded_decision(&self.consumer.registration, decision)
     }
     pub fn history(&mut self) -> Result<Vec<StoredEvent>> {
         self.registry.history(&self.consumer.registration)
@@ -661,20 +679,71 @@ impl<R: Repository> Consumer<R> {
         proposed_provider: Option<RegistrationRef>,
         port: &impl BindingJudgment,
     ) -> Result<AcceptanceAssessment> {
-        let (_, tracked, _, _) = self.load_binding(id)?;
-        if (kind == AcceptanceKind::Initial && proposed_provider.is_some())
+        self.assess_binding_with_generation(id, kind, proposed_provider, None, port)
+    }
+    /// Replacement positives require an explicitly identified proposed generation.
+    /// These target coordinates do not independently prove physical availability.
+    pub fn assess_binding_with_generation(
+        &mut self,
+        id: &Id,
+        kind: AcceptanceKind,
+        proposed_provider: Option<RegistrationRef>,
+        proposed_generation: Option<Generation>,
+        port: &impl BindingJudgment,
+    ) -> Result<AcceptanceAssessment> {
+        let (_, tracked, _, eligibility) = self.load_binding(id)?;
+        if (kind == AcceptanceKind::Initial
+            && (proposed_provider.is_some() || proposed_generation.is_some()))
             || (kind == AcceptanceKind::Replacement && proposed_provider.is_none())
         {
             return Err(invalid(
                 "binding/decision-kind: initial and replacement judgments are distinct requests",
             ));
         }
+        let decision = if eligibility.state == ConditionState::Satisfied
+            && tracked.generation.is_some()
+            && (kind == AcceptanceKind::Initial || proposed_generation.is_some())
+        {
+            self.catalog.decision_policy.as_ref().and_then(|policy| self.decision_gate.request(
+                match kind { AcceptanceKind::Initial => crate::decision::Kind::InitialBinding, AcceptanceKind::Replacement => crate::decision::Kind::ReplacementBinding },
+                crate::decision::Owner { registration: self.consumer.registration.clone(), revision: self.consumer.revision,
+                    program: self.consumer.catalog.program.clone(), catalog: self.consumer.catalog.digest },
+                &tracked.operating_area, &tracked.profile,
+                serde_json::json!({"binding":tracked,"proposed_provider":proposed_provider,"proposed_generation":proposed_generation}),policy).ok())
+        } else {
+            None
+        };
         let request = AcceptanceRequest {
             kind,
             binding: tracked,
             proposed_provider,
+            proposed_generation,
+            decision,
         };
-        let (state, condition, reason, reference) = match port.assess(&request) {
+        let reply = port.assess(&request);
+        if let AcceptanceReply::Verified(proof) = reply {
+            let checked = request
+                .decision
+                .as_ref()
+                .ok_or(crate::decision::Failure::Unconfigured)
+                .and_then(|r| r.check(&proof));
+            let (state, reason, reference) = match checked {
+                Ok(reference) => (WorkUseState::Verified, "external issuer key possession and exact binding target verified; not work-use permission, physical truth or automatic replacement".into(), Some(reference)),
+                Err(error) => (WorkUseState::Denied, error.to_string(), None),
+            };
+            return Ok(AcceptanceAssessment {
+                request,
+                state,
+                condition: name("binding/external-decision"),
+                reason,
+                decision_reference: reference
+                    .as_ref()
+                    .map(|r| name(&format!("decision/{}", r.decision))),
+                verified_decision: reference,
+            });
+        }
+        let (state, condition, reason, reference) = match reply {
+            AcceptanceReply::Verified(_) => unreachable!("handled above"),
             AcceptanceReply::NotEvaluated { condition, reason } => {
                 (WorkUseState::NotEvaluated, condition, reason, None)
             }
@@ -699,6 +768,7 @@ impl<R: Repository> Consumer<R> {
                 condition: name("binding/provider-response"),
                 reason: "binding judgment lacks a bounded named explanation".into(),
                 decision_reference: None,
+                verified_decision: None,
             });
         }
         Ok(AcceptanceAssessment {
@@ -707,6 +777,7 @@ impl<R: Repository> Consumer<R> {
             condition,
             reason,
             decision_reference: reference,
+            verified_decision: None,
         })
     }
 }

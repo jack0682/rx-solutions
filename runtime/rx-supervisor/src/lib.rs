@@ -1,4 +1,5 @@
 pub mod builtin;
+pub mod decision;
 pub mod execution;
 pub mod initialization;
 pub mod model;

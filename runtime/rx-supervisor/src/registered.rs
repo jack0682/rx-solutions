@@ -13,6 +13,9 @@ use rx_solution_catalog::DeviceCatalog;
 use std::{cell::RefCell, collections::BTreeMap, rc::Rc};
 
 pub fn catalog_reference(program: &Program) -> Result<CatalogReference> {
+    if let Some(policy) = &program.decision_policy {
+        policy.fingerprint().map_err(Error::Invalid)?;
+    }
     if let Some(requirements) = &program.execution_requirements {
         requirements.validate()?;
     }
@@ -129,6 +132,8 @@ pub struct RegisteredSupervisor<S, B, A, R> {
     selection: Name,
     catalog: CatalogReference,
     readiness: Option<crate::use_assessment::ReadinessContract>,
+    decision_policy: Option<crate::decision::Policy>,
+    decision_gate: crate::decision::Gate,
 }
 impl<S: Repository, B: Backend, A: LifecycleAuthority, R: Repository>
     RegisteredSupervisor<S, B, A, R>
@@ -213,6 +218,7 @@ impl<S: Repository, B: Backend, A: LifecycleAuthority, R: Repository>
         }
         let catalog = catalog_reference(program)?;
         let readiness = program.functional_readiness.clone();
+        let decision_policy = program.decision_policy.clone();
         let accepted = registry.query(&component)?.registration;
         if accepted.registration.declaration.catalog != catalog {
             return Err(Error::Invalid("program/catalog declaration differs from accepted registration; review an explicit revision, preserve prior records".into()));
@@ -243,6 +249,8 @@ impl<S: Repository, B: Backend, A: LifecycleAuthority, R: Repository>
             selection,
             catalog,
             readiness,
+            decision_policy,
+            decision_gate: crate::decision::Gate::new(),
         };
         this.synchronize()?;
         Ok(this)
@@ -292,10 +300,59 @@ impl<S: Repository, B: Backend, A: LifecycleAuthority, R: Repository>
         } else {
             ReadinessAssessment::unobserved(Some(scope.clone()),Some(subject.clone()),ConditionState::Unsupported,Name::new("catalog/readiness-profile").expect("literal"),"author has not declared supported readiness conditions for this intended use; metadata or process liveness cannot supply them".into())
         };
-        let request = WorkUseRequest::new(scope, subject, assessment.clone());
+        let decision = if view.registration.registration.state == RegistrationState::Accepted
+            && view.registration.registration.declaration.catalog == self.catalog
+            && record.instance.is_some()
+            && record.pid.is_some()
+            && matches!(
+                record.phase,
+                Phase::Starting | Phase::ProcessReady | Phase::Unready
+            ) {
+            self.decision_policy.as_ref().and_then(|policy| {
+                self.decision_gate
+                    .request(
+                        crate::decision::Kind::WorkUse,
+                        crate::decision::Owner {
+                            registration: self.component.clone(),
+                            revision: view.registration.revision,
+                            program: self.catalog.program.clone(),
+                            catalog: self.catalog.digest,
+                        },
+                        &scope.operating_area,
+                        &scope.role,
+                        serde_json::json!({"subject":subject,"configuration":state.plan_digest}),
+                        policy,
+                    )
+                    .ok()
+            })
+        } else {
+            None
+        };
+        let request = WorkUseRequest::new(scope, subject, assessment.clone(), decision);
         view.work_use_permission = WorkUseAssessment::assessed(&request, port.assess(&request));
         view.functional_readiness = assessment;
         Ok(view)
+    }
+    pub fn record_verified_decision(
+        &self,
+        proof: &crate::decision::VerifiedDecision,
+    ) -> Result<DecisionRecord> {
+        Ok(self.registry.borrow_mut().record_verified_decision(proof)?)
+    }
+    pub fn record_verified_revocation(
+        &self,
+        proof: &crate::decision::VerifiedRevocation,
+    ) -> Result<DecisionRevocationRecord> {
+        Ok(self
+            .registry
+            .borrow_mut()
+            .record_verified_revocation(proof)?)
+    }
+    pub fn recorded_decision(&self, decision: &Id) -> Result<DecisionRecord> {
+        Ok(self
+            .registry
+            .borrow_mut()
+            .recorded_decision(&self.component, decision)?)
     }
     pub fn history(&self) -> Result<Vec<rx_ports::StoredEvent>> {
         Ok(self.registry.borrow_mut().history(&self.component)?)
