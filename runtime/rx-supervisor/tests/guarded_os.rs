@@ -85,6 +85,7 @@ raise SystemExit(code)
     };
     let python = PathBuf::from("/usr/bin/python3");
     let program = Program {
+        functional_readiness: None,
         execution_requirements: None,
         id: n("test/guarded"),
         effect: Effect::ProtocolGuardedService,

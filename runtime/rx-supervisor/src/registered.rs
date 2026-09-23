@@ -16,6 +16,9 @@ pub fn catalog_reference(program: &Program) -> Result<CatalogReference> {
     if let Some(requirements) = &program.execution_requirements {
         requirements.validate()?;
     }
+    if let Some(contract) = &program.functional_readiness {
+        contract.validate().map_err(Error::Invalid)?;
+    }
     Ok(CatalogReference {
         program: program.id.clone(),
         digest: canonical::digest("RX-COMPONENT-PROGRAM-v1", program)
@@ -49,6 +52,13 @@ impl<B: Backend, R: Repository> RegisteredBackend<B, R> {
     }
 }
 impl<B: Backend, R: Repository> Backend for RegisteredBackend<B, R> {
+    fn observe_status(
+        &mut self,
+        launch: &Launch,
+        request: &crate::use_assessment::StatusObservationRequest,
+    ) -> Result<crate::use_assessment::StatusObservationResult> {
+        self.backend.observe_status(launch, request)
+    }
     fn spawn(
         &mut self,
         _: &Launch,
@@ -118,6 +128,7 @@ pub struct RegisteredSupervisor<S, B, A, R> {
     run: Id,
     selection: Name,
     catalog: CatalogReference,
+    readiness: Option<crate::use_assessment::ReadinessContract>,
 }
 impl<S: Repository, B: Backend, A: LifecycleAuthority, R: Repository>
     RegisteredSupervisor<S, B, A, R>
@@ -201,6 +212,7 @@ impl<S: Repository, B: Backend, A: LifecycleAuthority, R: Repository>
             return Err(Error::Invalid("registered execution requires non-actuating effect and explicit catalog requirements".into()));
         }
         let catalog = catalog_reference(program)?;
+        let readiness = program.functional_readiness.clone();
         let accepted = registry.query(&component)?.registration;
         if accepted.registration.declaration.catalog != catalog {
             return Err(Error::Invalid("program/catalog declaration differs from accepted registration; review an explicit revision, preserve prior records".into()));
@@ -230,12 +242,60 @@ impl<S: Repository, B: Backend, A: LifecycleAuthority, R: Repository>
             run,
             selection,
             catalog,
+            readiness,
         };
         this.synchronize()?;
         Ok(this)
     }
     pub fn query(&self) -> Result<View> {
         Ok(self.registry.borrow_mut().query(&self.component)?)
+    }
+    /// Fresh, explicitly scoped snapshot over component self-report data. No
+    /// evaluation is persisted/cached as permission, and query() remains read-only
+    /// without probing. A later use requires a fresh operating-area judgment.
+    pub fn assess_use(
+        &mut self,
+        scope: crate::use_assessment::UseScope,
+        port: &impl crate::use_assessment::WorkUsePort,
+    ) -> Result<View> {
+        use crate::use_assessment::*;
+        let mut view = self.query()?;
+        let state = self.supervisor.state()?;
+        let record = &state.records[&self.selection];
+        let subject = UseSubject {
+            registration: self.component.clone(),
+            registration_revision: view.registration.revision,
+            program: self.catalog.program.clone(),
+            catalog_digest: self.catalog.digest,
+            run: self.run.clone(),
+            selection: self.selection.clone(),
+            instance: record.instance.clone(),
+            pid: record.pid,
+        };
+        let assessment = if let Some(profile) =
+            self.readiness.as_ref().and_then(|c| c.0.get(&scope.role))
+        {
+            let request =
+                StatusObservationRequest::new(subject.clone(), scope.clone(), profile.endpoint);
+            ReadinessAssessment::evaluate(
+                &request,
+                profile,
+                self.supervisor
+                    .observe_use_status(&request)
+                    .unwrap_or_else(|error| StatusObservationResult::NotEvaluated {
+                        condition: Name::new("readiness/observation-error").expect("literal"),
+                        reason: format!(
+                            "observation unavailable: {error}; no condition is inferred satisfied"
+                        ),
+                    }),
+            )
+        } else {
+            ReadinessAssessment::unobserved(Some(scope.clone()),Some(subject.clone()),ConditionState::Unsupported,Name::new("catalog/readiness-profile").expect("literal"),"author has not declared supported readiness conditions for this intended use; metadata or process liveness cannot supply them".into())
+        };
+        let request = WorkUseRequest::new(scope, subject, assessment.clone());
+        view.work_use_permission = WorkUseAssessment::assessed(&request, port.assess(&request));
+        view.functional_readiness = assessment;
+        Ok(view)
     }
     pub fn history(&self) -> Result<Vec<rx_ports::StoredEvent>> {
         Ok(self.registry.borrow_mut().history(&self.component)?)

@@ -46,6 +46,7 @@ fn program() -> Program {
         ready: ReadyProbe::HttpStatus {
             port_parameter: n("port"),
         },
+        functional_readiness: None,
         execution_requirements: Some(Requirements(BTreeMap::new())),
     }
 }
@@ -255,8 +256,28 @@ fn normal_exit_unexpected_handle_loss_and_restart_preserve_registration() {
             view.execution_ownership,
             "NOT_ESTABLISHED_BY_PERSISTENT_RECORDS"
         );
-        assert!(view.functional_readiness.starts_with("UNSUPPORTED"));
-        assert!(view.work_use_permission.starts_with("UNSUPPORTED"));
+        assert_eq!(
+            view.functional_readiness.state(),
+            rx_supervisor::use_assessment::ConditionState::NotEvaluated
+        );
+        assert!(!view.functional_readiness.conditions().is_empty());
+        assert!(
+            view.functional_readiness
+                .conditions()
+                .iter()
+                .all(|c| c.state == rx_supervisor::use_assessment::ConditionState::NotEvaluated)
+        );
+        assert_eq!(
+            view.work_use_permission.state(),
+            rx_supervisor::use_assessment::WorkUseState::NotEvaluated
+        );
+        assert!(!view.work_use_permission.conditions().is_empty());
+        assert!(
+            view.work_use_permission
+                .conditions()
+                .iter()
+                .all(|c| c.state == rx_supervisor::use_assessment::ConditionState::NotEvaluated)
+        );
         println!(
             "{mode} after reopen: {}",
             serde_json::to_string(&view).unwrap()

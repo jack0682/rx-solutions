@@ -125,9 +125,9 @@ This first placement in the same crate does not settle the final platform owner
 of component management.
 
 Registration accepts content; it does not grant lifecycle authority, functional
-readiness or permission to use the component for work. Query output marks both
-unsupported decisions explicitly and treats saved execution observations as
-history, not proof of present process/resource ownership. The accepted reference
+readiness or permission to use the component for work. Query without a scoped
+assessment leaves both axes explicitly NOT_EVALUATED and treats saved execution
+observations as history, not proof of present process/resource ownership. The accepted reference
 pins the program ID and complete catalog Program digest; registration never
 stores a mutable authoritative copy of F1 requirements.
 
@@ -167,10 +167,9 @@ validated `/opt/rx` installation. The procedure asserts registration with no
 execution, F1 admission, instance-correlated HTTP output, owned-child exit and
 reopen in another manager process. It additionally exercises abnormal child
 exit and manager-object recreation while a real child remains alive, labeling
-that last probe separately. Functional readiness, work-use permission, dependency
-binding, multi-host operation, Linux resource enforcement and physical
-qualification remain unsupported. The F3 extension below adds the narrow explicit
-recovery path to this same procedure.
+that last probe separately. Independent functional/physical qualification,
+positive work-use permission, dependency binding, multi-host operation and Linux
+resource enforcement remain unsupported. F3 and F4 below extend this same procedure.
 
 ## Explicit software recovery disposition (F3)
 
@@ -221,10 +220,70 @@ of implicit assignment, explicit new-instance startup, normal exit and two repla
 rejections. The retained old backend supplies the real exit evidence. This is
 manager-object/store recreation, not recovery of a dead process's lost handle.
 `tests/recovery.rs` adds real software-child, SQLite and injected-commit-failure
-regressions. Functional readiness, work-use permission, dependency binding,
+regressions. Independent functional qualification, positive work-use permission, dependency binding,
 resource enforcement, multi-host operation and physical qualification remain out
 of scope. Older writers do not know the new disposition/frozen-observation rules;
 semantic downgrade on a recovered registry is not supported.
+
+## Reported readiness and work-use judgment (F4)
+
+Author-owned `Program.functional_readiness` declares named intended-use profiles.
+`RegisteredSupervisor::assess_use(UseScope, WorkUsePort)` compares a fresh component
+self-report with the selected profile. `AliveOnly` remains unchanged and never
+supplies functional evidence. The first provider supports owned non-actuating
+HttpStatus programs. There is no new mandatory Backend method; other backends
+default to an unsupported observation source.
+
+`diagnostics/support-summary` compares the instance, schema and reported count
+fields. `diagnostics/operator-connected` additionally requires CONNECTED, while
+the current release literally reports NOT_CONNECTED. That failure is a static
+release declaration, not a failed live connectivity probe. Counts are startup
+audit/catalog derived; the instance comes from the process environment. Each
+condition names its provenance. A response timestamp is not a new measurement
+timestamp for those startup values. SATISFIED means only the declared self-report
+conditions matched, not that actual functional operation, calibration, physical
+readiness or business suitability was independently established.
+
+The readiness axis distinguishes NOT_EVALUATED, NOT_MET, UNSUPPORTED and SATISFIED
+with named conditions. Observations bind a unique assessment request to the
+registration/catalog/run/instance/PID/scope/endpoint. Wrong-instance responses and
+replayed observations do not satisfy conditions. Assessment performs no start,
+stop, admission, disposition or persistent history write. Results are snapshots;
+plain `query()` does not probe or restore a cached readiness judgment.
+
+Work-use authority belongs to operating-area task judgment. The host has no
+Granted variant, positive credential constructor or issuer. `NoWorkUseProvider`
+reports UNSUPPORTED with a named provider-connection condition. An actual adapter's
+reported DENIED decision has its own reference and named reasons; it is distinct
+from an unconnected or not-yet-evaluated provider. Positive operating-area provider
+connection/verification is unsupported, not a design claim of permanent refusal.
+This is not HTTP access-control or a business-work dispatcher.
+
+The two `View` fields now contain typed assessments rather than strings. This is
+an explicit local query API shape change, not unchanged string-client compatibility.
+Existing assertions now require named NOT_EVALUATED conditions on standalone/new
+owner queries. Program literals need the optional declaration field; None is
+omitted from serialization and retains prior digest inputs. The builtin declaration
+changes its catalog/plan digest, so old accepted pins are refused for review,
+without migration, weakening or deletion of unresolved records. Shared SDK,
+protocol/normative documents and manifests are unchanged.
+
+The same Linux passage includes ProcessReady with operator conditions NOT_MET and
+readonly conditions SATISFIED with work-use provider UNSUPPORTED. Scope limitations
+remain explicit: actual device operations, collaborative resource/dependency
+binding, resource enforcement, multiple hosts and external recovery providers are
+not supplied by this assessment.
+
+### Non-actuating exit race found during regression
+
+The pre-change backend could report a failed signal even though the same owned
+Child had exited by the time the signal command returned. For NonActuating only,
+the backend now rechecks that positive owned-exit evidence after a failed signal.
+It does not relabel the failed signal as delivered. Successful signal acceptance,
+confirmed owned exit, and live/unconfirmed outcomes are tested separately. Control
+effects retain their previous errors, and timeout/force policies remain unchanged.
+Neither a successful signal nor this narrow correction proves descendant shutdown,
+physical stop or resource handover.
 
 ## Further connections
 

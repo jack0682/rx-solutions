@@ -51,6 +51,10 @@ pub struct Program {
     /// Omission preserves the legacy program digest and startup path.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub execution_requirements: Option<crate::execution::Requirements>,
+    /// Author-owned intended-use conditions over a supported observation source.
+    /// Omission preserves legacy catalog/plan digest inputs.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub functional_readiness: Option<crate::use_assessment::ReadinessContract>,
 }
 #[derive(Clone, Debug, Serialize)]
 pub enum Argument {

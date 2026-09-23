@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Exercise registration, owned-exit disposition and explicit new-instance resume.
+"""Exercise registration, recovery and separate reported-readiness/work-use axes.
 
 Requires Docker and a previously validated RX runtime image. No image is published,
 no device is attached, and all new build/state artifacts stay in --evidence.
@@ -71,7 +71,7 @@ def main():
     sys.stdout.write(result)
     print(json.dumps({'result': 'PASS', 'runtime_image': runtime_id, 'builder_image': builder_id,
         'status_source_sha256': source_hash, 'evidence': str(evidence),
-        'scope': 'actual Linux registration, owned-exit disposition and explicit new-instance resume; no resource enforcement or physical qualification'}))
+        'scope': 'actual Linux registration/recovery and scoped self-report comparison; operating-area positive work-use provider unsupported, no resource enforcement or physical qualification'}))
 
 
 if __name__ == '__main__':

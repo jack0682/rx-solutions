@@ -15,7 +15,47 @@ pub enum SpawnFailure {
     NotStarted(Error),
     Uncertain(Error),
 }
+#[cfg(unix)]
+#[derive(Debug, PartialEq, Eq)]
+enum SignalOutcome {
+    Accepted,
+    OwnedNonActuatingExit,
+}
+#[cfg(unix)]
+fn signal_outcome(
+    accepted: bool,
+    effect: Option<Effect>,
+    observe_exit: impl FnOnce() -> std::io::Result<Option<std::process::ExitStatus>>,
+) -> Result<SignalOutcome> {
+    if accepted {
+        return Ok(SignalOutcome::Accepted);
+    }
+    // A failed signal is not success. Only a positive observation of this same
+    // owned non-actuating Child's exit can settle the existing already-exited
+    // case. Control effects and unavailable/live observations remain errors.
+    if effect == Some(Effect::NonActuating) && observe_exit()?.is_some() {
+        return Ok(SignalOutcome::OwnedNonActuatingExit);
+    }
+    Err(Error::Reconciliation(
+        "owned process signal was not confirmed".into(),
+    ))
+}
 pub trait Backend {
+    /// Read component self-report data in the current owned-child context.
+    /// The default has no functional observation source; process readiness is
+    /// never promoted here. Positive observations cannot be minted by callers.
+    fn observe_status(
+        &mut self,
+        _launch: &Launch,
+        _request: &crate::use_assessment::StatusObservationRequest,
+    ) -> Result<crate::use_assessment::StatusObservationResult> {
+        Ok(
+            crate::use_assessment::StatusObservationResult::Unsupported {
+                condition: Name::new("readiness/observation-provider").expect("literal"),
+                reason: "backend has no functional self-report observation provider".into(),
+            },
+        )
+    }
     fn spawn(
         &mut self,
         launch: &Launch,
@@ -137,6 +177,113 @@ pub fn verify(path: &std::path::Path, expected: Digest) -> Result<()> {
     Ok(())
 }
 impl Backend for OsProcesses {
+    fn observe_status(
+        &mut self,
+        launch: &Launch,
+        request: &crate::use_assessment::StatusObservationRequest,
+    ) -> Result<crate::use_assessment::StatusObservationResult> {
+        use crate::use_assessment::{StatusObservation, StatusObservationResult as R};
+        let named = |s| Name::new(s).expect("literal");
+        if launch.effect != Effect::NonActuating
+            || !matches!(launch.ready, ReadyProbe::HttpStatus { .. })
+        {
+            return Ok(R::Unsupported{condition:named("readiness/status-source"),reason:"only non-actuating HttpStatus programs have this provider; AliveOnly remains a liveness probe".into()});
+        }
+        let Some(child) = self.children.get_mut(&launch.instance) else {
+            return Ok(R::NotEvaluated {
+                condition: named("execution/current-owner"),
+                reason: "no current owned Child; saved identity is not observation evidence".into(),
+            });
+        };
+        if self.effects.get(&launch.instance) != Some(&Effect::NonActuating) {
+            return Ok(R::Unsupported {
+                condition: named("report/owned-effect"),
+                reason: "the owned child is not a non-actuating observation source".into(),
+            });
+        }
+        if request.instance() != Some(&launch.instance) || request.pid() != Some(child.id()) {
+            return Ok(R::NotMet {
+                condition: named("report/owner-binding"),
+                reason: "assessment instance/PID differs from owned launch".into(),
+            });
+        }
+        if child.try_wait()?.is_some() {
+            return Ok(R::NotMet {
+                condition: named("execution/current-child"),
+                reason: "owned child has exited; no current functional report".into(),
+            });
+        }
+        let Some(port) = launch.port else {
+            return Ok(R::Unsupported {
+                condition: named("report/http-binding"),
+                reason: "no authored HTTP port binding".into(),
+            });
+        };
+        let address = SocketAddrV4::new(Ipv4Addr::LOCALHOST, port);
+        let Ok(mut stream) =
+            TcpStream::connect_timeout(&address.into(), Duration::from_millis(100))
+        else {
+            return Ok(R::NotEvaluated {
+                condition: named("report/transport"),
+                reason: "no HTTP response obtained; declared conditions not evaluated".into(),
+            });
+        };
+        stream.set_read_timeout(Some(Duration::from_millis(200)))?;
+        stream.set_write_timeout(Some(Duration::from_millis(100)))?;
+        stream.write_all(
+            format!(
+                "GET {} HTTP/1.0\r\nHost: localhost\r\nConnection: close\r\n\r\n",
+                request.endpoint().path()
+            )
+            .as_bytes(),
+        )?;
+        let mut bytes = vec![];
+        if stream.take(1_048_577).read_to_end(&mut bytes).is_err() {
+            return Ok(R::NotEvaluated {
+                condition: named("report/transport"),
+                reason: "complete HTTP response not obtained; no readiness inferred".into(),
+            });
+        }
+        if bytes.len() > 1_048_576 {
+            return Ok(R::NotMet {
+                condition: named("report/size"),
+                reason: "component report exceeds bounded response size".into(),
+            });
+        }
+        let Some(split) = bytes.windows(4).position(|s| s == b"\r\n\r\n") else {
+            return Ok(R::NotMet {
+                condition: named("report/http-format"),
+                reason: "malformed HTTP response".into(),
+            });
+        };
+        if !bytes.starts_with(b"HTTP/1.0 200 ") && !bytes.starts_with(b"HTTP/1.1 200 ") {
+            return Ok(R::NotMet {
+                condition: named("report/http-status"),
+                reason: "requested diagnostic endpoint did not return HTTP 200".into(),
+            });
+        }
+        let Ok(reported) = canonical::decode_json::<serde_json::Value>(&bytes[split + 4..]) else {
+            return Ok(R::NotMet {
+                condition: named("report/json-format"),
+                reason: "component response is not unambiguous JSON".into(),
+            });
+        };
+        if self
+            .children
+            .get_mut(&launch.instance)
+            .expect("owned child retained")
+            .try_wait()?
+            .is_some()
+        {
+            return Ok(R::NotMet {
+                condition: named("execution/current-child"),
+                reason: "owned child exited while its response was read".into(),
+            });
+        }
+        Ok(R::Observed(Box::new(
+            StatusObservation::captured(request, reported).map_err(Error::Invalid)?,
+        )))
+    }
     fn spawn(
         &mut self,
         l: &Launch,
@@ -302,7 +449,8 @@ impl OsProcesses {
         }
     }
     fn terminate_local(&mut self, instance: &Id, force: bool) -> Result<()> {
-        let guarded = self.effects.get(instance) == Some(&Effect::ProtocolGuardedService);
+        let effect = self.effects.get(instance).copied();
+        let guarded = effect == Some(Effect::ProtocolGuardedService);
         if guarded && force {
             return Err(Error::Invalid(
                 "protocol-guarded services cannot be force-killed".into(),
@@ -328,11 +476,7 @@ impl OsProcesses {
                 .env_clear()
                 .args([if force { "-KILL" } else { "-TERM" }, "--", &target])
                 .status()?;
-            if !status.success() {
-                return Err(Error::Reconciliation(
-                    "owned process signal was not confirmed".into(),
-                ));
-            }
+            let _ = signal_outcome(status.success(), effect, || child.try_wait())?;
         }
         #[cfg(not(unix))]
         {
@@ -342,5 +486,77 @@ impl OsProcesses {
             ));
         }
         Ok(())
+    }
+}
+
+#[cfg(all(test, unix))]
+mod signal_tests {
+    use super::*;
+    struct OwnedTestChild(Child);
+    impl Drop for OwnedTestChild {
+        fn drop(&mut self) {
+            if self.0.try_wait().ok().flatten().is_none() {
+                let _ = self.0.kill();
+            }
+            let _ = self.0.wait();
+        }
+    }
+    fn running() -> OwnedTestChild {
+        OwnedTestChild(Command::new("/bin/sleep").arg("30").spawn().unwrap())
+    }
+    fn exited() -> OwnedTestChild {
+        let mut child = OwnedTestChild(Command::new("/usr/bin/true").spawn().unwrap());
+        assert!(child.0.wait().unwrap().success());
+        child
+    }
+    #[test]
+    fn signal_acceptance_does_not_claim_child_exit() {
+        let mut child = running();
+        assert!(child.0.try_wait().unwrap().is_none());
+        assert_eq!(
+            signal_outcome(true, Some(Effect::NonActuating), || panic!(
+                "acceptance is not an exit observation"
+            ))
+            .unwrap(),
+            SignalOutcome::Accepted
+        );
+        assert!(child.0.try_wait().unwrap().is_none());
+    }
+    #[test]
+    fn failed_signal_uses_only_confirmed_owned_non_actuating_exit() {
+        let mut child = exited();
+        assert_eq!(
+            signal_outcome(false, Some(Effect::NonActuating), || child.0.try_wait()).unwrap(),
+            SignalOutcome::OwnedNonActuatingExit
+        );
+    }
+    #[test]
+    fn failed_signal_with_live_or_unconfirmed_child_remains_error() {
+        let mut child = running();
+        assert!(signal_outcome(false, Some(Effect::NonActuating), || child.0.try_wait()).is_err());
+        assert!(
+            signal_outcome(false, Some(Effect::NonActuating), || Err(
+                std::io::Error::other("injected observation unavailability")
+            ))
+            .is_err()
+        );
+        assert!(child.0.try_wait().unwrap().is_none());
+    }
+    #[test]
+    fn failed_signal_keeps_control_and_unknown_effect_errors() {
+        let mut child = exited();
+        for effect in [
+            Some(Effect::ProtocolGuardedService),
+            Some(Effect::RequiresPlatformAuthority),
+            None,
+        ] {
+            assert!(
+                signal_outcome(false, effect, || panic!(
+                    "control path must not use non-actuating fallback"
+                ))
+                .is_err()
+            );
+            assert!(child.0.try_wait().unwrap().is_some());
+        }
     }
 }

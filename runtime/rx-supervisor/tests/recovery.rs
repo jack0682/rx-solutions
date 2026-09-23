@@ -54,6 +54,7 @@ fn program() -> Program {
         fixed_arguments: vec!["60".into()],
         arguments: BTreeMap::new(),
         ready: ReadyProbe::AliveOnly,
+        functional_readiness: None,
         execution_requirements: Some(Requirements(BTreeMap::new())),
     }
 }
