@@ -42,7 +42,7 @@ pub fn release_programs(root: &Path) -> Result<BTreeMap<Name, Program>> {
     verify(&python, python_hash)?;
     let name = |s: &str| Name::new(s).expect("literal name");
     let program = Program {
-        execution_requirements: None,
+        execution_requirements: Some(crate::execution::Requirements(BTreeMap::new())),
         id: name("rx/status-http"),
         effect: Effect::NonActuating,
         executable: python,

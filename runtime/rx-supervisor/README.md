@@ -114,7 +114,64 @@ state_subdirectory is a restricted relative path under `/var/lib/rx-solutions`. 
 
 Normal shutdown records are not automatically erased by the next `run`. Only when all processes are in confirmed terminal states and the full plan is non-actuating may explicit `rx-solutionsd activate CONFIG` prepare the software plan again. A plan left UNKNOWN after forced termination cannot be reactivated through this path either.
 
-## Verification and connections still needed
+## Persistent component registration (F2)
+
+`registration::Registry` owns a separate `Repository` and remains usable without
+a plan, supervisor or execution. It records registration UUIDs, accepted catalog
+references, revision-CAS changes, retirement and execution history. The module
+does not import `Supervisor`, `Plan` or `State`. `registered::RegisteredSupervisor`
+connects one non-actuating component to the existing supervisor and F1 backend.
+This first placement in the same crate does not settle the final platform owner
+of component management.
+
+Registration accepts content; it does not grant lifecycle authority, functional
+readiness or permission to use the component for work. Query output marks both
+unsupported decisions explicitly and treats saved execution observations as
+history, not proof of present process/resource ownership. The accepted reference
+pins the program ID and complete catalog Program digest; registration never
+stores a mutable authoritative copy of F1 requirements.
+
+Each new assignment is durably recorded before external effects. Retirement
+blocks new assignments without stopping existing children or deleting their
+records. Revision conflicts, changed catalog references and unresolved prior
+assignments fail closed. The registration and supervisor stores are separate:
+failure between them can leave an unresolved assignment. No distributed commit,
+automatic recovery disposition, PID adoption or replay is claimed. Historical
+assignments retain their original catalog and registration revision.
+
+The `rx/status-http` author recipe now declares an explicit empty F1 requirement
+set. Its `NoRequirements` receipt means no resource policy needed enforcement.
+This changes the catalog/plan digest. Reopening a supervisor store pinned to the
+old undeclared recipe is refused with a reason; the old records remain readable
+and are not migrated or deleted. Preserve the old release/store, review execution
+and unresolved state, and decide a reviewed transition before creating a new
+plan. Creating a fresh store is not a recovery procedure for an unknown child.
+
+Run the storage and simulated-backend regressions with an isolated target:
+
+```sh
+cargo test -p rx-supervisor --test registration --locked --target-dir /tmp/rx-registration-check -- --nocapture
+```
+
+The executable passage uses the actual existing service from a validated runtime
+image and compiles the current supervisor test in a Linux builder. It checks the
+installed service hash against current source, records immutable image IDs and
+keeps commands, outputs and databases in a fresh evidence directory:
+
+```sh
+python3 tools/registration_passage.py --image RX_RUNTIME_IMAGE --evidence /tmp/rx-registration-passage-new
+```
+
+The `registration_passage` integration tests are opt-in because they need the
+validated `/opt/rx` installation. The procedure asserts registration with no
+execution, F1 admission, instance-correlated HTTP output, owned-child exit and
+reopen in another manager process. It additionally exercises abnormal child
+exit and manager-object recreation while a real child remains alive, labeling
+that last probe separately. Functional readiness, work-use permission, dependency
+binding, explicit recovery disposition, multi-host operation, Linux resource
+enforcement and physical qualification remain unsupported.
+
+## Remaining connections
 
 Tests check failures before/after startup commit, persistence failure after actual spawn, unknown backend results, supervisor restart, loss of shutdown authority, rejection of force termination for control processes, stop latch during storage failure, exit-observation repersistence, dependency ordering and bounded software restart. A separate actual non-actuating HTTP child also checks instance-correlated readiness, incorrect responses/file tampering and owned-process shutdown.
 
