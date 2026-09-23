@@ -27,6 +27,9 @@ use std::{
     rc::Rc,
     time::{Duration, Instant},
 };
+#[path = "support/dependency_passage.rs"]
+mod dependency_passage;
+
 fn n(s: &str) -> Name {
     Name::new(s).unwrap()
 }
@@ -205,6 +208,10 @@ fn stopped(s: &mut Managed) -> Status {
 fn passage_worker() {
     let data = PathBuf::from(std::env::var("RX_PASSAGE_DATA").unwrap());
     let stage = std::env::var("RX_PASSAGE_STAGE").unwrap();
+    if stage == "dependencies" {
+        dependency_passage::run(&data);
+        return;
+    }
     if stage == "register" {
         let programs = release_programs(Path::new("/opt/rx")).unwrap();
         let mut r = Registry::new(SqliteRepository::open(data.join("registration.db")).unwrap());
@@ -652,7 +659,14 @@ fn real_registration_passage() {
         "use a fresh evidence directory; old records must not be overwritten"
     );
     std::fs::create_dir_all(&data).unwrap();
-    for stage in ["register", "normal", "reopen", "loss", "manager-reopen"] {
+    for stage in [
+        "register",
+        "normal",
+        "reopen",
+        "loss",
+        "manager-reopen",
+        "dependencies",
+    ] {
         let result = Command::new(std::env::current_exe().unwrap())
             .args(["--ignored", "--exact", "passage_worker", "--nocapture"])
             .env("RX_PASSAGE_DATA", &data)
@@ -666,6 +680,9 @@ fn real_registration_passage() {
     emit(
         "passage-complete",
         "all asserted transitions executed; component registration persists independently of manager process lifetime",
-        json!({"limitations":["readiness is only authored comparison of component self-report, not independent functional or physical qualification","positive operating-area work-use provider connection unsupported; host has no grant issuer","actual device operations, collaborative resource binding and dependency binding unsupported","external investigation provider after total manager-process/Child-handle loss unsupported","direct child exit does not establish descendant termination or resource recovery","multi-host unsupported","Linux resource enforcement not implemented","no physical equipment qualification"],"evidence":"actual Linux service and SQLite, owned-exit disposition, explicit new-instance resume and two scoped self-report/work-use assessments; no synthetic release installation"}),
+        json!({"limitations":["readiness is only authored comparison of component self-report, not independent functional or physical qualification","positive operating-area work-use provider connection unsupported; host has no grant issuer","actual device operations, collaborative resource binding and multi-hop dependency execution unsupported","external investigation provider after total manager-process/Child-handle loss unsupported","direct child exit does not establish descendant termination or resource recovery","multi-host unsupported","Linux resource enforcement not implemented",
+                "positive consumer-side binding acceptance unsupported; diagnostic tracking is not a work binding",
+                "dependency availability is checked at explicit checkpoints, not continuously between samples",
+                "control-effect group-target signal race remains unresolved","no physical equipment qualification"],"evidence":"actual Linux service and SQLite, owned-exit disposition, explicit new-instance resume, scoped self-report/work-use assessments and diagnostic dependency consumption; no synthetic release installation"}),
     );
 }

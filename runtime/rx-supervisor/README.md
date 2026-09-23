@@ -168,8 +168,8 @@ execution, F1 admission, instance-correlated HTTP output, owned-child exit and
 reopen in another manager process. It additionally exercises abnormal child
 exit and manager-object recreation while a real child remains alive, labeling
 that last probe separately. Independent functional/physical qualification,
-positive work-use permission, dependency binding, multi-host operation and Linux
-resource enforcement remain unsupported. F3 and F4 below extend this same procedure.
+positive work-use permission, positive binding acceptance, multi-host operation and Linux
+resource enforcement remain unsupported. F3, F4 and F5 below extend this same procedure.
 
 ## Explicit software recovery disposition (F3)
 
@@ -220,7 +220,7 @@ of implicit assignment, explicit new-instance startup, normal exit and two repla
 rejections. The retained old backend supplies the real exit evidence. This is
 manager-object/store recreation, not recovery of a dead process's lost handle.
 `tests/recovery.rs` adds real software-child, SQLite and injected-commit-failure
-regressions. Independent functional qualification, positive work-use permission, dependency binding,
+regressions. Independent functional qualification, positive work-use permission, positive binding acceptance,
 resource enforcement, multi-host operation and physical qualification remain out
 of scope. Older writers do not know the new disposition/frozen-observation rules;
 semantic downgrade on a recovered registry is not supported.
@@ -270,8 +270,8 @@ protocol/normative documents and manifests are unchanged.
 
 The same Linux passage includes ProcessReady with operator conditions NOT_MET and
 readonly conditions SATISFIED with work-use provider UNSUPPORTED. Scope limitations
-remain explicit: actual device operations, collaborative resource/dependency
-binding, resource enforcement, multiple hosts and external recovery providers are
+remain explicit: actual device operations, collaborative resource binding, general multi-hop dependency
+execution, resource enforcement, multiple hosts and external recovery providers are
 not supplied by this assessment.
 
 ### Non-actuating exit race found during regression
@@ -284,6 +284,72 @@ confirmed owned exit, and live/unconfirmed outcomes are tested separately. Contr
 effects retain their previous errors, and timeout/force policies remain unchanged.
 Neither a successful signal nor this narrow correction proves descendant shutdown,
 physical stop or resource handover.
+
+
+## Diagnostic dependency consumption (F5)
+
+`registration::diagnostic::Consumer` is a repository-backed framework operation,
+not a new executable or an alias for process liveness. Its author-owned `Catalog`
+is pinned by a separate F2 registration. Provider and consumer may use separate
+repositories; there is no cross-store atomicity claim. The source adapter in
+`RegisteredSupervisor` supplies actual current F4 HTTP observations. The consumer
+module has no dependency on the supervisor, process plan/state or stop APIs.
+
+The lifecycle is `assign` (Assigned), `begin` (Running), optional `poll` and
+`finish` (Completed with an immutable diagnostic result). Actual report samples
+and provenance produce the result body/digest. Result creation and run completion
+commit atomically, with control history. This is DIAGNOSTIC_ONLY; work use remains
+UNSUPPORTED. An independent operation produces a real authored catalog summary.
+
+Dependency declarations distinguish Undeclared, Unknown, Independent and Required.
+Required profiles own their temporal interval, provider role and interpretation:
+
+- `snapshot-after-preparation`: capture during assignment, then consume that
+  captured input. Provider exit alone blocks the next assignment, not completion
+  of the current run or historical diagnostic consumption.
+- `snapshot-at-generation`: assignment/begin prepare the result envelope; obtain
+  current input at finish. Provider loss withholds generation, not earlier results.
+- `current-report-collection`: capture at assignment/begin/poll/finish. Current
+  consumption also requires the same generation/configuration and report digest.
+
+These are explicit caller-driven checkpoints, not an autonomous watcher or proof
+of continuous availability between samples. `inspect` reports new assignment,
+ongoing performance and result consumption separately, using named F4 conditions.
+`recorded_result` reads intact history; `consume_result` additionally gates current
+diagnostic consumption. It never turns a historical result into work permission.
+Retirement or changed current input can withhold consumption without rewriting
+old results. Repeated completion cannot overwrite a result.
+
+A tracked relationship pins both registrations/revisions/catalogs, scope and
+profile, then the first actual provider execution/configuration. It exists even
+with zero provider executions, but is not an accepted work binding. Each opaque
+Probe/ProviderObservation binds a fresh nonce to the relationship, diagnostic run,
+phase and source. Another registration, a restarted execution, changed settings
+or a replayed response cannot inherit it. Persisted samples are inert history,
+not deserializable current-observation capabilities.
+
+Initial and replacement `BindingJudgment` requests are distinct. Their reply has
+no positive variant; default provider absence is UNSUPPORTED, and a reported
+DENIED response has its own decision reference. The host issues neither binding
+acceptance nor work permission. Same-format replacement does not modify old
+relationships/runs/results. Explicitly tracking a new diagnostic relationship
+creates a new identity; it does not transfer prior work or accept a work binding.
+
+Existing Program literals/catalog digests, F1-F4 contracts and all four plan-local
+`depends_on` behaviors (validation/topology, startup gating, loss reporting and
+reverse shutdown blocking) remain unchanged. Local diagnostic documents are
+additive; older code is not claimed to enforce their semantics. There is no
+automatic deletion/expiry: limits are 64 relationships and 512 runs per consumer,
+and 16 samples per run with a reserved finish slot. Archival, cancellation,
+automatic scheduling, multi-hop graphs and positive provider integrations remain
+outside this implementation. Existing control-effect signal-race limitations
+also remain.
+
+The same real Linux passage now has six workers and 24 observed stages. Its added
+segment uses the installed report producer, a registered framework consumer,
+actual persisted results, scoped loss reactions, same-format replacement rejection
+and completion of unrelated catalog-summary work. These observations do not prove
+physical operation, collaborative resources or Linux resource enforcement.
 
 ## Further connections
 

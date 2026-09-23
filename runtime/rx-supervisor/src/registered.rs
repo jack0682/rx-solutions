@@ -392,3 +392,63 @@ impl<S: Repository, B: Backend, A: LifecycleAuthority, R: Repository>
         (store, backend, authority, registry)
     }
 }
+
+// This adapter supplies observations only. The consumer's operation and result
+// lifecycle remain in the repository-backed diagnostic module.
+impl<S: Repository, B: Backend, A: LifecycleAuthority, R: Repository>
+    crate::registration::diagnostic::Source for RegisteredSupervisor<S, B, A, R>
+{
+    fn observe(
+        &mut self,
+        request: &crate::registration::diagnostic::Probe,
+    ) -> crate::registration::diagnostic::SourceReply {
+        use crate::registration::diagnostic::*;
+        let observed = (|| -> Result<SourceReply> {
+            let registration = self.query()?.registration;
+            if registration.registration.state != RegistrationState::Accepted {
+                return Ok(SourceReply::Missing {
+                    known_lost: true,
+                    reason: "provider registration is retired".into(),
+                });
+            }
+            let provider = RegistrationRef::from_registration(&registration);
+            if provider != *request.provider() {
+                return Ok(SourceReply::Missing { known_lost: true, reason: "provider registration/revision/catalog differs; replacement requires separate consumer-side judgment".into() });
+            }
+            let state = self.state()?;
+            let record = &state.records[&self.selection];
+            if matches!(
+                record.phase,
+                Phase::Exited | Phase::Skipped | Phase::StartFailed
+            ) {
+                return Ok(SourceReply::Missing {
+                    known_lost: true,
+                    reason: "owned provider execution has terminated or did not start".into(),
+                });
+            }
+            let generation = record
+                .instance
+                .clone()
+                .zip(record.pid)
+                .map(|(instance, pid)| Generation {
+                    run: self.run.clone(),
+                    instance,
+                    pid,
+                    configuration: state.plan_digest,
+                });
+            let assessment = self
+                .assess_use(
+                    request.scope().clone(),
+                    &crate::use_assessment::NoWorkUseProvider,
+                )?
+                .functional_readiness;
+            Ok(SourceReply::Observed(Box::new(
+                ProviderObservation::captured(request, provider, generation, assessment),
+            )))
+        })();
+        observed.unwrap_or_else(|error| SourceReply::Missing {
+            known_lost: false,
+            reason: format!("provider observation unavailable: {error}"),
+        })
+    }
+}

@@ -246,6 +246,15 @@ pub struct ReadinessAssessment {
     meaning: &'static str,
 }
 impl ReadinessAssessment {
+    pub(crate) fn diagnostic_basis(&self) -> Option<(Id, Digest, TimePoint)> {
+        self.evidence.as_ref().map(|e| {
+            (
+                e.request_id.clone(),
+                e.payload_digest,
+                e.observed_at.clone(),
+            )
+        })
+    }
     pub fn state(&self) -> ConditionState {
         self.state
     }
