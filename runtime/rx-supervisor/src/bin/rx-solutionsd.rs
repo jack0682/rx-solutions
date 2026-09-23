@@ -4,13 +4,14 @@ use rx_package::PackagePath;
 use rx_solution_catalog::DeviceCatalog;
 use rx_storage::SqliteRepository;
 use rx_supervisor::{
-    Supervisor,
     builtin::{
         ServiceConfigurations, add_guarded_services, release_programs, validate_service_plan,
     },
     initialization,
     model::{GuardedServices, Plan},
     process::OsProcesses,
+    registered::RegisteredSupervisor,
+    registration::Registry,
 };
 use serde::Deserialize;
 use std::{
@@ -106,6 +107,8 @@ async fn main() -> Result<()> {
         "supervisor.writer.lock",
         "initialization.db",
         "initialization.writer.lock",
+        "registration.db",
+        "registration.writer.lock",
     ] {
         match fs::symlink_metadata(state.join(filename)) {
             Ok(m) if !m.is_file() || m.file_type().is_symlink() => {
@@ -160,14 +163,25 @@ async fn main() -> Result<()> {
             return Err("owned /run/rx-solutions directory required for guarded status".into());
         }
     }
-    let mut supervisor = Supervisor::open(
+    let mut supervisor = RegisteredSupervisor::open_resident(
         SqliteRepository::open(state.join("supervisor.db"))?,
         OsProcesses::new(state.join("logs"))?,
         GuardedServices,
         configuration.plan,
         programs,
         &support,
+        Registry::new(SqliteRepository::open(state.join("registration.db"))?),
     )?;
+    println!(
+        "{}",
+        serde_json::json!({
+            "schema": "rx.resident-reconciliation.v1",
+            "registrations": supervisor.registrations()?,
+            "state": supervisor.state()?,
+            "execution_admission": supervisor.execution_admission()?,
+            "physical_qualification": "NOT_PERFORMED"
+        })
+    );
     if args[0] == "activate" {
         supervisor.rearm_software()?;
     }
@@ -188,6 +202,13 @@ async fn main() -> Result<()> {
                 let text = serde_json::to_string(&report)?;
                 if text != last_output {
                     println!("{text}");
+                    println!(
+                        "{}",
+                        serde_json::json!({
+                            "schema": "rx.resident-registration-observation.v1",
+                            "registrations": supervisor.registrations()?
+                        })
+                    );
                     last_output = text;
                 }
                 if report.all_exited {

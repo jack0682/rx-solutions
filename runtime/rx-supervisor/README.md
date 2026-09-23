@@ -412,6 +412,52 @@ correct. Actual device operation, collaborative resources, Linux enforcement,
 external recovery investigation, the control-effect signal issue and multi-host
 operation remain outside this verification boundary.
 
+## Resident registration ownership
+
+`rx-solutionsd run|activate` now opens `RegisteredSupervisor::open_resident`.
+One Supervisor still owns the entire plan and its OS children. One Registry
+binds a separate registration UUID to each process selection before OS effects.
+The existing startup schema and single binary remain unchanged. The state
+directory adds exactly one SQLite store, `registration.db`, with its writer lock.
+Registration and the initial selection index commit in one transaction.
+
+The saved index is a lookup, not authority. It does not derive identity from a
+plan ID, PID, port or display label. Missing/duplicate mappings, retired
+registrations and changed author catalog digests are refused without rewriting
+their histories. Selection-set changes require explicit review; there is no
+automatic replacement/migration API. A pre-registration supervisor database
+cannot be adopted merely by creating the new store. Preserve its records for
+reconciliation; deleting them to obtain a clean start is not a recovery method.
+
+Startup emits `rx.resident-reconciliation.v1` with each registration, execution
+observations, supervisor state and execution admission. Lifecycle changes also
+emit `rx.resident-registration-observation.v1`. After manager loss, saved PIDs
+remain historical and unresolved executions remain UNKNOWN. `activate` cannot
+erase that uncertainty. Normal stopped software can still be explicitly rearmed.
+
+The resident constructor supports the existing multi-process and guarded
+lifecycle path. Legacy guarded programs keep `execution_requirements=None` and
+`LegacyNotDeclared`; they do not acquire an F1 receipt or an empty declaration.
+Dependency stop order, cooperative-stop confirmation and no forced termination
+of guarded services remain in the same Supervisor/OS backend. `Launch.selection`
+is an in-memory Rust field, not a persisted/shared-contract schema change.
+
+The original `open`/`open_with_resume` keep their single non-actuating component
+and explicit-requirements restrictions. Resident mode intentionally refuses the
+single-component assessment/decision APIs, even for a one-process resident plan.
+It provides lifecycle registration, not F3 recovery, F4 functional readiness or
+work permission, F5 consumption/replacement, or F6 external decision integration.
+Default decision anchors remain absent. No registration network API is added.
+
+`tools/resident_registration_passage.py --image IMAGE --evidence FRESH_DIRECTORY`
+builds the candidate daemon and runs it at `/test/rx-solutionsd` against the
+unchanged validated runtime image. Two real read-only status services demonstrate
+registration after the launcher exits, normal reopen, explicit activation and
+UNKNOWN after a forced test-container crash. This does not install or publish a
+new release image. The original 32-stage library passage remains separate.
+Guarded composition regressions exercise a fake backend; this new daemon passage
+does not qualify actual Host/Executor integration or physical equipment.
+
 ## Further connections
 
 Tests check failures before/after startup commit, persistence failure after actual spawn, unknown backend results, supervisor restart, loss of shutdown authority, rejection of force termination for control processes, stop latch during storage failure, exit-observation repersistence, dependency ordering and bounded software restart. A separate actual non-actuating HTTP child also checks instance-correlated readiness, incorrect responses/file tampering and owned-process shutdown.

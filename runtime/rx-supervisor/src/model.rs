@@ -72,6 +72,8 @@ pub enum ReadyProbe {
 }
 #[derive(Clone, Debug)]
 pub struct Launch {
+    /// Current plan selection, never a persistent registration or OS identity.
+    pub selection: Name,
     pub instance: Id,
     pub effect: Effect,
     pub executable: PathBuf,
