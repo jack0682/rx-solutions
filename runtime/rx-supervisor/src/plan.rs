@@ -30,6 +30,9 @@ impl Plan {
             let program = programs
                 .get(&p.program)
                 .ok_or_else(|| Error::Invalid("program not in release catalog".into()))?;
+            if let Some(requirements) = &program.execution_requirements {
+                requirements.validate()?;
+            }
             if p.depends_on.iter().any(|d| !ids.contains(d) || d == &p.id)
                 || p.depends_on.iter().collect::<BTreeSet<_>>().len() != p.depends_on.len()
                 || !(100..=30_000).contains(&p.startup_timeout_ms.0)

@@ -21,6 +21,34 @@ pub trait Backend {
         launch: &Launch,
         authorize: &mut dyn FnMut() -> bool,
     ) -> std::result::Result<u32, SpawnFailure>;
+    /// Whole-bundle resource admission and process creation are one boundary.
+    /// Rejected and NotStarted MUST leave no policies/reservations or child behind.
+    /// If rollback/creation cannot be confirmed, return Uncertain, not Rejected.
+    /// Recheck authorize immediately before any application/exec. Future OS
+    /// backends own the resulting resource lifetime alongside the child handle.
+    /// The default implements no cgroup, rlimit, reservation or device policy.
+    fn spawn_with_requirements(
+        &mut self,
+        launch: &Launch,
+        request: &crate::execution::Request,
+        authorize: &mut dyn FnMut() -> bool,
+    ) -> std::result::Result<crate::execution::Decision, SpawnFailure> {
+        use crate::execution::{Decision, Evidence, Receipt};
+        let unknown = request.unknown();
+        if !unknown.is_empty() {
+            return Ok(Decision::Rejected { unmet: unknown });
+        }
+        if request.requirements().needs_enforcement() {
+            return Ok(Decision::Rejected {
+                unmet: request
+                    .reject("host execution enforcement is not implemented by this backend"),
+            });
+        }
+        let receipt = Receipt::reported(request, Evidence::NoRequirements)
+            .map_err(SpawnFailure::NotStarted)?;
+        self.spawn(launch, authorize)
+            .map(|pid| Decision::Admitted { pid, receipt })
+    }
     fn pid(&self, instance: &Id) -> Option<u32>;
     fn owns(&self, instance: &Id) -> bool;
     fn forget_exited(&mut self, instance: &Id) -> Result<()>;

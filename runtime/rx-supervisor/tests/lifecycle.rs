@@ -26,6 +26,7 @@ fn support() -> DeviceCatalog {
 }
 fn program(effect: Effect) -> Program {
     Program {
+        execution_requirements: None,
         id: name("test/service"),
         effect,
         executable: "/release/test-service".into(),

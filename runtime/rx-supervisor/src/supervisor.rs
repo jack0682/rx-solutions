@@ -67,6 +67,7 @@ pub struct Supervisor<R, B, A> {
     retry_after: BTreeMap<Name, Instant>,
     stop_latched: bool,
     observed_guarded_exits: BTreeMap<Id, GuardedExit>,
+    execution_admission: BTreeMap<Name, crate::execution::Status>,
 }
 impl<R: Repository, B: Backend, A: LifecycleAuthority> Supervisor<R, B, A> {
     pub fn open(
@@ -158,6 +159,7 @@ impl<R: Repository, B: Backend, A: LifecycleAuthority> Supervisor<R, B, A> {
             retry_after: BTreeMap::new(),
             stop_latched: false,
             observed_guarded_exits: BTreeMap::new(),
+            execution_admission: BTreeMap::new(),
         })
     }
     pub fn state(&mut self) -> Result<State> {
@@ -167,6 +169,12 @@ impl<R: Repository, B: Backend, A: LifecycleAuthority> Supervisor<R, B, A> {
                     .ok_or_else(|| StoreError::Integrity("supervisor state missing".into()))?,
             )
         })?)
+    }
+    /// Read the current owner's requirement observations without admission,
+    /// spawning, readiness probes or lifecycle-authority evaluation.
+    pub fn execution_admission(&mut self) -> Result<BTreeMap<Name, crate::execution::Status>> {
+        let state = self.state()?;
+        Ok(self.execution_status(&state))
     }
     fn change(&mut self, change: impl FnOnce(&mut State)) -> Result<()> {
         self.repository.transact(|tx| {
@@ -225,7 +233,116 @@ impl<R: Repository, B: Backend, A: LifecycleAuthority> Supervisor<R, B, A> {
         })?;
         self.stop_latched = false;
         self.retry_after.clear();
+        self.execution_admission.clear();
         Ok(())
+    }
+    fn execution_status(&self, state: &State) -> BTreeMap<Name, crate::execution::Status> {
+        use crate::execution::{Application, Status};
+        self.plan.processes.iter().map(|process| {
+            let value = self.execution_admission.get(&process.id).cloned().unwrap_or_else(|| {
+                let requested = self.programs[&process.program].execution_requirements.clone();
+                let application = if requested.is_none() {
+                    Application::LegacyNotDeclared
+                } else if state.records[&process.id].attempts.0 > 0
+                    || state.records[&process.id].phase == Phase::Unknown {
+                    Application::Unconfirmed { reason: "no current-owner application receipt; no resource recovery is inferred".into() }
+                } else { Application::NotApplied };
+                Status { requested, application, not_applied_reasons: vec![] }
+            });
+            (process.id.clone(), value)
+        }).collect()
+    }
+
+    fn spawn_required(
+        &mut self,
+        process: &Process,
+        launch: &Launch,
+        request: &crate::execution::Request,
+    ) -> std::result::Result<u32, crate::process::SpawnFailure> {
+        use crate::{
+            execution::{Application, Decision, Status, Unmet},
+            process::SpawnFailure,
+        };
+        let authority = &self.authority;
+        let plan = &self.plan;
+        // An unknown declaration can never be promoted to an empty requirement by a backend.
+        let unknown = request.unknown();
+        let decision = if unknown.is_empty() {
+            self.backend
+                .spawn_with_requirements(launch, request, &mut || {
+                    authority.may_start(plan, process, launch)
+                })
+        } else {
+            Ok(Decision::Rejected { unmet: unknown })
+        };
+        let mut status = Status {
+            requested: Some(request.requirements().clone()),
+            application: Application::NotApplied,
+            not_applied_reasons: vec![],
+        };
+        let outcome = match decision {
+            Ok(Decision::Admitted { pid, receipt }) if pid != 0 && receipt.matches(request) => {
+                status.application = Application::ReportedAtStart { receipt };
+                Ok(pid)
+            }
+            Ok(Decision::Admitted { .. }) => Err(SpawnFailure::Uncertain(Error::Reconciliation(
+                "execution admission receipt does not match the complete current launch".into(),
+            ))),
+            Ok(Decision::Rejected { unmet }) => {
+                if unmet.is_empty()
+                    || unmet.len() > request.requirements().0.len()
+                    || unmet
+                        .iter()
+                        .map(|r| &r.requirement)
+                        .collect::<std::collections::BTreeSet<_>>()
+                        .len()
+                        != unmet.len()
+                    || unmet.iter().any(|r| {
+                        request
+                            .requirements()
+                            .0
+                            .get(&r.requirement)
+                            .is_none_or(|r| matches!(r, crate::execution::Requirement::NotRequired))
+                            || r.reason.trim().is_empty()
+                            || r.reason.len() > 1024
+                    })
+                {
+                    Err(SpawnFailure::Uncertain(Error::Reconciliation(
+                        "backend rejection has no valid named requirement reason".into(),
+                    )))
+                } else {
+                    let reason = unmet
+                        .iter()
+                        .map(|r| format!("{}: {}", r.requirement, r.reason))
+                        .collect::<Vec<_>>()
+                        .join("; ");
+                    status.not_applied_reasons = unmet;
+                    Err(SpawnFailure::NotStarted(Error::Invalid(format!(
+                        "execution admission rejected: {reason}"
+                    ))))
+                }
+            }
+            Err(error) => Err(error),
+        };
+        match &outcome {
+            Err(SpawnFailure::Uncertain(error)) => {
+                status.application = Application::Unconfirmed {
+                    reason: error.to_string(),
+                }
+            }
+            Err(SpawnFailure::NotStarted(error)) if status.not_applied_reasons.is_empty() => {
+                status.not_applied_reasons = request.reject(&error.to_string());
+                if status.not_applied_reasons.is_empty() {
+                    status.not_applied_reasons.push(Unmet {
+                        requirement: name("execution/start"),
+                        reason: error.to_string(),
+                    });
+                }
+            }
+            _ => {}
+        }
+        self.execution_admission.insert(process.id.clone(), status);
+        outcome
     }
     pub fn tick(&mut self) -> Result<Status> {
         let mut blocked = vec![];
@@ -462,11 +579,24 @@ impl<R: Repository, B: Backend, A: LifecycleAuthority> Supervisor<R, B, A> {
                         })?;
                         continue;
                     }
-                    let authority = &self.authority;
-                    let plan = &self.plan;
-                    match self.backend.spawn(&launch, &mut || {
-                        authority.may_start(plan, &process, &launch)
-                    }) {
+                    let spawned = if let Some(requirements) = &program.execution_requirements {
+                        let request = crate::execution::Request::new(
+                            program.id.clone(),
+                            process.id.clone(),
+                            instance.clone(),
+                            state.plan_digest,
+                            requirements.clone(),
+                        );
+                        self.spawn_required(&process, &launch, &request)
+                    } else {
+                        // Legacy undeclared programs retain the original execution path.
+                        let authority = &self.authority;
+                        let plan = &self.plan;
+                        self.backend.spawn(&launch, &mut || {
+                            authority.may_start(plan, &process, &launch)
+                        })
+                    };
+                    match spawned {
                         Ok(pid) => {
                             self.started.insert(instance, Instant::now());
                             self.change(|s| {
@@ -484,6 +614,9 @@ impl<R: Repository, B: Backend, A: LifecycleAuthority> Supervisor<R, B, A> {
                                     (Phase::Unknown, error)
                                 }
                             };
+                            if program.execution_requirements.is_some() {
+                                blocked.push(format!("{}: {error}", process.id));
+                            }
                             self.change(|s| {
                                 let r = s.records.get_mut(&process.id).unwrap();
                                 r.phase = phase;
@@ -598,6 +731,7 @@ impl<R: Repository, B: Backend, A: LifecycleAuthority> Supervisor<R, B, A> {
         });
         Ok(Status {
             schema: "rx.supervisor-status.v1",
+            execution_admission: self.execution_status(&state),
             state,
             blocked,
             all_exited,
