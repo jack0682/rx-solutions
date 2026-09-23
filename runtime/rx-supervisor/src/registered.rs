@@ -27,15 +27,24 @@ struct RegisteredBackend<B, R> {
     backend: B,
     registry: Rc<RefCell<Registry<R>>>,
     binding: Binding,
+    resume: Option<ResumePermit>,
 }
 impl<B: Backend, R: Repository> RegisteredBackend<B, R> {
     fn begin(&mut self, launch: &Launch) -> std::result::Result<Binding, SpawnFailure> {
         let mut binding = self.binding.clone();
         binding.instance = launch.instance.clone();
-        self.registry
-            .borrow_mut()
-            .assign(&binding)
-            .map_err(|e| SpawnFailure::NotStarted(e.into()))?;
+        if let Some(permit) = &self.resume {
+            self.registry
+                .borrow_mut()
+                .assign_with_resume(&binding, Some(permit))
+                .map_err(|e| SpawnFailure::NotStarted(e.into()))?;
+            self.resume = None;
+        } else {
+            self.registry
+                .borrow_mut()
+                .assign(&binding)
+                .map_err(|e| SpawnFailure::NotStarted(e.into()))?;
+        }
         Ok(binding)
     }
 }
@@ -123,8 +132,61 @@ impl<S: Repository, B: Backend, A: LifecycleAuthority, R: Repository>
         plan: Plan,
         programs: BTreeMap<Name, Program>,
         support: &DeviceCatalog,
+        registry: Registry<R>,
+        component: Id,
+    ) -> Result<Self> {
+        Self::open_inner(
+            store, backend, authority, plan, programs, support, registry, component, None,
+        )
+    }
+    /// An explicit one-shot recovery request. Uses a fresh supervisor store/run,
+    /// never resets the old UNKNOWN state or restores a previous F1 receipt.
+    #[allow(clippy::too_many_arguments)]
+    pub fn open_with_resume(
+        mut store: S,
+        backend: B,
+        authority: A,
+        plan: Plan,
+        programs: BTreeMap<Name, Program>,
+        support: &DeviceCatalog,
+        registry: Registry<R>,
+        component: Id,
+        permit: ResumePermit,
+    ) -> Result<Self> {
+        if !store.snapshot()?.1.is_empty()
+            || store.journal_head()?.0 != 0
+            || store.control_snapshot()?.0.0 != 0
+        {
+            return Err(Error::Invalid("recovery requires a fresh execution store; never overwrite or reuse prior instance state".into()));
+        }
+        if plan.processes.iter().any(|p| p.restart_limit.0 != 0) {
+            return Err(Error::Invalid(
+                "recovery starts are explicit; automatic restart budget must be zero".into(),
+            ));
+        }
+        Self::open_inner(
+            store,
+            backend,
+            authority,
+            plan,
+            programs,
+            support,
+            registry,
+            component,
+            Some(permit),
+        )
+    }
+    #[allow(clippy::too_many_arguments)]
+    fn open_inner(
+        store: S,
+        backend: B,
+        authority: A,
+        plan: Plan,
+        programs: BTreeMap<Name, Program>,
+        support: &DeviceCatalog,
         mut registry: Registry<R>,
         component: Id,
+        resume: Option<ResumePermit>,
     ) -> Result<Self> {
         if plan.processes.len() != 1 {
             return Err(Error::Invalid(
@@ -149,6 +211,7 @@ impl<S: Repository, B: Backend, A: LifecycleAuthority, R: Repository>
         let backend = RegisteredBackend {
             backend,
             registry: registry.clone(),
+            resume,
             binding: Binding {
                 registration: component.clone(),
                 registration_revision: accepted.revision,

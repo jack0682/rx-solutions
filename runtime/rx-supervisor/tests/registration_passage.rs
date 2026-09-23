@@ -29,6 +29,31 @@ fn n(s: &str) -> Name {
 fn uid() -> Id {
     Id::new(uuid::Uuid::new_v4().to_string()).unwrap()
 }
+fn now() -> TimePoint {
+    TimePoint {
+        clock_id: "unix-utc-ns".into(),
+        ticks_ns: Counter(
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos() as u64,
+        ),
+    }
+}
+struct PassageRecoveryPolicy {
+    component: Id,
+}
+impl RecoveryAuthority for PassageRecoveryPolicy {
+    fn may_dispose(&self, request: &DispositionRequest) -> bool {
+        request.target.registration == self.component
+            && request.kind == DispositionKind::ConfirmedClosure
+            && matches!(&request.evidence, RecoveryEvidence::OwnedChildExit{report,..} if report.actor==n("passage/owned-process-operator"))
+    }
+    fn may_resume(&self, disposition: &Disposition, request: &ResumeRequest) -> bool {
+        disposition.target.registration == self.component
+            && request.actor == n("passage/owned-process-operator")
+    }
+}
 #[derive(Clone)]
 struct Owned(Rc<RefCell<OsProcesses>>);
 impl Owned {
@@ -311,7 +336,7 @@ fn passage_worker() {
         let (mut s, b) = open(&data, &config, "restart");
         let report = ready(&mut s);
         let instance = report.state.records[&n("status")].instance.clone().unwrap();
-        let (store, old_backend, _, registry) = s.into_parts();
+        let (store, mut old_backend, _, registry) = s.into_parts();
         drop(store);
         drop(registry);
         // Keep the old real child handle solely to clean up the test. The new
@@ -326,7 +351,201 @@ fn passage_worker() {
             "manager object and both stores reopened with fresh backend while original real child still exists; UNKNOWN, no saved-PID adoption",
             json!({"registration":reopened.query().unwrap(),"lifecycle":report}),
         );
-        drop(reopened);
+        let component: Id = serde_json::from_value(config["component"].clone()).unwrap();
+        let original = reopened
+            .query()
+            .unwrap()
+            .executions
+            .into_iter()
+            .find(|e| e.binding.instance == instance)
+            .unwrap();
+        let (store, new_backend, _, mut registry) = reopened.into_parts();
+        drop(store);
+        drop(new_backend);
+        let history = registry.history(&component).unwrap();
+        let target = registry.recovery_target(&component, &instance).unwrap();
+        assert!(
+            old_backend
+                .0
+                .borrow_mut()
+                .observe_recovery_exit(&instance)
+                .is_err(),
+            "live child cannot produce exit evidence"
+        );
+        old_backend.terminate(&instance, false).unwrap();
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while !matches!(old_backend.exited(&instance), Ok(Some(_))) {
+            assert!(Instant::now() < deadline);
+            std::thread::sleep(Duration::from_millis(20));
+        }
+        let witness = old_backend
+            .0
+            .borrow_mut()
+            .observe_recovery_exit(&instance)
+            .unwrap();
+        assert!(old_backend.0.borrow().owned_instances().is_empty());
+        let request = DispositionRequest {
+            target,
+            kind: DispositionKind::ConfirmedClosure,
+            evidence: RecoveryEvidence::OwnedChildExit {
+                report: RecoveryReport {
+                    actor: n("passage/owned-process-operator"),
+                    scope: n("host/direct-child-exit"),
+                    observed_at: witness.observed_at().clone(),
+                    procedure: n("owned-child-cooperative-stop-exit-and-retirement"),
+                },
+                witness,
+            },
+        };
+        assert!(registry.dispose(&request, &DenyRecovery).is_err());
+        let policy = PassageRecoveryPolicy {
+            component: component.clone(),
+        };
+        let disposition = registry.dispose(&request, &policy).unwrap();
+        let view = registry.query(&component).unwrap();
+        assert_eq!(
+            *view
+                .executions
+                .iter()
+                .find(|e| e.binding.instance == instance)
+                .unwrap(),
+            original
+        );
+        assert_eq!(
+            registry.history(&component).unwrap()[..history.len()],
+            history
+        );
+        emit(
+            "explicit-disposition",
+            "old live owner observed actual direct child exit and retired its handle; default authority rejected; scoped policy accepted a separate record; original UNKNOWN is unchanged",
+            json!({"registration":view,"disposition":disposition}),
+        );
+
+        let programs = release_programs(Path::new("/opt/rx")).unwrap();
+        let support = DeviceCatalog::decode(
+            &std::fs::read("/opt/rx/catalogs/device-support.v1.json").unwrap(),
+        )
+        .unwrap();
+        let denied_backend = Owned::new(data.join("no-resume-logs"));
+        let mut denied = RegisteredSupervisor::open(
+            SqliteRepository::open(data.join("no-resume.db")).unwrap(),
+            denied_backend.clone(),
+            SoftwareOnly,
+            plan(),
+            programs.clone(),
+            &support,
+            registry,
+            component.clone(),
+        )
+        .unwrap();
+        let denied_report = denied.tick().unwrap();
+        assert_eq!(
+            denied_report.state.records[&n("status")].phase,
+            Phase::StartFailed
+        );
+        assert!(denied_backend.0.borrow().owned_instances().is_empty());
+        emit(
+            "disposition-alone-rejected",
+            "confirmed closure does not automatically authorize a new assignment",
+            json!(denied_report),
+        );
+        let (store, backend, _, mut registry) = denied.into_parts();
+        drop(store);
+        drop(backend);
+        let next_plan = plan();
+        let resume_request = ResumeRequest {
+            id: uid(),
+            disposition: disposition.id.clone(),
+            actor: n("passage/owned-process-operator"),
+            requested_at: now(),
+            next_run: next_plan.id.clone(),
+        };
+        let permit = registry
+            .request_resume(&component, resume_request.clone(), &policy)
+            .unwrap();
+        let replay = permit.clone();
+        let next_backend = Owned::new(data.join("resumed-logs"));
+        let mut resumed = RegisteredSupervisor::open_with_resume(
+            SqliteRepository::open(data.join("resumed.db")).unwrap(),
+            next_backend.clone(),
+            SoftwareOnly,
+            next_plan.clone(),
+            programs.clone(),
+            &support,
+            registry,
+            component.clone(),
+            permit,
+        )
+        .unwrap();
+        assert!(matches!(
+            resumed.execution_admission().unwrap()[&n("status")].application,
+            Application::NotApplied
+        ));
+        let report = ready(&mut resumed);
+        let next_instance = report.state.records[&n("status")].instance.clone().unwrap();
+        assert_ne!(instance, next_instance);
+        assert_eq!(
+            json!(report.execution_admission[&n("status")])["application"]["receipt"]["request"]["instance"],
+            json!(next_instance)
+        );
+        let view = resumed.query().unwrap();
+        assert_eq!(
+            *view
+                .executions
+                .iter()
+                .find(|e| e.binding.instance == instance)
+                .unwrap(),
+            original
+        );
+        assert_eq!(
+            view.recovery.resume_requests[0].consumed_by,
+            Some(next_instance)
+        );
+        emit(
+            "explicitly-resumed-new-instance",
+            "one explicit request consumed atomically with new assignment; new run/instance, fresh lifecycle authority and F1 receipt; original outcome remains unresolved",
+            json!({"registration":view,"lifecycle":report}),
+        );
+        resumed.request_stop().unwrap();
+        let stopped_report = stopped(&mut resumed);
+        assert!(next_backend.0.borrow().owned_instances().is_empty());
+        emit(
+            "resumed-child-terminated",
+            "new owned child exit confirmed without rewriting the old UNKNOWN",
+            json!({"registration":resumed.query().unwrap(),"lifecycle":stopped_report}),
+        );
+        let (store, backend, _, mut registry) = resumed.into_parts();
+        drop(store);
+        drop(backend);
+        let error = registry
+            .request_resume(&component, resume_request, &policy)
+            .unwrap_err();
+        emit(
+            "second-resume-request-rejected",
+            "confirmed disposition's explicit resume has already been consumed",
+            json!({"error":error.to_string()}),
+        );
+        let replay_backend = Owned::new(data.join("replay-logs"));
+        let mut replayed = RegisteredSupervisor::open_with_resume(
+            SqliteRepository::open(data.join("replay.db")).unwrap(),
+            replay_backend.clone(),
+            SoftwareOnly,
+            next_plan,
+            programs,
+            &support,
+            registry,
+            component,
+            replay,
+        )
+        .unwrap();
+        let report = replayed.tick().unwrap();
+        assert_eq!(report.state.records[&n("status")].phase, Phase::StartFailed);
+        assert!(replay_backend.0.borrow().owned_instances().is_empty());
+        emit(
+            "consumed-permit-rejected",
+            "a retained token cannot consume the confirmed disposition twice",
+            json!(report),
+        );
         drop(old_backend);
         drop(b);
         return;
@@ -359,6 +578,6 @@ fn real_registration_passage() {
     emit(
         "passage-complete",
         "all asserted transitions executed; component registration persists independently of manager process lifetime",
-        json!({"limitations":["functional readiness unsupported","work-use permission unsupported","dependency binding unsupported","explicit recovery disposition unsupported","multi-host unsupported","Linux resource enforcement not implemented","no physical equipment qualification"],"evidence":"actual Linux service and SQLite; no synthetic release installation"}),
+        json!({"limitations":["functional readiness unsupported","work-use permission unsupported","dependency binding unsupported","external investigation provider after total manager-process/Child-handle loss unsupported","direct child exit does not establish descendant termination or resource recovery","multi-host unsupported","Linux resource enforcement not implemented","no physical equipment qualification"],"evidence":"actual Linux service and SQLite, owned-exit disposition and explicit new-instance resume; no synthetic release installation"}),
     );
 }

@@ -68,6 +68,46 @@ pub struct OsProcesses {
     logs: PathBuf,
 }
 impl OsProcesses {
+    /// Positive evidence from this live owner's actual non-actuating Child.
+    /// Absence of a PID/handle or an elapsed deadline is never sufficient.
+    /// Retires only this direct child handle, not descendants or shared resources.
+    pub fn observe_recovery_exit(
+        &mut self,
+        instance: &Id,
+    ) -> Result<crate::registration::OwnedExit> {
+        if self.effects.get(instance) != Some(&Effect::NonActuating) {
+            return Err(Error::Reconciliation(
+                "recovery evidence requires an owned non-actuating child".into(),
+            ));
+        }
+        let child = self.children.get_mut(instance).ok_or_else(|| {
+            Error::Reconciliation(
+                "owned Child handle absent; external investigation provider is unsupported".into(),
+            )
+        })?;
+        let status = child
+            .try_wait()?
+            .ok_or_else(|| Error::Reconciliation("owned child has not exited".into()))?;
+        let pid = child.id();
+        let ticks_ns = u64::try_from(
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map_err(|e| Error::Invalid(e.to_string()))?
+                .as_nanos(),
+        )
+        .map_err(|e| Error::Invalid(e.to_string()))?;
+        let observed_at = TimePoint {
+            clock_id: "unix-utc-ns".into(),
+            ticks_ns: Counter(ticks_ns),
+        };
+        self.forget_exited(instance)?;
+        Ok(crate::registration::OwnedExit::observed(
+            instance.clone(),
+            pid,
+            status.code(),
+            observed_at,
+        ))
+    }
     pub fn owned_instances(&self) -> Vec<Id> {
         self.children.keys().cloned().collect()
     }
