@@ -4,6 +4,9 @@ use rx_domain::{canonical, types::*};
 use rx_ports::{Document, Record, Repository, StoreError, StoredEvent, Transaction};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
+mod recovery;
+pub use recovery::*;
+
 type Result<T> = rx_ports::Result<T>;
 const REGISTRATION: &str = "rx.component-registration.v1";
 const EXECUTION: &str = "rx.component-execution-observation.v1";
@@ -95,6 +98,7 @@ pub struct Execution {
 pub struct View {
     pub registration: VersionedRegistration,
     pub executions: Vec<Execution>,
+    pub recovery: RecoveryView,
     pub execution_ownership: &'static str,
     pub functional_readiness: &'static str,
     pub work_use_permission: &'static str,
@@ -275,12 +279,15 @@ impl<R: Repository> Registry<R> {
     }
     /// Independent of any execution manager, plan or live process.
     pub fn query(&mut self, id: &Id) -> Result<View> {
-        self.repository.transact(|tx| Ok(View {
-            registration: load(tx, id)?, executions: executions(tx, id)?,
+        self.repository.transact(|tx| {
+            let executions=executions(tx,id)?;
+            let recovery=recovery::view(tx,id,&executions)?;
+            Ok(View {
+            registration: load(tx, id)?, executions, recovery,
             execution_ownership: "NOT_ESTABLISHED_BY_PERSISTENT_RECORDS",
             functional_readiness: "UNSUPPORTED: F2 does not assess functional readiness",
             work_use_permission: "UNSUPPORTED: registration and process liveness do not permit work use",
-        }))
+        })})
     }
     pub fn list(&mut self) -> Result<Vec<VersionedRegistration>> {
         self.repository.transact(|tx| {
@@ -321,12 +328,17 @@ impl<R: Repository> Registry<R> {
         }
     }
     pub(crate) fn assign(&mut self, binding: &Binding) -> Result<()> {
+        self.assign_with_resume(binding, None)
+    }
+    pub(crate) fn assign_with_resume(
+        &mut self,
+        binding: &Binding,
+        permit: Option<&ResumePermit>,
+    ) -> Result<()> {
         self.repository.transact(|tx| {
             eligible(tx, binding)?;
             if binding.registration == binding.instance { return Err(StoreError::Invalid("registration is not an execution instance".into())); }
-            if executions(tx, &binding.registration)?.iter().any(|e| !matches!(e.last_observed.state, ExecutionState::Exited | ExecutionState::NotStarted)) {
-                return Err(StoreError::Invalid("previous assignment unresolved; explicit recovery is unsupported".into()));
-            }
+            recovery::admit(tx,binding,permit)?;
             let execution = Execution { binding: binding.clone(), last_observed: Observation {
                 state: ExecutionState::Assigned, pid: None, exit_code: None,
                 detail: "assignment recorded before external effects; execution outcome not confirmed".into(),
@@ -352,6 +364,9 @@ impl<R: Repository> Registry<R> {
             }
             if execution.last_observed == observation {
                 return Ok(());
+            }
+            if recovery::frozen(tx,&binding.registration,&binding.instance)? {
+                return Err(StoreError::Invalid("original observation has a disposition; append separate evidence instead of rewriting history".into()));
             }
             execution.last_observed = observation;
             save(

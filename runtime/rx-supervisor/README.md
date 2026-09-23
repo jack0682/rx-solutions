@@ -168,10 +168,65 @@ execution, F1 admission, instance-correlated HTTP output, owned-child exit and
 reopen in another manager process. It additionally exercises abnormal child
 exit and manager-object recreation while a real child remains alive, labeling
 that last probe separately. Functional readiness, work-use permission, dependency
-binding, explicit recovery disposition, multi-host operation, Linux resource
-enforcement and physical qualification remain unsupported.
+binding, multi-host operation, Linux resource enforcement and physical
+qualification remain unsupported. The F3 extension below adds the narrow explicit
+recovery path to this same procedure.
 
-## Remaining connections
+## Explicit software recovery disposition (F3)
+
+The registration recovery API records a disposition separately from the original
+execution observation. Its reference pins registration, instance, revision and
+the entire original observation digest. That observation and earlier history
+remain unchanged; later attempts to overwrite a disposed observation fail.
+
+The first positive provider is `OsProcesses::observe_recovery_exit`: it observes
+actual exit through an owned, non-actuating direct Child and retires that handle.
+The opaque `OwnedExit` has neither public fields/constructor nor Deserialize.
+Stored dispositions retain only its reference and digest, never a resurrectable
+evidence token. The original instance and saved PID must match. Timeout, idle,
+absence and elapsed time alone cannot produce a confirmed disposition.
+
+`RecoveryAuthority` defaults to denying disposition and resume. Bind a custom
+implementation to authenticated local policy; actor strings do not authenticate
+callers. The type boundary does not establish the truth of arbitrary investigation
+reports or defend against a hostile host administrator. Direct-child exit does
+not establish descendant termination, resource recovery or physical outcomes.
+
+`ConfirmedClosure` and `UnableToResolve` remain distinct. Both retain an unresolved
+past outcome, make no resource-recovery claim and leave work-use permission
+unsupported. A confirmed disposition alone does not enable a new assignment.
+An explicit, authorized `ResumeRequest` binds one new run. Its permit is consumed
+atomically with one new execution assignment. A failed transaction consumes
+neither. Identical, still-unconsumed request delivery may be reauthorized; changed
+or consumed requests and retained-token replay fail.
+
+Use `RegisteredSupervisor::open_with_resume` with a fresh execution store/run and
+zero automatic restart budget. It never resets the old UNKNOWN or reuses its
+instance. Lifecycle authority, registration revision/catalog and F1 admission
+are checked anew. No prior F1 receipt or work permission is restored. New query
+fields show dispositions, requests, consumption and the recovery gate separately.
+
+An unable-to-resolve disposition remains blocking because an external investigation
+provider is not implemented here. This is not a design claim that an unresolved
+past must block resources forever. A future authorized recovery procedure must
+establish relevant current conditions, residual commands, control authority and
+physical support/handover where applicable, then connect its evidence to the
+original execution. Total manager-process/Child-handle loss, a missing original
+PID binding and follow-up adjudication of an unable disposition are unsupported.
+These provider limits also appear in query and passage output.
+
+The same `tools/registration_passage.py` procedure now continues the real Linux
+lost-manager-ownership scene through owned exit, separate disposition, rejection
+of implicit assignment, explicit new-instance startup, normal exit and two replay
+rejections. The retained old backend supplies the real exit evidence. This is
+manager-object/store recreation, not recovery of a dead process's lost handle.
+`tests/recovery.rs` adds real software-child, SQLite and injected-commit-failure
+regressions. Functional readiness, work-use permission, dependency binding,
+resource enforcement, multi-host operation and physical qualification remain out
+of scope. Older writers do not know the new disposition/frozen-observation rules;
+semantic downgrade on a recovered registry is not supported.
+
+## Further connections
 
 Tests check failures before/after startup commit, persistence failure after actual spawn, unknown backend results, supervisor restart, loss of shutdown authority, rejection of force termination for control processes, stop latch during storage failure, exit-observation repersistence, dependency ordering and bounded software restart. A separate actual non-actuating HTTP child also checks instance-correlated readiness, incorrect responses/file tampering and owned-process shutdown.
 
