@@ -673,3 +673,31 @@ fn registration_never_replaces_lifecycle_authority() {
     assert!(s.query().unwrap().executions.is_empty());
     println!("negative authority: {:?}", report.blocked);
 }
+
+#[test]
+fn historical_assignment_revision_survives_a_label_review_after_exit() {
+    let (dir, mut managed, _, plan, component) = setup();
+    managed.tick().unwrap();
+    stop(&mut managed);
+    let original = managed.query().unwrap().executions[0].binding.clone();
+    let (store, _, _, mut registry) = managed.into_parts();
+    drop(store);
+    let accepted = registry.query(&component).unwrap().registration;
+    let mut declaration = accepted.registration.declaration;
+    declaration.label = n("reviewed-label");
+    registry
+        .update(&component, accepted.revision, declaration)
+        .unwrap();
+    let reopened = RegisteredSupervisor::open(
+        SqliteRepository::open(dir.path().join("execution.db")).unwrap(),
+        Fake::default(),
+        SoftwareOnly,
+        plan,
+        [(program().id, program())].into(),
+        &support(),
+        registry,
+        component,
+    )
+    .unwrap();
+    assert_eq!(reopened.query().unwrap().executions[0].binding, original);
+}

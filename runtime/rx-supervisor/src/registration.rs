@@ -9,6 +9,7 @@ pub use decisions::*;
 pub mod diagnostic;
 mod recovery;
 pub use recovery::*;
+mod resident;
 
 type Result<T> = rx_ports::Result<T>;
 const REGISTRATION: &str = "rx.component-registration.v1";

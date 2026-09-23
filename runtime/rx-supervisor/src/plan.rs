@@ -157,6 +157,7 @@ impl Process {
             p.ready.clone()
         };
         Ok(Launch {
+            selection: self.id.clone(),
             instance,
             effect: p.effect,
             executable: p.executable.clone(),

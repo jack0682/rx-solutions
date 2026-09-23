@@ -1,4 +1,4 @@
-//! One registered non-actuating component connected to the existing supervisor.
+//! Registration connected to one execution owner for the entire process plan.
 //! Two independent stores: durable assignment precedes OS effects; a crash between
 //! stores leaves an unresolved assignment, never permission to replay it.
 use crate::{
@@ -32,12 +32,21 @@ pub fn catalog_reference(program: &Program) -> Result<CatalogReference> {
 struct RegisteredBackend<B, R> {
     backend: B,
     registry: Rc<RefCell<Registry<R>>>,
-    binding: Binding,
+    bindings: BTreeMap<Name, Binding>,
+    legacy: bool,
     resume: Option<ResumePermit>,
 }
 impl<B: Backend, R: Repository> RegisteredBackend<B, R> {
     fn begin(&mut self, launch: &Launch) -> std::result::Result<Binding, SpawnFailure> {
-        let mut binding = self.binding.clone();
+        let mut binding = self
+            .bindings
+            .get(&launch.selection)
+            .cloned()
+            .ok_or_else(|| {
+                SpawnFailure::NotStarted(Error::Reconciliation(
+                    "launch selection has no registration binding".into(),
+                ))
+            })?;
         binding.instance = launch.instance.clone();
         if let Some(permit) = &self.resume {
             self.registry
@@ -64,12 +73,35 @@ impl<B: Backend, R: Repository> Backend for RegisteredBackend<B, R> {
     }
     fn spawn(
         &mut self,
-        _: &Launch,
-        _: &mut dyn FnMut() -> bool,
+        launch: &Launch,
+        authorize: &mut dyn FnMut() -> bool,
     ) -> std::result::Result<u32, SpawnFailure> {
-        Err(SpawnFailure::NotStarted(Error::Invalid(
-            "registered execution requires explicit catalog execution requirements".into(),
-        )))
+        if !self.legacy {
+            return Err(SpawnFailure::NotStarted(Error::Invalid(
+                "registered execution requires explicit catalog execution requirements".into(),
+            )));
+        }
+        let binding = self.begin(launch)?;
+        let registry = &self.registry;
+        let mut denial = None;
+        let outcome = self.backend.spawn(launch, &mut || {
+            if !authorize() {
+                return false;
+            }
+            match registry.borrow_mut().check_start(&binding) {
+                Ok(()) => true,
+                Err(error) => {
+                    denial = Some(error);
+                    false
+                }
+            }
+        });
+        match (outcome, denial) {
+            (Err(SpawnFailure::NotStarted(_)), Some(error)) => {
+                Err(SpawnFailure::NotStarted(error.into()))
+            }
+            (outcome, _) => outcome,
+        }
     }
     fn spawn_with_requirements(
         &mut self,
@@ -77,6 +109,17 @@ impl<B: Backend, R: Repository> Backend for RegisteredBackend<B, R> {
         request: &execution::Request,
         authorize: &mut dyn FnMut() -> bool,
     ) -> std::result::Result<execution::Decision, SpawnFailure> {
+        if request.instance() != &launch.instance
+            || request.process() != &launch.selection
+            || self
+                .bindings
+                .get(&launch.selection)
+                .is_none_or(|b| &b.catalog.program != request.program())
+        {
+            return Err(SpawnFailure::NotStarted(Error::Reconciliation(
+                "execution request differs from registered launch selection/program".into(),
+            )));
+        }
         let binding = self.begin(launch)?;
         let registry = &self.registry;
         let mut denial = None;
@@ -127,8 +170,12 @@ impl<B: Backend, R: Repository> Backend for RegisteredBackend<B, R> {
 pub struct RegisteredSupervisor<S, B, A, R> {
     supervisor: Supervisor<S, RegisteredBackend<B, R>, A>,
     registry: Rc<RefCell<Registry<R>>>,
-    component: Id,
     run: Id,
+    bindings: BTreeMap<Name, Binding>,
+    single: Option<SingleComponent>,
+}
+struct SingleComponent {
+    component: Id,
     selection: Name,
     catalog: CatalogReference,
     readiness: Option<crate::use_assessment::ReadinessContract>,
@@ -226,11 +273,9 @@ impl<S: Repository, B: Backend, A: LifecycleAuthority, R: Repository>
         let run = plan.id.clone();
         let selection = process.id.clone();
         let registry = Rc::new(RefCell::new(registry));
-        let backend = RegisteredBackend {
-            backend,
-            registry: registry.clone(),
-            resume,
-            binding: Binding {
+        let bindings: BTreeMap<Name, Binding> = [(
+            selection.clone(),
+            Binding {
                 registration: component.clone(),
                 registration_revision: accepted.revision,
                 catalog: catalog.clone(),
@@ -239,24 +284,127 @@ impl<S: Repository, B: Backend, A: LifecycleAuthority, R: Repository>
                 // Replaced by the supervisor-generated execution identity before assignment.
                 instance: component.clone(),
             },
+        )]
+        .into();
+        let backend = RegisteredBackend {
+            backend,
+            registry: registry.clone(),
+            resume,
+            bindings: bindings.clone(),
+            legacy: false,
         };
         let supervisor = Supervisor::open(store, backend, authority, plan, programs, support)?;
         let mut this = Self {
             supervisor,
             registry,
-            component,
             run,
-            selection,
-            catalog,
-            readiness,
-            decision_policy,
-            decision_gate: crate::decision::Gate::new(),
+            bindings,
+            single: Some(SingleComponent {
+                component,
+                selection,
+                catalog,
+                readiness,
+                decision_policy,
+                decision_gate: crate::decision::Gate::new(),
+            }),
         };
         this.synchronize()?;
         Ok(this)
     }
     pub fn query(&self) -> Result<View> {
-        Ok(self.registry.borrow_mut().query(&self.component)?)
+        Ok(self
+            .registry
+            .borrow_mut()
+            .query(&self.single()?.component)?)
+    }
+    fn single(&self) -> Result<&SingleComponent> {
+        self.single.as_ref().ok_or_else(|| {
+            Error::Invalid(
+                "single-component assessment API is unavailable on the resident composition".into(),
+            )
+        })
+    }
+
+    /// Resident lifecycle registration only. This does not enable functional
+    /// readiness, work decisions, dependency consumption, or explicit recovery.
+    /// Existing single-component constructors keep their narrower guarantees.
+    #[allow(clippy::too_many_arguments)]
+    pub fn open_resident(
+        mut store: S,
+        backend: B,
+        authority: A,
+        plan: Plan,
+        programs: BTreeMap<Name, Program>,
+        support: &DeviceCatalog,
+        mut registry: Registry<R>,
+    ) -> Result<Self> {
+        plan.validate(&programs, support)?;
+        let declarations = plan
+            .processes
+            .iter()
+            .map(|process| {
+                Ok((
+                    process.id.clone(),
+                    Declaration {
+                        label: process.id.clone(),
+                        catalog: catalog_reference(&programs[&process.program])?,
+                    },
+                ))
+            })
+            .collect::<Result<BTreeMap<_, _>>>()?;
+        let fresh = store.snapshot()?.1.is_empty()
+            && store.journal_head()?.0 == 0
+            && store.control_snapshot()?.0.0 == 0;
+        let accepted = registry.resident_registrations(&declarations, fresh)?;
+        let run = plan.id.clone();
+        let bindings: BTreeMap<_, _> = accepted
+            .into_iter()
+            .map(|(selection, accepted)| {
+                (
+                    selection.clone(),
+                    Binding {
+                        registration: accepted.registration.id.clone(),
+                        registration_revision: accepted.revision,
+                        catalog: accepted.registration.declaration.catalog,
+                        run: run.clone(),
+                        selection,
+                        instance: accepted.registration.id,
+                    },
+                )
+            })
+            .collect();
+        let registry = Rc::new(RefCell::new(registry));
+        let backend = RegisteredBackend {
+            backend,
+            registry: registry.clone(),
+            bindings: bindings.clone(),
+            legacy: true,
+            resume: None,
+        };
+        let supervisor = Supervisor::open(store, backend, authority, plan, programs, support)?;
+        let mut this = Self {
+            supervisor,
+            registry,
+            run,
+            bindings,
+            single: None,
+        };
+        this.synchronize()?;
+        Ok(this)
+    }
+
+    /// Read-only views, keyed by current plan selection. Persisted observations
+    /// never establish ownership or permission for this caller.
+    pub fn registrations(&self) -> Result<BTreeMap<Name, View>> {
+        self.bindings
+            .iter()
+            .map(|(selection, binding)| {
+                Ok((
+                    selection.clone(),
+                    self.registry.borrow_mut().query(&binding.registration)?,
+                ))
+            })
+            .collect()
     }
     /// Fresh, explicitly scoped snapshot over component self-report data. No
     /// evaluation is persisted/cached as permission, and query() remains read-only
@@ -269,19 +417,23 @@ impl<S: Repository, B: Backend, A: LifecycleAuthority, R: Repository>
         use crate::use_assessment::*;
         let mut view = self.query()?;
         let state = self.supervisor.state()?;
-        let record = &state.records[&self.selection];
+        let single = self
+            .single
+            .as_mut()
+            .expect("query checked single component");
+        let record = &state.records[&single.selection];
         let subject = UseSubject {
-            registration: self.component.clone(),
+            registration: single.component.clone(),
             registration_revision: view.registration.revision,
-            program: self.catalog.program.clone(),
-            catalog_digest: self.catalog.digest,
+            program: single.catalog.program.clone(),
+            catalog_digest: single.catalog.digest,
             run: self.run.clone(),
-            selection: self.selection.clone(),
+            selection: single.selection.clone(),
             instance: record.instance.clone(),
             pid: record.pid,
         };
         let assessment = if let Some(profile) =
-            self.readiness.as_ref().and_then(|c| c.0.get(&scope.role))
+            single.readiness.as_ref().and_then(|c| c.0.get(&scope.role))
         {
             let request =
                 StatusObservationRequest::new(subject.clone(), scope.clone(), profile.endpoint);
@@ -301,22 +453,23 @@ impl<S: Repository, B: Backend, A: LifecycleAuthority, R: Repository>
             ReadinessAssessment::unobserved(Some(scope.clone()),Some(subject.clone()),ConditionState::Unsupported,Name::new("catalog/readiness-profile").expect("literal"),"author has not declared supported readiness conditions for this intended use; metadata or process liveness cannot supply them".into())
         };
         let decision = if view.registration.registration.state == RegistrationState::Accepted
-            && view.registration.registration.declaration.catalog == self.catalog
+            && view.registration.registration.declaration.catalog == single.catalog
             && record.instance.is_some()
             && record.pid.is_some()
             && matches!(
                 record.phase,
                 Phase::Starting | Phase::ProcessReady | Phase::Unready
             ) {
-            self.decision_policy.as_ref().and_then(|policy| {
-                self.decision_gate
+            single.decision_policy.as_ref().and_then(|policy| {
+                single
+                    .decision_gate
                     .request(
                         crate::decision::Kind::WorkUse,
                         crate::decision::Owner {
-                            registration: self.component.clone(),
+                            registration: single.component.clone(),
                             revision: view.registration.revision,
-                            program: self.catalog.program.clone(),
-                            catalog: self.catalog.digest,
+                            program: single.catalog.program.clone(),
+                            catalog: single.catalog.digest,
                         },
                         &scope.operating_area,
                         &scope.role,
@@ -337,12 +490,14 @@ impl<S: Repository, B: Backend, A: LifecycleAuthority, R: Repository>
         &self,
         proof: &crate::decision::VerifiedDecision,
     ) -> Result<DecisionRecord> {
+        self.single()?;
         Ok(self.registry.borrow_mut().record_verified_decision(proof)?)
     }
     pub fn record_verified_revocation(
         &self,
         proof: &crate::decision::VerifiedRevocation,
     ) -> Result<DecisionRevocationRecord> {
+        self.single()?;
         Ok(self
             .registry
             .borrow_mut()
@@ -352,16 +507,19 @@ impl<S: Repository, B: Backend, A: LifecycleAuthority, R: Repository>
         Ok(self
             .registry
             .borrow_mut()
-            .recorded_decision(&self.component, decision)?)
+            .recorded_decision(&self.single()?.component, decision)?)
     }
     pub fn history(&self) -> Result<Vec<rx_ports::StoredEvent>> {
-        Ok(self.registry.borrow_mut().history(&self.component)?)
+        Ok(self
+            .registry
+            .borrow_mut()
+            .history(&self.single()?.component)?)
     }
     pub fn retire(&self, expected: Counter) -> Result<VersionedRegistration> {
         Ok(self
             .registry
             .borrow_mut()
-            .retire(&self.component, expected)?)
+            .retire(&self.single()?.component, expected)?)
     }
     pub fn state(&mut self) -> Result<State> {
         self.supervisor.state()
@@ -383,57 +541,56 @@ impl<S: Repository, B: Backend, A: LifecycleAuthority, R: Repository>
         outcome
     }
     fn synchronize(&mut self) -> Result<()> {
-        let record = self.supervisor.state()?.records[&self.selection].clone();
-        let Some(instance) = &record.instance else {
-            return Ok(());
-        };
-        let view = self.query()?;
-        let Some(execution) = view
-            .executions
-            .iter()
-            .find(|e| e.binding.instance == *instance)
-        else {
-            if matches!(
-                record.phase,
-                Phase::Prepared | Phase::StartFailed | Phase::Skipped
-            ) {
-                return Ok(());
+        let state = self.supervisor.state()?;
+        // Validate the whole composition before publishing any observation.
+        let mut observations = Vec::new();
+        for (selection, binding) in &self.bindings {
+            let record = &state.records[selection];
+            let Some(instance) = &record.instance else {
+                continue;
+            };
+            let view = self.registry.borrow_mut().query(&binding.registration)?;
+            let Some(execution) = view
+                .executions
+                .iter()
+                .find(|e| e.binding.instance == *instance)
+            else {
+                if matches!(
+                    record.phase,
+                    Phase::Prepared | Phase::StartFailed | Phase::Skipped
+                ) {
+                    continue;
+                }
+                return Err(Error::Reconciliation(format!(
+                    "{selection}: saved execution has no registration assignment; no adoption or inferred association"
+                )));
+            };
+            if execution.binding.run != self.run
+                || execution.binding.selection != *selection
+                || execution.binding.catalog != binding.catalog
+                || execution.binding.registration != binding.registration
+            {
+                return Err(Error::Reconciliation(format!(
+                    "{selection}: saved execution belongs to another run/selection/catalog/registration"
+                )));
             }
-            return Err(Error::Reconciliation("saved execution has no registration assignment; no adoption or inferred association".into()));
-        };
-        if execution.binding.run != self.run
-            || execution.binding.selection != self.selection
-            || execution.binding.catalog != self.catalog
-        {
-            return Err(Error::Reconciliation(
-                "saved execution belongs to another run/selection/catalog".into(),
-            ));
+            let state = match record.phase {
+                Phase::Exited => ExecutionState::Exited,
+                Phase::StartFailed | Phase::Skipped => ExecutionState::NotStarted,
+                Phase::Starting | Phase::ProcessReady | Phase::Unready | Phase::StopRequested => {
+                    ExecutionState::Running
+                }
+                _ => ExecutionState::Unknown,
+            };
+            observations.push((execution.binding.clone(), Observation {
+                state, pid: record.pid, exit_code: record.exit_code,
+                detail: format!("supervisor phase {:?}; {}; functional readiness and work-use permission are not assessed",
+                    record.phase, record.error.as_deref().unwrap_or("no additional lifecycle error")),
+            }));
         }
-        let state = match record.phase {
-            Phase::Exited => ExecutionState::Exited,
-            Phase::StartFailed | Phase::Skipped => ExecutionState::NotStarted,
-            Phase::Starting | Phase::ProcessReady | Phase::Unready | Phase::StopRequested => {
-                ExecutionState::Running
-            }
-            _ => ExecutionState::Unknown,
-        };
-        let detail = format!(
-            "supervisor phase {:?}; {}; functional readiness and work-use permission are not assessed",
-            record.phase,
-            record
-                .error
-                .as_deref()
-                .unwrap_or("no additional lifecycle error")
-        );
-        self.registry.borrow_mut().observe(
-            &execution.binding,
-            Observation {
-                state,
-                pid: record.pid,
-                exit_code: record.exit_code,
-                detail,
-            },
-        )?;
+        for (binding, observation) in observations {
+            self.registry.borrow_mut().observe(&binding, observation)?;
+        }
         Ok(())
     }
     pub fn into_parts(self) -> (S, B, A, Registry<R>) {
@@ -473,7 +630,7 @@ impl<S: Repository, B: Backend, A: LifecycleAuthority, R: Repository>
                 return Ok(SourceReply::Missing { known_lost: true, reason: "provider registration/revision/catalog differs; replacement requires separate consumer-side judgment".into() });
             }
             let state = self.state()?;
-            let record = &state.records[&self.selection];
+            let record = &state.records[&self.single()?.selection];
             if matches!(
                 record.phase,
                 Phase::Exited | Phase::Skipped | Phase::StartFailed
