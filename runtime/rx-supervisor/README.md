@@ -1,5 +1,54 @@
 # Solutions process management draft
 
+## Catalog-owned execution requirements (F1)
+
+`Program.execution_requirements` optionally declares named upper bounds, reserved capacity,
+exclusive access or shared access. CPU quantities are millicores and memory quantities are bytes.
+`None` preserves legacy serialization/startup; an explicit empty `Requirements` map is a
+different declaration and digest. `NotRequired` and `Unknown` are distinct: unknown requests
+never authorize startup. Zero capacity is not a way to disable a requirement.
+
+Site `Process` inputs cannot replace the catalog declaration. Unknown fields and parameters
+are rejected, and the existing plan digest pins the selected program including its requirements.
+Public Rust authors add `execution_requirements: None` to legacy literals; this is an additive
+Rust field, not source compatibility for unchanged struct literals. The initial catalog and
+release image remain trusted inputs; F1 does not introduce a signed generic catalog format.
+
+The `Backend::spawn_with_requirements` port owns whole-bundle admission/application and
+process creation together, after the existing durable spawn intent. It must recheck lifecycle
+authorization immediately before effects. `Rejected`/`NotStarted` promise no remaining
+application, reservation or child; uncertainty must use the existing `Uncertain` channel.
+Only a complete request-bound receipt can produce admitted status. Invalid/stale receipts
+remain UNKNOWN and cannot trigger automatic retry. Existing lifecycle authority and
+`RequiresPlatformAuthority` behavior for undeclared programs is unchanged.
+
+The default backend implements **no cgroup v2, rlimit, CPU/memory reservation or device
+access policy on any OS**. Every required policy is rejected before exec, with named reasons.
+Empty/NotRequired-only declarations can use the existing spawn path with `NoRequirements`
+evidence. Positive policy application in the F1 tests is explicitly **simulated**.
+
+Status exposes `execution_admission` with `requested`, `application` and
+`not_applied_reasons`. `Supervisor::execution_admission()` reads these observations
+without admission, spawn, readiness or authority evaluation; `tick()` includes the same
+map in its status. Pending/NotApplied with no reason means no attempt has been assessed.
+`ReportedAtStart` is the backend's observation for one instance,
+not continuous enforcement monitoring. Simulation and future host reports have different
+evidence tags. After reopening, absent current-owner receipts are Unconfirmed; no current
+resource ownership is inferred from stored process records. **A configured resource limit
+does not establish a worst-case response time.** Computing-resource reclamation does not
+establish collaboration-resource or physical handover.
+
+The `execution_admission` integration tests cover whole-bundle positive/negative combinations,
+site/catalog downgrade attempts, reservation/access semantics in a model, stale evidence,
+lost authorization, and real non-actuating no-policy/rejection paths. Linux enforcement,
+rollback under partial OS application, resource recovery and physical qualification remain
+unimplemented. A future enforcing backend must validate those responsibilities before use.
+This contract covers Supervisor-managed Program startup. Separate metadata-only initializers,
+direct backend/OS callers and hostile changes to trusted host code are not globally sandboxed.
+
+The following sections describe the original process-management baseline; F1 adds the
+bounded requirement/diagnostic path above, not general resident-framework completion.
+
 2026-09-11. Added `rx-supervisor` and `rx-solutionsd`. They record startup, observation and shutdown of selected programs in a separate S store, distinguishing process liveness from RX operating readiness. The product recipe at this stage is **one read-only status service**; lifecycle authority integration for actual device drivers/controllers remains future work.
 
 ## Repository and product boundary
