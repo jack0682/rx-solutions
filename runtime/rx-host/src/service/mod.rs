@@ -327,7 +327,7 @@ fn runtime_owner(directory: &Path) -> Result<std::fs::File> {
     let owner = options.open(lock_path)?;
     owner
         .try_lock()
-        .map_err(|_| "another process owns this Host runtime")?;
+        .map_err(|e| format!("host/runtime-ownership-unavailable; service admission refused; owner identity is not established: {e}"))?;
     Ok(owner)
 }
 pub async fn run_with<C: Clock + Clone + Send + Sync + 'static, F: AdapterFactory<C>>(

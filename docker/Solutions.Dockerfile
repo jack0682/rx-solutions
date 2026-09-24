@@ -20,6 +20,7 @@ COPY runtime ./runtime
 COPY drivers ./drivers
 COPY catalogs ./catalogs
 COPY native/ros-jtc ./native/ros-jtc
+COPY native/support ./native/support
 COPY dependencies ./dependencies
 COPY interfaces ./interfaces
 RUN --mount=type=cache,id=rx-solutions-registry,target=/usr/local/cargo/registry \

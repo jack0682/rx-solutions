@@ -13,6 +13,17 @@ pub use services::{
     add_guarded_services, validate_service_plan,
 };
 
+/// Diagnostic boundary, not authenticated provenance or a permission receipt.
+pub fn release_boundary() -> serde_json::Value {
+    serde_json::json!({
+        "trust": "TRUSTED_INSTALLED_RUST_BINARIES_AND_OS",
+        "source_assets": "STATUS_SCRIPT_AND_DEVICE_CATALOG_MATCH_COMPILED_SOURCE_CONTENT",
+        "inventory": "CONSISTENCY_INDEX_NOT_AUTHENTICATED_ROOT",
+        "remaining_inventory_pins": ["/usr/bin/python3", "installed Host/Executor Rust binaries"],
+        "authenticated_immutable_provenance": "NOT_ESTABLISHED; SEPARATE_AUTHENTICATED_RELEASE_ORIGIN_SLICE"
+    })
+}
+
 #[derive(Deserialize)]
 struct Inventory {
     schema: String,
@@ -31,11 +42,22 @@ pub fn release_programs(root: &Path) -> Result<BTreeMap<Name, Program>> {
         v.copied()
             .ok_or_else(|| Error::Invalid("required release file absent".into()))
     };
-    verify(
-        &root.join("catalogs/device-support.v1.json"),
-        digest(inventory.files.get("catalogs/device-support.v1.json"))?,
-    )?;
-    let script_hash = digest(inventory.files.get("tools/solutions_status.py"))?;
+    // These pins come from reviewed source compiled into the trusted Rust
+    // binary, never from the adjacent inventory being checked. The installed
+    // Rust binaries and OS remain the trust boundary, not authenticated origin.
+    let script_hash = rx_package::content_digest(include_bytes!(
+        "../../../native/support/solutions_status.py"
+    ));
+    let catalog_hash =
+        rx_package::content_digest(include_bytes!("../../../catalogs/device-support.v1.json"));
+    if digest(inventory.files.get("tools/solutions_status.py"))? != script_hash
+        || digest(inventory.files.get("catalogs/device-support.v1.json"))? != catalog_hash
+    {
+        return Err(Error::Invalid(
+            "release/source-pin-mismatch; inventory cannot authorize changed source assets".into(),
+        ));
+    }
+    verify(&root.join("catalogs/device-support.v1.json"), catalog_hash)?;
     let python = PathBuf::from("/usr/bin/python3");
     let python_hash = digest(inventory.external_files.get("/usr/bin/python3"))?;
     verify(&script, script_hash)?;

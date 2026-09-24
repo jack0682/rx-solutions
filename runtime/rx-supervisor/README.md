@@ -805,6 +805,67 @@ checks. This adds four registration document schemas and additive Inspection
 output, but changes no Program/catalog/Run/TrackedBinding layout, SDK or wire API.
 Older writers do not enforce these routes; downgrade writing is unsupported.
 
+## Open items and enforced support limits (F12)
+
+Every resident command verifies the installed status script and device catalog
+against source bytes embedded in the compiled Rust binary. Matching a changed
+file to a forged adjacent inventory no longer suffices: mismatched inventory pins
+produce `release/source-pin-mismatch`, and mismatched installed bytes are refused.
+The inventory is a consistency index, **not an authenticated root**. The emitted
+`release_boundary` trusts the installed Rust binaries and OS. Interpreter and
+Host/Executor binary digests still rely on inventory consistency within that
+explicit trust boundary. Authenticated immutable provenance remains the named
+`AUTHENTICATED_RELEASE_ORIGIN` successor, not a completed feature or an item
+silently excluded from the startup path.
+
+Supervisor, Host and Executor CLI failures caused by the pinned SDK's writer-lock
+acquisition emit `rx.support-refusal.v1` with condition
+`storage/exclusive-writer-not-established`, decision REFUSED and owner_identity
+NOT_ESTABLISHED. The Host's separate runtime-owner refusal is named
+`host/runtime-ownership-unavailable`. A failed lock acquisition does not identify
+another owner. No automatic retry, lock-file deletion or PID termination is added.
+The diagnostic adapter narrowly recognizes the current SDK's legacy error prefix;
+it does not change the SDK or reinterpret unrelated I/O failures.
+
+The historical Host flake is **not fixed**. Actual Linux parallel stress reproduced
+Host and store lock failures; macOS 50 rounds did not. Excluding the old crash-child
+spawner as a measurement control produced 50 clean rounds, while the unmodified
+parallel test suite remains in normal regression runs. Actual Command pre-exec
+measurement with the unmodified storage implementation shows an inherited file
+description can retain a lock after parent repository drop until exec. In contrast,
+the real resident status children retained no DB/writer-lock descriptors after
+exec, and a parent observer reacquired both locks after manager SIGKILL while those
+children remained. Do not claim a lasting product-child leak from the pre-exec
+counterexample. A controlled explicit-unlock prototype is evidence only, not
+product code. `STORAGE_LOCK_LIFETIME` must address the platform-owned guard/error
+and regenerated SDK separately; these observations do not attribute the single F9
+CI failure with certainty.
+
+Guarded services are an admitted shipping software path: the daemon uses
+GuardedServices, not SoftwareOnly. Failed TERM response is not completion; the
+owned child and stop request remain. A later current-instance final report plus
+owned exit0 can confirm cooperative shutdown; missing final report refuses that
+conclusion even when all_exited is true. Force remains refused. Real Linux tests
+exercise these distinctions with explicit delivery-failure injection, without
+claiming to reproduce every natural signal race or physical shutdown.
+
+Source trust, lock refusals, future-schema refusal, initializer replay refusal,
+actual descriptor observations and guarded stop boundaries are reproducible with:
+
+```sh
+python3 tools/support_limits_passage.py --image RX_RUNTIME_IMAGE \
+  --builder RUST_BUILDER --evidence /absolute/path/to/fresh-support-evidence
+```
+
+The output intentionally says `ENFORCEMENT_PASS_LOCK_LIFETIME_UNRESOLVED` and
+retains every stress outcome; an observed failure is not replaced by a later clean
+run. F10's post-cut TTL expiry and HTTP/SQL non-atomicity remain permitted temporal
+semantics, not refusal scenes. F9 scope/legacy-identity refusals and F11 explicit
+checkpoint/no-monitor semantics remain unchanged. Diagnostic inspection no longer
+contains pre-F8/F9/F11 global "unsupported" statements that contradict those
+narrower implemented paths. None of these outputs creates current authority,
+physical qualification, multi-host support or operating-area provider integration.
+
 ## Further connections
 
 Tests check failures before/after startup commit, persistence failure after actual spawn, unknown backend results, supervisor restart, loss of shutdown authority, rejection of force termination for control processes, stop latch during storage failure, exit-observation repersistence, dependency ordering and bounded software restart. A separate actual non-actuating HTTP child also checks instance-correlated readiness, incorrect responses/file tampering and owned-process shutdown.

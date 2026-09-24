@@ -5,7 +5,8 @@ use rx_solution_catalog::DeviceCatalog;
 use rx_storage::SqliteRepository;
 use rx_supervisor::{
     builtin::{
-        ServiceConfigurations, add_guarded_services, release_programs, validate_service_plan,
+        ServiceConfigurations, add_guarded_services, release_boundary, release_programs,
+        validate_service_plan,
     },
     execution_store, initialization,
     model::{GuardedServices, Plan},
@@ -87,6 +88,16 @@ impl RecoveryAuthority for ExplicitLocalResume {
 }
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<()> {
+    if let Err(error) = run().await {
+        if let Some(refusal) = rx_service_status::storage_ownership_refusal(error.as_ref()) {
+            eprintln!("{}", serde_json::to_string(&refusal)?);
+            return Err(refusal.condition.into());
+        }
+        return Err(error);
+    }
+    Ok(())
+}
+async fn run() -> Result<()> {
     let args = std::env::args().skip(1).collect::<Vec<_>>();
     if !((args.len() == 2
         && matches!(
@@ -126,7 +137,7 @@ async fn main() -> Result<()> {
     if args[0] == "inspect" {
         println!(
             "{}",
-            serde_json::json!({"schema":"rx.solutions-plan-inspection.v1","plan_digest":plan_digest,"selected_profiles":configuration.plan.profiles,"protocol_guarded_services":!initializers.is_empty(),"control_prepared":false,"physical_qualification":"NOT_PERFORMED"})
+            serde_json::json!({"schema":"rx.solutions-plan-inspection.v1","plan_digest":plan_digest,"selected_profiles":configuration.plan.profiles,"protocol_guarded_services":!initializers.is_empty(),"release_boundary":release_boundary(),"control_prepared":false,"physical_qualification":"NOT_PERFORMED"})
         );
         return Ok(());
     }
@@ -276,6 +287,7 @@ async fn main() -> Result<()> {
             "registrations": supervisor.registrations()?,
             "state": supervisor.state()?,
             "execution_admission": supervisor.execution_admission()?,
+            "release_boundary": release_boundary(),
             "physical_qualification": "NOT_PERFORMED"
         })
     );
