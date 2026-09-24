@@ -1549,6 +1549,7 @@ dependencies = [
 name = "rx-supervisor"
 version = "0.1.0"
 dependencies = [
+ "rustix",
  "rx-domain",
  "rx-package",
  "rx-ports",

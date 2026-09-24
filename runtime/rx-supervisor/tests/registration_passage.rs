@@ -92,6 +92,16 @@ impl Drop for Owned {
     }
 }
 impl Backend for Owned {
+    fn spawn_with_requirements(
+        &mut self,
+        launch: &Launch,
+        request: &rx_supervisor::execution::Request,
+        authorize: &mut dyn FnMut() -> bool,
+    ) -> std::result::Result<rx_supervisor::execution::Decision, SpawnFailure> {
+        self.0
+            .borrow_mut()
+            .spawn_with_requirements(launch, request, authorize)
+    }
     fn observe_status(
         &mut self,
         launch: &Launch,
@@ -257,7 +267,15 @@ fn passage_worker() {
         let receipt = json!(admission);
         assert_eq!(
             receipt["application"]["receipt"]["evidence"]["basis"],
-            "NO_REQUIREMENTS"
+            "LINUX_RLIMIT"
+        );
+        assert_eq!(
+            receipt["application"]["receipt"]["evidence"]["observation"]["soft_bytes"],
+            "268435456"
+        );
+        assert_eq!(
+            receipt["application"]["receipt"]["evidence"]["observation"]["hard_bytes"],
+            "268435456"
         );
         assert_ne!(config["component"], json!(record.instance));
         let p: Plan = serde_json::from_value(config["plan"].clone()).unwrap();
@@ -276,7 +294,7 @@ fn passage_worker() {
         assert_eq!(health["physical_qualification"], "NOT_PERFORMED");
         emit(
             "admitted-and-observed",
-            "full F1 NoRequirements receipt plus instance-correlated HTTP report; no resource enforcement or work-use permission",
+            "whole F1 Linux address-space receipt plus instance-correlated HTTP report; no reserved capacity or work-use permission",
             json!({"registration":s.query().unwrap(),"lifecycle":report,"health":health}),
         );
         let before_history = s.history().unwrap();
@@ -689,7 +707,7 @@ fn real_registration_passage() {
     emit(
         "passage-complete",
         "all asserted transitions executed; component registration persists independently of manager process lifetime",
-        json!({"limitations":["readiness is only authored comparison of component self-report, not independent functional or physical qualification","actual operating-area service connection unsupported; default production catalogs have no anchors and cannot approve","actual device operations, collaborative resource binding and multi-hop dependency execution unsupported","external investigation provider after total manager-process/Child-handle loss unsupported","direct child exit does not establish descendant termination or resource recovery","multi-host unsupported","Linux resource enforcement not implemented",
+        json!({"limitations":["readiness is only authored comparison of component self-report, not independent functional or physical qualification","actual operating-area service connection unsupported; default production catalogs have no anchors and cannot approve","actual device operations, collaborative resource binding and multi-hop dependency execution unsupported","external investigation provider after total manager-process/Child-handle loss unsupported","direct child exit does not establish descendant termination or resource recovery","multi-host unsupported","only per-process virtual address-space enforcement; CPU, aggregate memory, capacity reservation and device policies unsupported",
                 "default production binding acceptance remains unconfigured; diagnostic tracking is not acceptance and verified acceptance does not apply replacement",
                 "dependency availability is checked at explicit checkpoints, not continuously between samples",
                 "control-effect group-target signal race remains unresolved","authenticated immutable release root and malicious author/registry/OS replacement isolation unsupported",

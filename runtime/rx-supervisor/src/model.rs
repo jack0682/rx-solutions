@@ -110,6 +110,9 @@ pub struct Record {
     pub error: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub guarded_exit: Option<GuardedExit>,
+    /// Historical resource observations never restore a current receipt.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub resources: Option<crate::execution::ResourceHistory>,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(

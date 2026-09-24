@@ -44,7 +44,16 @@ pub fn release_programs(root: &Path) -> Result<BTreeMap<Name, Program>> {
     let program = Program {
         functional_readiness: Some(status_readiness()),
         decision_policy: None,
-        execution_requirements: Some(crate::execution::Requirements(BTreeMap::new())),
+        execution_requirements: Some(crate::execution::Requirements(
+            [(
+                name("status/address-space"),
+                crate::execution::Requirement::UpperBound {
+                    resource: crate::execution::Capacity::AddressSpaceBytes,
+                    amount: rx_domain::types::Counter(268_435_456),
+                },
+            )]
+            .into(),
+        )),
         id: name("rx/status-http"),
         effect: Effect::NonActuating,
         executable: python,

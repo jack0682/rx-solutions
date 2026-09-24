@@ -108,6 +108,9 @@ impl<R: Repository, B: Backend, A: LifecycleAuthority> Supervisor<R, B, A> {
                         record.phase = Phase::Unknown;
                         record.error =
                             Some("supervisor ownership lost; no PID adoption or replay".into());
+                        if let Some(resources) = &mut record.resources {
+                            resources.lifetime = crate::execution::ResourceLifetime::Unconfirmed;
+                        }
                     }
                 }
                 tx.put(&name(KEY), Some(old.revision), &document(&state)?)?;
@@ -132,6 +135,7 @@ impl<R: Repository, B: Backend, A: LifecycleAuthority> Supervisor<R, B, A> {
                                 exit_code: None,
                                 error: None,
                                 guarded_exit: None,
+                                resources: None,
                             },
                         )
                     })
@@ -237,6 +241,13 @@ impl<R: Repository, B: Backend, A: LifecycleAuthority> Supervisor<R, B, A> {
                 .ok_or_else(|| StoreError::Integrity("supervisor state missing".into()))?;
             let mut state = decode(&old)?;
             change(&mut state);
+            for record in state.records.values_mut() {
+                if record.phase == Phase::Unknown
+                    && let Some(resources) = &mut record.resources
+                {
+                    resources.lifetime = crate::execution::ResourceLifetime::Unconfirmed;
+                }
+            }
             tx.put(&name(KEY), Some(old.revision), &document(&state)?)?;
             tx.append(&id(), &document(&state)?)?;
             Ok(())
@@ -283,6 +294,7 @@ impl<R: Repository, B: Backend, A: LifecycleAuthority> Supervisor<R, B, A> {
                 r.pid = None;
                 r.exit_code = None;
                 r.error = None;
+                r.resources = None;
             }
         })?;
         self.stop_latched = false;
@@ -299,7 +311,7 @@ impl<R: Repository, B: Backend, A: LifecycleAuthority> Supervisor<R, B, A> {
                 .map(|(instance, requirements)| crate::execution::Request::new(program.id.clone(),
                     process.id.clone(), instance.clone(), state.plan_digest, requirements.clone()));
             let value = self.execution_admission.get(&process.id)
-                .filter(|(request,_)| current_request.as_ref()==Some(request))
+                .filter(|(request,_)| current_request.as_ref()==Some(request) && state.records[&process.id].phase != Phase::Unknown)
                 .map(|(_,status)| status.clone()).unwrap_or_else(|| {
                 let application = if requested.is_none() {
                     Application::LegacyNotDeclared
@@ -402,7 +414,37 @@ impl<R: Repository, B: Backend, A: LifecycleAuthority> Supervisor<R, B, A> {
             _ => {}
         }
         self.execution_admission
-            .insert(process.id.clone(), (request.clone(), status));
+            .insert(process.id.clone(), (request.clone(), status.clone()));
+        if request.requirements().needs_enforcement() {
+            let mut history = crate::execution::ResourceHistory::unconfirmed();
+            match &outcome {
+                Ok(_) => {
+                    if let Application::ReportedAtStart { receipt } = &status.application {
+                        history.last_observed = receipt.stored_limit();
+                        if history.last_observed.is_some() {
+                            history.lifetime = crate::execution::ResourceLifetime::ObservedAtStart;
+                            history.capacity_reservation = "NONE_CREATED".into();
+                        }
+                    }
+                }
+                Err(SpawnFailure::NotStarted(_)) => {
+                    history.lifetime =
+                        crate::execution::ResourceLifetime::NoPolicyRemainingAfterRejectedStart;
+                    history.capacity_reservation = "NONE_CREATED".into();
+                }
+                Err(SpawnFailure::Uncertain(_)) => {}
+            }
+            if let Err(error) =
+                self.change(|s| s.records.get_mut(&process.id).unwrap().resources = Some(history))
+            {
+                if let Some((_, status)) = self.execution_admission.get_mut(&process.id) {
+                    status.application = Application::Unconfirmed {
+                        reason: error.to_string(),
+                    };
+                }
+                return Err(SpawnFailure::Uncertain(error));
+            }
+        }
         outcome
     }
     pub fn tick(&mut self) -> Result<Status> {
@@ -437,6 +479,9 @@ impl<R: Repository, B: Backend, A: LifecycleAuthority> Supervisor<R, B, A> {
                         let r = s.records.get_mut(&process.id).unwrap();
                         r.phase = Phase::Unknown;
                         r.error = Some("live process handle unavailable".into());
+                        if let Some(resources) = &mut r.resources {
+                            resources.lifetime = crate::execution::ResourceLifetime::Unconfirmed;
+                        }
                     })?;
                     continue;
                 }
@@ -485,6 +530,9 @@ impl<R: Repository, B: Backend, A: LifecycleAuthority> Supervisor<R, B, A> {
                         r.phase = Phase::Exited;
                         r.exit_code = code;
                         r.guarded_exit = exit;
+                        if let Some(resources) = &mut r.resources {
+                            resources.lifetime = crate::execution::ResourceLifetime::DirectChildExitedDescendantsUnassessed;
+                        }
                         if !s.stop_requested {
                             r.error = Some("unexpected service exit".into());
                         }
@@ -625,11 +673,19 @@ impl<R: Repository, B: Backend, A: LifecycleAuthority> Supervisor<R, B, A> {
                             r.exit_code = None;
                             r.error = None;
                             r.guarded_exit = None;
+                            r.resources = None;
                         })?;
                     }
                     self.change(|s| {
                         let r = s.records.get_mut(&process.id).unwrap();
                         r.phase = Phase::SpawnEntered;
+                        if program
+                            .execution_requirements
+                            .as_ref()
+                            .is_some_and(|r| r.needs_enforcement())
+                        {
+                            r.resources = Some(crate::execution::ResourceHistory::unconfirmed());
+                        }
                         r.attempts = Counter(r.attempts.0 + 1);
                     })?;
                     if !self.authority.may_start(&self.plan, &process, &launch) {

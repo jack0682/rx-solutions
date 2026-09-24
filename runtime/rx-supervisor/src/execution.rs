@@ -1,5 +1,5 @@
 //! Catalog-owned host requirements. An admission receipt covers one whole launch,
-//! never a partially applied subset. This module implements no OS enforcement.
+//! never a partially applied subset. The OS backend owns actual enforcement.
 use crate::{Error, Result};
 use rx_domain::types::*;
 use serde::Serialize;
@@ -10,6 +10,9 @@ use std::collections::BTreeMap;
 pub enum Capacity {
     CpuMillicores,
     MemoryBytes,
+    /// Per-process virtual address-space usage ceiling, not RSS, physical RAM,
+    /// reserved capacity, or an availability guarantee.
+    AddressSpaceBytes,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -131,6 +134,112 @@ pub enum Evidence {
         reference: String,
     },
     NoRequirements,
+    /// Observed by the owning backend through Linux procfs after target exec.
+    /// Historical evidence only; not policy correctness or physical handover.
+    LinuxRlimit {
+        observation: Box<KernelObservation>,
+    },
+}
+
+/// Only the OS implementation can construct this evidence. Stored JSON is not
+/// deserializable back into a receipt or a current enforcement capability.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct KernelObservation {
+    request: Request,
+    pid: u32,
+    instance: Id,
+    requirement: Name,
+    resource: Capacity,
+    soft_bytes: Counter,
+    hard_bytes: Counter,
+    previous_soft_bytes: Option<Counter>,
+    previous_hard_bytes: Option<Counter>,
+    observer: &'static str,
+    scope: &'static str,
+    capacity_reservation: &'static str,
+    physical_handover: &'static str,
+}
+impl KernelObservation {
+    #[cfg(target_os = "linux")]
+    pub(crate) fn observed(
+        request: &Request,
+        pid: u32,
+        requirement: Name,
+        amount: u64,
+        previous: (Option<u64>, Option<u64>),
+    ) -> Self {
+        Self {
+            request: request.clone(),
+            pid,
+            instance: request.instance.clone(),
+            requirement,
+            resource: Capacity::AddressSpaceBytes,
+            soft_bytes: Counter(amount),
+            hard_bytes: Counter(amount),
+            previous_soft_bytes: previous.0.map(Counter),
+            previous_hard_bytes: previous.1.map(Counter),
+            observer: "OWNING_PARENT_PROCFS_AFTER_EXEC",
+            scope: "PER_PROCESS_VIRTUAL_ADDRESS_SPACE_UPPER_BOUND",
+            capacity_reservation: "NONE_CREATED",
+            physical_handover: "NOT_ASSESSED",
+        }
+    }
+    pub(crate) fn stored(&self) -> StoredLimit {
+        StoredLimit {
+            pid: self.pid,
+            instance: self.instance.clone(),
+            requirement: self.requirement.clone(),
+            soft_bytes: self.soft_bytes,
+            hard_bytes: self.hard_bytes,
+            scope: self.scope.into(),
+            capacity_reservation: self.capacity_reservation.into(),
+            physical_handover: self.physical_handover.into(),
+        }
+    }
+}
+
+/// Inert history loaded from the execution store, deliberately distinct from
+/// KernelObservation/Receipt. It cannot be submitted as application evidence.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct StoredLimit {
+    pub pid: u32,
+    pub instance: Id,
+    pub requirement: Name,
+    pub soft_bytes: Counter,
+    pub hard_bytes: Counter,
+    pub scope: String,
+    pub capacity_reservation: String,
+    pub physical_handover: String,
+}
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, serde::Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum ResourceLifetime {
+    /// Application may have begun. No current policy or absence is inferred.
+    Unconfirmed,
+    ObservedAtStart,
+    NoPolicyRemainingAfterRejectedStart,
+    DirectChildExitedDescendantsUnassessed,
+}
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ResourceHistory {
+    pub lifetime: ResourceLifetime,
+    pub last_observed: Option<StoredLimit>,
+    pub current_enforcement: String,
+    pub capacity_reservation: String,
+    pub physical_handover: String,
+}
+impl ResourceHistory {
+    pub(crate) fn unconfirmed() -> Self {
+        Self {
+            lifetime: ResourceLifetime::Unconfirmed,
+            last_observed: None,
+            current_enforcement: "NOT_ESTABLISHED_BY_HISTORY".into(),
+            capacity_reservation: "NOT_ESTABLISHED".into(),
+            physical_handover: "NOT_ASSESSED".into(),
+        }
+    }
 }
 
 /// No public field, deserializer or subset constructor can manufacture a partial receipt.
@@ -150,6 +259,13 @@ impl Receipt {
             ));
         }
         match &evidence {
+            Evidence::LinuxRlimit { observation }
+                if observation.request != *request || observation.pid == 0 =>
+            {
+                return Err(Error::Invalid(
+                    "kernel observation belongs to another complete request".into(),
+                ));
+            }
             Evidence::NoRequirements if request.requirements.needs_enforcement() => {
                 return Err(Error::Invalid(
                     "required policy cannot be reported as no requirements".into(),
@@ -171,6 +287,13 @@ impl Receipt {
     }
     pub(crate) fn matches(&self, request: &Request) -> bool {
         self.request == *request
+    }
+    pub(crate) fn stored_limit(&self) -> Option<StoredLimit> {
+        if let Evidence::LinuxRlimit { observation } = &self.evidence {
+            Some(observation.stored())
+        } else {
+            None
+        }
     }
 }
 
