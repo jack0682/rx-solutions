@@ -219,6 +219,7 @@ impl Backend for Simulated {
         Ok(Decision::Admitted {
             pid: state.spawned.len() as u32 + 100,
             receipt,
+            identity: None,
         })
     }
     fn pid(&self, i: &Id) -> Option<u32> {

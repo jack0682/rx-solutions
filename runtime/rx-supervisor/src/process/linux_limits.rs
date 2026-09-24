@@ -337,9 +337,14 @@ impl OsProcesses {
             Ok(v) => v,
             Err(error) => return Err(self.retain_uncertain(launch, child, error.to_string())),
         };
+        let identity = crate::process_identity::capture(&mut child, request);
         self.effects.insert(launch.instance.clone(), launch.effect);
         self.children.insert(launch.instance.clone(), child);
-        Ok(Decision::Admitted { pid, receipt })
+        Ok(Decision::Admitted {
+            pid,
+            receipt,
+            identity,
+        })
     }
 }
 

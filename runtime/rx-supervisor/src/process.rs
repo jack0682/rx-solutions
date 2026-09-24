@@ -88,8 +88,11 @@ pub trait Backend {
         }
         let receipt = Receipt::reported(request, Evidence::NoRequirements)
             .map_err(SpawnFailure::NotStarted)?;
-        self.spawn(launch, authorize)
-            .map(|pid| Decision::Admitted { pid, receipt })
+        self.spawn(launch, authorize).map(|pid| Decision::Admitted {
+            pid,
+            receipt,
+            identity: None,
+        })
     }
     fn pid(&self, instance: &Id) -> Option<u32>;
     fn owns(&self, instance: &Id) -> bool;
@@ -189,9 +192,16 @@ impl Backend for OsProcesses {
         if !request.requirements().needs_enforcement() {
             let receipt = Receipt::reported(request, Evidence::NoRequirements)
                 .map_err(SpawnFailure::NotStarted)?;
-            return self
-                .spawn(launch, authorize)
-                .map(|pid| Decision::Admitted { pid, receipt });
+            let pid = self.spawn(launch, authorize)?;
+            let identity = self
+                .children
+                .get_mut(&launch.instance)
+                .and_then(|child| crate::process_identity::capture(child, request));
+            return Ok(Decision::Admitted {
+                pid,
+                receipt,
+                identity,
+            });
         }
         #[cfg(target_os = "linux")]
         {

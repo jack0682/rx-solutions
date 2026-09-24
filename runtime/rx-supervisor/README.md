@@ -207,14 +207,10 @@ instance. Lifecycle authority, registration revision/catalog and F1 admission
 are checked anew. No prior F1 receipt or work permission is restored. New query
 fields show dispositions, requests, consumption and the recovery gate separately.
 
-An unable-to-resolve disposition remains blocking because an external investigation
-provider is not implemented here. This is not a design claim that an unresolved
-past must block resources forever. A future authorized recovery procedure must
-establish relevant current conditions, residual commands, control authority and
-physical support/handover where applicable, then connect its evidence to the
-original execution. Total manager-process/Child-handle loss, a missing original
-PID binding and follow-up adjudication of an unable disposition are unsupported.
-These provider limits also appear in query and passage output.
+An unable-to-resolve disposition remains blocking; follow-up adjudication of that
+immutable disposition is not implemented. The separate F9 kernel investigation
+below supports total manager loss only with a recorded scoped birth identity.
+Missing original birth identity cannot be retroactively supplied from a PID.
 
 The same `tools/registration_passage.py` procedure now continues the real Linux
 lost-manager-ownership scene through owned exit, separate disposition, rejection
@@ -541,8 +537,98 @@ The runtime probe measured a read-only cgroup mount and EROFS on child creation;
 that excluded cgroup v2 for this deployment posture. It is not a claim that
 cgroup v2 cannot enforce limits under a properly delegated host configuration.
 
+## Total manager loss: scoped process investigation (F9)
+
+`rx-solutionsd investigate CONFIG` opens the recorded run, preserves UNKNOWN and
+reports what the Linux kernel can establish about the original **direct process**.
+It does not adopt, signal, reap or replay a saved PID. Alive and unverifiable
+findings do not automatically create an immutable UnableToResolve disposition.
+
+The real OS backend captures birth identity while it still owns an unreaped Child.
+The opaque `OwnedProcessIdentity` is bound to the complete launch request; the
+supervisor commits its inert stored form with PID and Starting state, then copies
+it to the matching registration execution. Capture or persistence failure leaves
+no usable cold-recovery evidence. No post-restart backfill is performed.
+
+The context includes boot ID, observer PID/time/user/mount namespace identities,
+UID/EUID, validated proc mount/view, PID-1 start ticks and time-namespace offsets.
+Each context is read twice coherently and checked around the process observation.
+A namespace-inode match alone is insufficient: sequential containers actually
+reused all observed namespace inodes. The initially failing counterexample is
+retained in the F9 evidence. An init-birth match raises confidence; it is **not**
+a cryptographic or permanent unique namespace UUID. The lifetime inference is
+that simultaneously live namespaces cannot share the kernel inode and reuse
+occurs only after the prior namespace is gone. This inference is not a positive
+observation of the saved process and must not bypass the scope guard.
+
+A mismatch means `saved-namespace-not-observable-in-current-scope`: observations
+of this namespace's PID cannot describe the saved namespace. **Replacing the
+container leaves the old record permanently Unverifiable through this kernel
+path.** Crossing namespace lifetimes requires another evidence provider, outside
+this scope. Likewise, pre-F9 records without stored birth identity are permanently
+unsupported by this provider, not temporarily waiting for a PID backfill.
+
+Within a matched context, `pidfd_open` ESRCH establishes scoped kernel absence;
+otherwise two proc stat reads compare the original start ticks. A different start
+time means the PID was reused; a matching live process blocks resume. A same-tick
+identity collision conservatively blocks rather than proves closure. Zombies,
+process-read races, scope-read races, missing/hidden proc data, permission errors
+and unsupported platforms are distinct Unverifiable findings. The observer pidfd
+never enters the owned Child map and is never signalled.
+
+`Registry::investigate(ObservationRef)` reads the original record itself. Its
+private-field `ProcessInvestigation` has no deserializer or public constructor.
+Legacy string Investigation references remain readable history only; they cannot
+be submitted as new evidence or converted into this type. Stored typed summaries
+also cannot restore current evidence. This trusts the existing journal and OS;
+it does not cryptographically authenticate truth against malicious DB/OS authors.
+
+Explicit `rx-solutionsd resume CURRENT_CONFIG NEXT_CONFIG` initially supports one
+`rx/status-http` selection, the same state root and identical reviewed plan except
+for a new run ID, with zero automatic restart budget. The status recipe creates
+no subprocesses. OriginalNotRunning evidence permits ConfirmedClosure followed by
+a fresh investigation and the existing F3 one-shot ResumeRequest/Permit. Original
+UNKNOWN and PastOutcome::Unresolved remain unchanged. No past outcome, descendant
+shutdown, resource handover, physical result or work permission is recovered.
+
+There remains exactly one root `registration.db`. Original `supervisor.db` is
+preserved. Explicit resume creates **`runs/<run-id>/supervisor.db`**, a new execution
+journal kind justified by F3's fresh-run/store isolation requirement. Ordinary
+`run` selects only the original or an already existing matching run store; an
+unknown run ID is refused without creating a new run store. A crash after creating
+an incomplete new run store fails closed; automatic journal repair is not supplied.
+The registry's single writer lock spans the old and new execution stores.
+
+```sh
+python3 tools/manager_loss_passage.py --image RX_RUNTIME_IMAGE --builder RUST_BUILDER \
+  --evidence /absolute/path/to/fresh-manager-evidence
+# Separate counterexample fixture, not the product security posture:
+python3 tools/manager_loss_passage.py --image RX_RUNTIME_IMAGE --builder RUST_BUILDER \
+  --pid-reuse-fixture --evidence /absolute/path/to/fresh-reuse-evidence
+```
+
+The ordinary passage uses UID10001, no capabilities, read-only root and an
+external PID-1 fixture observer to retain the namespace while killing the actual
+manager. A pre-loss observer pidfd is used only for fixture cleanup. The separate
+reuse fixture enables only CAP_CHECKPOINT_RESTORE with seccomp unconfined and UID0
+inside a private PID namespace. It actually reuses the RX child's PID through
+clone3 and keeps the unrelated replacement alive while RX investigates/resumes.
+That privilege creates a counterexample; it is not RX's recovery mechanism.
+The product posture's clone3 set_tid probe returned ENOSYS.
+
+Kernel sources: [proc stat starttime](https://man7.org/linux/man-pages/man5/proc_pid_stat.5.html),
+[pidfd_open](https://man7.org/linux/man-pages/man2/pidfd_open.2.html),
+[namespace identity/lifetime](https://man7.org/linux/man-pages/man7/namespaces.7.html),
+[PID namespaces](https://man7.org/linux/man-pages/man7/pid_namespaces.7.html), and
+[time namespaces](https://man7.org/linux/man-pages/man7/time_namespaces.7.html).
+The stored optional birth field is additive; old records remain readable without
+it, but older writers are not claimed to understand new evidence. The Rust
+Investigation input now requires typed provider evidence; the former string API
+is intentionally source-incompatible. No shared SDK, wire contract, new daemon,
+new service or second production binary is introduced.
+
 ## Further connections
 
 Tests check failures before/after startup commit, persistence failure after actual spawn, unknown backend results, supervisor restart, loss of shutdown authority, rejection of force termination for control processes, stop latch during storage failure, exit-observation repersistence, dependency ordering and bounded software restart. A separate actual non-actuating HTTP child also checks instance-correlated readiness, incorrect responses/file tampering and owned-process shutdown.
 
-Release recipes, device/network permissions and P/Host lifecycle permit validation for actual ROS/driver/BT processes, native shutdown/support handover evidence, process adoption/proof of absence after restart and the full installation/update supervisor remain incomplete. Prepared ports or simulated authority do not count as substitutes for that validation. Current state output is stdout/storage; management command/status integration with the P operations UI also remains future work. The first physical cell is NOT_COMMISSIONED.
+Release recipes, device/network permissions and P/Host lifecycle permit validation for actual ROS/driver/BT processes, native shutdown/support handover evidence, process adoption and the full installation/update supervisor remain incomplete. The F9 section defines the narrower supported kernel proof of direct-process absence after restart. Prepared ports or simulated authority do not count as substitutes for that validation. Current state output is stdout/storage; management command/status integration with the P operations UI also remains future work. The first physical cell is NOT_COMMISSIONED.

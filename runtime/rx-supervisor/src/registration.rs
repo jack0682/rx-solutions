@@ -90,6 +90,8 @@ pub struct Observation {
     pub pid: Option<u32>,
     pub exit_code: Option<i32>,
     pub detail: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub process_identity: Option<crate::process_identity::StoredProcessIdentity>,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -342,11 +344,15 @@ impl<R: Repository> Registry<R> {
         binding: &Binding,
         permit: Option<&ResumePermit>,
     ) -> Result<()> {
+        if let Some(permit) = permit {
+            permit.check_context()?;
+        }
         self.repository.transact(|tx| {
             eligible(tx, binding)?;
             if binding.registration == binding.instance { return Err(StoreError::Invalid("registration is not an execution instance".into())); }
             recovery::admit(tx,binding,permit)?;
             let execution = Execution { binding: binding.clone(), last_observed: Observation {
+                process_identity: None,
                 state: ExecutionState::Assigned, pid: None, exit_code: None,
                 detail: "assignment recorded before external effects; execution outcome not confirmed".into(),
             } };
