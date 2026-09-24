@@ -480,7 +480,9 @@ review the old records; there is no automatic migration or weaker fallback.
 
 The Linux backend initially supports only author-verified `/usr/bin/python3`
 non-actuating programs. A fixed embedded bootstrap waits on a private inherited
-socket. One live Child owns the same PID throughout bootstrap and target exec.
+socket. The bootstrap uses Python isolated mode with bytecode writes disabled,
+so current-directory and user-site modules cannot run before limit application.
+One live Child owns the same PID throughout bootstrap and target exec.
 The parent applies soft and hard RLIMIT_AS through safe `rustix::process::prlimit`,
 reads `/proc/PID/limits`, then rechecks registration and lifecycle authorization
 before sending EXEC. After EOF it independently checks target argv, the limits and

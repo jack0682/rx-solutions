@@ -201,7 +201,7 @@ impl OsProcesses {
             .map_err(|e| Error::Invalid(e.to_string()))?;
             let mut command = Command::new("/usr/bin/python3");
             command
-                .args(["-c", kernel.gate(), &payload])
+                .args(["-I", "-B", "-c", kernel.gate(), &payload])
                 .env_clear()
                 .env("PATH", "/usr/bin:/bin")
                 .env("LANG", "C.UTF-8")
@@ -525,6 +525,40 @@ mod tests {
                 Instant::now() < deadline,
                 "owned gate exit was not observed"
             );
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        backend.forget_exited(&launch.instance).unwrap();
+    }
+    #[test]
+    fn gate_excludes_current_directory_python_module_shadowing() {
+        const WORKER: &str = "RX_F8_SHADOW_TEST_WORKER";
+        if std::env::var_os(WORKER).is_none() {
+            let root = tempfile::tempdir().unwrap();
+            std::fs::write(root.path().join("json.py"),
+                "from pathlib import Path\nPath('shadow-executed').write_text('unexpected')\nraise RuntimeError('untrusted cwd module')\n").unwrap();
+            let output = Command::new(std::env::current_exe().unwrap())
+                .args(["--exact", "process::linux_limits::tests::gate_excludes_current_directory_python_module_shadowing", "--nocapture"])
+                .env(WORKER, "1").current_dir(root.path()).output().unwrap();
+            assert!(output.status.success(), "{output:?}");
+            assert!(!root.path().join("shadow-executed").exists());
+            return;
+        }
+        let root = tempfile::tempdir().unwrap();
+        let (launch, request) = fixture(root.path());
+        let mut backend = OsProcesses::new(root.path().join("logs")).unwrap();
+        let result = backend.spawn_limited(&launch, &request, &mut || true);
+        assert!(
+            matches!(result, Ok(Decision::Admitted { .. })),
+            "isolated gate must reach target exec"
+        );
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while !root.path().join("target-entered").exists() {
+            assert!(Instant::now() < deadline);
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        backend.terminate(&launch.instance, true).unwrap();
+        while backend.exited(&launch.instance).unwrap().is_none() {
+            assert!(Instant::now() < deadline);
             std::thread::sleep(Duration::from_millis(5));
         }
         backend.forget_exited(&launch.instance).unwrap();
