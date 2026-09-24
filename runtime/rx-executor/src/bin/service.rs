@@ -155,7 +155,17 @@ mod linux {
 #[cfg(target_os = "linux")]
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    if linux::run().await? {
+    let outcome = match linux::run().await {
+        Ok(outcome) => outcome,
+        Err(error) => {
+            if let Some(refusal) = rx_service_status::storage_ownership_refusal(error.as_ref()) {
+                eprintln!("{}", serde_json::to_string(&refusal)?);
+                return Err(refusal.condition.into());
+            }
+            return Err(error);
+        }
+    };
+    if outcome {
         Ok(())
     } else {
         Err("executor stop needs attention; inspect persistent intent and P state".into())

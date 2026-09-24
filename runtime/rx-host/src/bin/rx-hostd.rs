@@ -1,6 +1,16 @@
 use rx_host::service::{self, config::Loaded};
 #[tokio::main]
 async fn main() -> service::Result<()> {
+    if let Err(error) = run().await {
+        if let Some(refusal) = rx_service_status::storage_ownership_refusal(error.as_ref()) {
+            eprintln!("{}", serde_json::to_string(&refusal)?);
+            return Err(refusal.condition.into());
+        }
+        return Err(error);
+    }
+    Ok(())
+}
+async fn run() -> service::Result<()> {
     let args = std::env::args().skip(1).collect::<Vec<_>>();
     if args.len() == 5 && args[0] == "prepare-binding-change" {
         let plan = rx_package::policy::read(std::path::Path::new(&args[1]))?;

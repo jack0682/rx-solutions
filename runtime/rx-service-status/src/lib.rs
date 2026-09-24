@@ -2,6 +2,7 @@
 mod clock;
 mod file;
 mod reporter;
+mod support;
 pub use clock::{Clock, LinuxBoottime};
 pub use reporter::Reporter;
 use rx_domain::{canonical, types::*};
@@ -11,6 +12,7 @@ use std::{
     path::{Path, PathBuf},
     sync::Arc,
 };
+pub use support::{SupportRefusal, storage_ownership_refusal};
 
 pub const SCHEMA: &str = "rx.protocol-guarded-status.v1";
 pub const MAX_BYTES: usize = 65_536;

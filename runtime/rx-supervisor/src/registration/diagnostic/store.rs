@@ -677,10 +677,10 @@ impl<R: Repository> Consumer<R> {
             checkpoints: CheckpointPolicy::current(),
             limitations: vec![
                 "diagnostic tracking is not initial or replacement binding acceptance",
-                "positive consumer-side binding and work-use providers unsupported",
+                "production operating-area provider integration absent; verified external decisions and explicit replacement are separate APIs; diagnostic tracking grants no work permission",
                 "explicit checkpoints do not prove continuous availability between samples",
-                "actual device operations, collaborative resource binding, Linux resource enforcement and multi-host unsupported",
-                "external recovery investigator and control-effect group-target signal race remain unsupported/unresolved",
+                "diagnostic tracking does not operate devices or reserve resources; supervisor separately enforces Linux per-process virtual address-space limits; multi-host unsupported",
+                "total manager loss is separately investigated only for same-namespace non-actuating direct-child absence; diagnostic history restores no ownership; guarded shutdown requires final report plus owned exit",
             ],
         })
     }
