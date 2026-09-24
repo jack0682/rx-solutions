@@ -22,6 +22,9 @@ pub fn release_boundary() -> serde_json::Value {
         "authenticated_immutable_provenance": "NOT_ESTABLISHED_FOR_OS_AND_VERIFIER; DEVELOPMENT_RELEASE_CONTENT_AUTHENTICATED_AT_CHECKPOINT",
         "release_key": rx_package::release::root::KEY_ID,
         "product_release_custody_and_rotation": "NOT_ESTABLISHED",
+        "operating_area_judge": "OPT_IN_DEVELOPMENT_OFFLINE_RULE_JUDGE; PHYSICAL_SAFETY_QUALITY_EQUIPMENT_QUALIFICATION_NOT_GRANTED",
+        "judge_delivery_order": "COOPERATING_MAILBOX_LOCK_THROUGH_WORK_COMMIT; NONCOOPERATING_PUBLICATION_NOT_ORDERED",
+        "work_commit_residuals": ["TTL_CONTINUES_DURING_POST_CUT_IO", "HTTP_OBSERVATION_IS_AS_OF"],
         "whole_state_rollback_or_deletion": "NOT_DETECTED",
         "offline_revocation_freshness": "NOT_ESTABLISHED",
         "interval": "EXPLICIT_CALLER_DRIVEN_CHECKPOINTS",
@@ -188,7 +191,36 @@ pub fn programs_from_release(
             port_parameter: name("port"),
         },
     };
-    Ok([(program.id.clone(), program)].into_iter().collect())
+    Ok([(program.id.clone(), program)].into())
+}
+
+/// Explicit compiled opt-in. The ordinary release catalog stays unconfigured;
+/// site input selects this recipe but cannot provide keys or policy fields.
+pub fn development_work_program(
+    root: &Path,
+    release: &rx_package::release::VerifiedRelease,
+) -> Result<Program> {
+    let mut work = programs_from_release(root, release)?
+        .remove(&Name::new("rx/status-http").expect("literal"))
+        .expect("standard status recipe");
+    let name = |s: &str| Name::new(s).expect("literal name");
+    let policy = rx_package::operating_area::PUBLIC_KEY;
+    work.id = name(rx_package::operating_area::PROGRAM);
+    work.decision_policy = Some(crate::decision::Policy {
+        authorities: [(
+            name(rx_package::operating_area::KEY_ID),
+            crate::decision::Authority {
+                issuer: name(rx_package::operating_area::ISSUER),
+                public_key: policy,
+                operating_area: name(rx_package::operating_area::AREA),
+                roles: [name(rx_package::operating_area::ROLE)].into(),
+                kinds: [crate::decision::Kind::WorkUse].into(),
+                max_ttl_ms: Counter(rx_package::operating_area::MAX_TTL_MS),
+            },
+        )]
+        .into(),
+    });
+    Ok(work)
 }
 
 /// Two intended uses of the same diagnostic publisher, not two invented

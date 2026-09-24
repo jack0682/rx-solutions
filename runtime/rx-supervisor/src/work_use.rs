@@ -16,16 +16,8 @@ pub(crate) fn invalid(reason: &str) -> Error {
 pub(crate) const ROLE: &str = "work/support-gap-report";
 pub(crate) const READINESS_ROLE: &str = "diagnostics/support-summary";
 
-/// Task data only. It cannot supply a policy, readiness declaration or permission.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct Task {
-    pub operation: Id,
-    pub selection: Name,
-    pub operating_area: Name,
-    pub required_native_packages: Counter,
-    pub required_support_profiles: Counter,
-}
+/// Task data only, never a policy or permission.
+pub use rx_package::operating_area::Task;
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Comparison {
@@ -90,8 +82,13 @@ pub struct Prepared {
     pub(crate) task: Task,
     pub(crate) context: Digest,
     pub(crate) proof: decision::VerifiedDecision,
+    pub(crate) assessment: WorkUseAssessment,
 }
 impl Prepared {
+    /// A scoped judgment observation, not a current use capability.
+    pub fn assessment(&self) -> &WorkUseAssessment {
+        &self.assessment
+    }
     pub fn decision(&self) -> &decision::VerifiedDecision {
         &self.proof
     }
@@ -156,8 +153,9 @@ impl Input {
             ),
             decision,
             signature_verification: "EXTERNAL_SIGNATURE_AND_CONTEXT_VERIFIED_AT_LOGICAL_CUT".into(),
-            operating_area_policy: "NOT_EVALUATED_BY_HOST; PRODUCTION_PROVIDER_NOT_CONNECTED"
-                .into(),
+            operating_area_policy:
+                "EXTERNAL_ISSUER_DECISION; NOT_EVALUATED_BY_HOST; PHYSICAL_POLICY_NOT_ATTESTED"
+                    .into(),
             current_permission: "NONE; HISTORICAL_WORK_RESULT_ONLY".into(),
             physical_qualification: "NOT_PERFORMED".into(),
             observation_origin: self.origins.clone(),

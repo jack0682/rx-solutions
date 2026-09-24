@@ -622,7 +622,7 @@ impl WorkUseAssessment {
             }],
             decision_reference: None,
             verified_decision: None,
-            positive_provider: "UNSUPPORTED: operating-area positive permission provider connection",
+            positive_provider: "NOT_EVALUATED: unscoped history has no live provider assessment",
         }
     }
     pub(crate) fn assessed(request: &WorkUseRequest, reply: WorkUseReply) -> Self {
@@ -651,7 +651,7 @@ impl WorkUseAssessment {
                 decision_reference: reference
                     .as_ref()
                     .map(|r| n(&format!("decision/{}", r.decision))),
-                positive_provider: "external signed-decision verification only; operating-area service connection unsupported",
+                positive_provider: "external signed-decision verification; transport connection is reported separately; not physical policy correctness",
                 verified_decision: reference,
             };
         }
@@ -718,7 +718,7 @@ impl WorkUseAssessment {
                 .collect(),
             decision_reference: decision,
             verified_decision: None,
-            positive_provider: "UNSUPPORTED: operating-area positive permission provider connection",
+            positive_provider: "NO_VERIFIED_POSITIVE_DECISION; transport status is separate",
         }
     }
 }
