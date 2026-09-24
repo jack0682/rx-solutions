@@ -33,7 +33,7 @@ struct Configuration {
     #[serde(default)]
     services: Option<ServiceConfigurations>,
 }
-fn read(path: &Path) -> Result<Configuration> {
+fn read_json<T: serde::de::DeserializeOwned>(path: &Path) -> Result<T> {
     let metadata = fs::symlink_metadata(path)?;
     if !metadata.is_file() || metadata.file_type().is_symlink() || metadata.len() > 1_048_576 {
         return Err("configuration file type/size".into());
@@ -45,7 +45,10 @@ fn read(path: &Path) -> Result<Configuration> {
     if bytes.len() > 1_048_576 {
         return Err("configuration file too large".into());
     }
-    let value: Configuration = canonical::decode_json(&bytes)?;
+    Ok(canonical::decode_json(&bytes)?)
+}
+fn read(path: &Path) -> Result<Configuration> {
+    let value: Configuration = read_json(path)?;
     if value.schema != "rx.solutions-startup.v1" {
         return Err("startup schema".into());
     }
@@ -90,11 +93,26 @@ async fn main() -> Result<()> {
             args[0].as_str(),
             "inspect" | "init" | "run" | "activate" | "investigate"
         ))
-        || (args.len() == 3 && args[0] == "resume"))
+        || (args.len() == 3 && matches!(args[0].as_str(), "resume" | "run")))
     {
-        return Err("usage: rx-solutionsd inspect|init|run|activate|investigate CONFIG; rx-solutionsd resume CURRENT_CONFIG NEXT_CONFIG".into());
+        return Err("usage: rx-solutionsd inspect|init|run|activate|investigate CONFIG; rx-solutionsd resume CURRENT_CONFIG NEXT_CONFIG; rx-solutionsd run CONFIG WORK_TASK".into());
     }
     let configuration = read(Path::new(&args[1]))?;
+    let mut work_task: Option<rx_supervisor::work_use::Task> =
+        if args[0] == "run" && args.len() == 3 {
+            let task: rx_supervisor::work_use::Task = read_json(Path::new(&args[2]))?;
+            if !configuration
+                .plan
+                .processes
+                .iter()
+                .any(|p| p.id == task.selection && p.program.as_str() == "rx/status-http")
+            {
+                return Err("work task requires a selected non-actuating status program".into());
+            }
+            Some(task)
+        } else {
+            None
+        };
     let root = Path::new("/opt/rx");
     let mut programs = release_programs(root)?;
     let initializers = if let Some(services) = &configuration.services {
@@ -289,6 +307,35 @@ async fn main() -> Result<()> {
                         })
                     );
                     last_output = text;
+                }
+                if work_task.as_ref().is_some_and(|task| {
+                    !matches!(
+                        report.state.records[&task.selection].phase,
+                        rx_supervisor::model::Phase::Pending
+                            | rx_supervisor::model::Phase::Prepared
+                            | rx_supervisor::model::Phase::SpawnEntered
+                            | rx_supervisor::model::Phase::Starting
+                    )
+                }) {
+                    let task = work_task.take().expect("checked task");
+                    let result = supervisor
+                        .prepare_work(
+                            task.clone(),
+                            &rx_supervisor::use_assessment::NoWorkUseProvider,
+                        )
+                        .and_then(|prepared| supervisor.commit_work(&prepared));
+                    match result {
+                        Ok(result) => println!(
+                            "{}",
+                            serde_json::json!({"schema":"rx.work-use-result.v1","result":result})
+                        ),
+                        Err(error) => println!(
+                            "{}",
+                            serde_json::json!({"schema":"rx.work-use-result.v1","operation":task.operation,
+                            "selection":task.selection,"gate":"DENIED","reason":error.to_string(),"current_permission":"NONE",
+                            "operating_area_provider":"NOT_CONNECTED"})
+                        ),
+                    }
                 }
                 if report.all_exited {
                     if !report.guarded_shutdown_confirmed {

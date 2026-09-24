@@ -247,6 +247,68 @@ pub struct ReadinessAssessment {
     meaning: &'static str,
 }
 impl ReadinessAssessment {
+    pub(crate) fn support_gap_input(
+        &self,
+        profile: &ReadinessProfile,
+        configuration: Digest,
+    ) -> crate::Result<crate::work_use::Input> {
+        use crate::work_use::{digest, invalid};
+        if self.state != ConditionState::Satisfied {
+            return Err(invalid("readiness-not-satisfied"));
+        }
+        let evidence = self
+            .evidence
+            .as_ref()
+            .ok_or_else(|| invalid("fresh-report-missing"))?;
+        let count = |field: &str| -> crate::Result<(Counter, ReportOrigin)> {
+            let candidates: Vec<_> = profile
+                .conditions
+                .iter()
+                .filter_map(|(name, condition)| {
+                    if let ReadinessCondition::Unsigned {
+                        field: authored,
+                        origin,
+                    } = condition
+                        && authored.as_str() == field
+                    {
+                        Some((name, *origin))
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+            if candidates.len() != 1 {
+                return Err(invalid("report-count-not-authored"));
+            }
+            let (name, origin) = candidates[0];
+            let value = self
+                .conditions
+                .iter()
+                .find(|c| c.name == *name && c.state == ConditionState::Satisfied)
+                .and_then(|c| c.observed.as_ref())
+                .and_then(Value::as_u64)
+                .ok_or_else(|| invalid("report-count-not-observed"))?;
+            Ok((Counter(value), origin))
+        };
+        let (native_packages, native_origin) = count("native_packages")?;
+        let (support_profiles, support_origin) = count("support_profiles")?;
+        Ok(crate::work_use::Input {
+            subject: self
+                .subject
+                .clone()
+                .ok_or_else(|| invalid("current-subject-missing"))?,
+            configuration,
+            native_packages,
+            support_profiles,
+            observed_at: evidence.observed_at.clone(),
+            source_digest: evidence.payload_digest,
+            readiness_semantics: digest(
+                "RX-WORK-READINESS-v1",
+                &(profile, &self.scope, self.state, &self.conditions),
+            )?,
+            origins: serde_json::json!({"basis":"COMPONENT_SELF_REPORT", "native_packages":native_origin,"support_profiles":support_origin}),
+        })
+    }
     pub(crate) fn diagnostic_basis(&self) -> Option<(Id, Digest, TimePoint)> {
         self.evidence.as_ref().map(|e| {
             (

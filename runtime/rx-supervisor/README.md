@@ -443,9 +443,10 @@ is an in-memory Rust field, not a persisted/shared-contract schema change.
 The original `open`/`open_with_resume` keep their single non-actuating component
 and explicit-requirements restrictions. Resident mode intentionally refuses the
 single-component assessment/decision APIs, even for a one-process resident plan.
-It provides lifecycle registration, not F3 recovery, F4 functional readiness or
-work permission, F5 consumption/replacement, or F6 external decision integration.
-Default decision anchors remain absent. No registration network API is added.
+Its ordinary lifecycle path does not infer work permission or perform F5
+consumption/replacement. F9 recovery and F10 report work are separate explicit
+paths described below. Default decision anchors remain absent, and the original
+single-component assessment APIs stay restricted. No registration network API is added.
 
 `tools/resident_registration_passage.py --image IMAGE --evidence FRESH_DIRECTORY`
 builds the candidate daemon and runs it at `/test/rx-solutionsd` against the
@@ -626,6 +627,112 @@ it, but older writers are not claimed to understand new evidence. The Rust
 Investigation input now requires typed provider evidence; the former string API
 is intentionally source-incompatible. No shared SDK, wire contract, new daemon,
 new service or second production binary is introduced.
+
+## Enforced support-gap work commitment (F10)
+
+A work judgment now guards a concrete, bounded non-actuating operation:
+**support-gap report commitment**. Given required native-package/profile counts
+and current reported counts, the result contains observed, required and
+`shortfall = max(required - observed, 0)` for each. Reported profiles 4 versus
+required 6 produces shortfall 2; changing the requirement to 4 produces 0.
+These calculations describe the supplied self-report, not equipment qualification
+or an operating-area policy judgment. The output is a work result, not a grant receipt.
+
+F5 diagnostic generation/consumption remains DIAGNOSTIC_ONLY with work use
+UNSUPPORTED. Measurement found no existing work action there or in the status
+service (POST returns CONTROL_NOT_EXPOSED). Gating those reads would change their
+meaning. Instead, the new operation commits a distinct result and decision
+consumption to the **existing registration repository**. Its CAS and atomic
+control events provide one completion boundary without another writable output
+mount, database, service, process program or daemon.
+
+`RegisteredSupervisor::prepare_work(Task, WorkUsePort)` obtains fresh self-report
+readiness and asks the external provider about the exact work context. Only a
+verified external F6 decision can construct the private, non-deserializable
+`work_use::Prepared`. The operation ID, demands, input digest, current registration
+and revision, program/catalog, run/instance, configuration and authored readiness
+meaning are additional bindings. F6 issuer, kind, context, policy, epoch, monotonic
+TTL and revocation checks remain intact. The fixed work role is
+`work/support-gap-report`; its observation profile is `diagnostics/support-summary`.
+Caller task data cannot replace either role, the catalog or its issuer policy.
+
+`commit_work(&Prepared)` reobserves and rejects changed input/readiness/context,
+then rechecks current registration/execution inside the transaction. It writes the
+derived result under the operation ID and a unique decision-consumption record
+using CAS, together with their control events. **The logical cut is the last live
+decision check in a successful atomic transaction.** This is the claimed use and
+completion point; it is not a claim about the later commit-IO completion clock.
+A failed transaction has no completed work or consumed authorization. A still-live
+prepared proof may be retried only through all current checks again.
+
+The SQLite Immediate transaction holds its write lock from the transaction's
+start, closing registration/revision and consumption-key changes underneath it.
+A private receiving helper retains the F6 revocation-ledger mutex across the
+**entire transact call**, including physical commit. A concurrent revocation waits
+and takes effect for the next receiving check; it does not retroactively rewrite
+a committed result. Tests also cover a waiting revocation after transaction
+rollback, where a subsequent retry is refused as revoked.
+
+Exactly two timing residuals remain:
+
+1. A monotonic TTL may expire during commit IO **after the logical cut**. A
+   successful transaction still retains its result; it asserts validity at the
+   logical cut, not at IO completion. A delayed-commit test exercises this case.
+2. The HTTP self-report and SQL commit are not physically atomic. Counts retain
+   their own observation timestamp, execution instance and F4 ReportOrigin. They
+   do not claim continuous or commit-time truth about an external world.
+
+Duplicates return revision conflict without another result or permission
+consumption. A lost result response is resolved by `recorded_work(selection, id)`;
+resubmission cannot execute the same operation again. An injected rollback after
+both writes leaves both absent. An injected error **after successful commit** is
+response loss, not rollback, and the operation ID recovers its durable result.
+Receiver restart invalidates retained proofs while historical results remain.
+
+`work_use::Report` is a deserializable, inert history DTO. It records observation
+provenance and labels signature verification separately from operating-area policy:
+`EXTERNAL_SIGNATURE_AND_CONTEXT_VERIFIED_AT_LOGICAL_CUT`,
+`NOT_EVALUATED_BY_HOST; PRODUCTION_PROVIDER_NOT_CONNECTED`, and
+`NONE; HISTORICAL_WORK_RESULT_ONLY` for current permission. Neither a report, a
+stored F6 reference nor a past WorkUseAssessment can become Prepared. The host
+adds no signing key, positive issuer or site-configurable anchor.
+
+The same daemon optionally accepts one task as `rx-solutionsd run CONFIG WORK_TASK`:
+
+```json
+{
+  "operation": "f07f98af-8b41-4af7-a5f5-5e95337b5f59",
+  "selection": "status",
+  "operating_area": "example/area",
+  "required_native_packages": "1000",
+  "required_support_profiles": "6"
+}
+```
+
+This mode evaluates the task once after the selected status process leaves its
+startup phases and emits `rx.work-use-result.v1`. Shipping catalogs and their
+digests are unchanged and still contain **no decision anchors**. Consequently
+shipping work is denied with a named reason while ordinary daemon startup and
+diagnostic reads remain available. There is no production operating-area provider
+connection. Positive tests use a separately authored catalog and an external
+OpenSSL test issuer; they are not actual operating approvals.
+
+```sh
+python3 tools/work_use_passage.py --image RX_RUNTIME_IMAGE --builder RUST_BUILDER \
+  --evidence /absolute/path/to/fresh-work-evidence
+```
+
+The actual runtime passage runs the shared receiving code with installed release
+counts, confirms derived output under the test issuer, changes conditions between
+judgment and commit, and exercises expiry/revocation/duplicates/response loss/store
+failure. A separate observer confirms the shipping daemon is healthy after work
+denial and has zero result/consumption rows. The unchanged library32, resident,
+resource and manager-loss passages remain separate regression evidence.
+
+This adds local Rust task/result APIs and registration document schemas. It does
+not change Program serialization, shipping catalogs, shared SDK, wire/proto,
+physical-operation permission or F5 diagnostic meaning. Existing observers of
+historical decisions still do not hold a current authorization capability.
 
 ## Further connections
 
