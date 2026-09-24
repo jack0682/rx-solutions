@@ -33,6 +33,8 @@ struct Configuration {
     plan: Plan,
     #[serde(default)]
     services: Option<ServiceConfigurations>,
+    #[serde(default)]
+    operating_area_mailbox: Option<PathBuf>,
 }
 fn read_json<T: serde::de::DeserializeOwned>(path: &Path) -> Result<T> {
     let metadata = fs::symlink_metadata(path)?;
@@ -117,26 +119,35 @@ async fn run() -> Result<()> {
             args[0].as_str(),
             "inspect" | "init" | "run" | "activate" | "investigate"
         ))
-        || (args.len() == 3 && matches!(args[0].as_str(), "resume" | "run")))
+        || (args.len() == 3 && matches!(args[0].as_str(), "resume" | "run" | "activate")))
     {
-        return Err("usage: rx-solutionsd inspect|init|run|activate|investigate CONFIG; rx-solutionsd resume CURRENT_CONFIG NEXT_CONFIG; rx-solutionsd run CONFIG WORK_TASK".into());
+        return Err("usage: rx-solutionsd inspect|init|run|activate|investigate CONFIG; rx-solutionsd resume CURRENT_CONFIG NEXT_CONFIG; rx-solutionsd run|activate CONFIG WORK_TASK".into());
     }
     let configuration = read(Path::new(&args[1]))?;
     let mut work_task: Option<rx_supervisor::work_use::Task> =
-        if args[0] == "run" && args.len() == 3 {
+        if matches!(args[0].as_str(), "run" | "activate") && args.len() == 3 {
             let task: rx_supervisor::work_use::Task = read_json(Path::new(&args[2]))?;
-            if !configuration
-                .plan
-                .processes
-                .iter()
-                .any(|p| p.id == task.selection && p.program.as_str() == "rx/status-http")
-            {
+            if !configuration.plan.processes.iter().any(|p| {
+                p.id == task.selection
+                    && matches!(
+                        p.program.as_str(),
+                        "rx/status-http" | rx_package::operating_area::PROGRAM
+                    )
+            }) {
                 return Err("work task requires a selected non-actuating status program".into());
             }
             Some(task)
         } else {
             None
         };
+    let work_provider = match &configuration.operating_area_mailbox {
+        Some(path) => rx_supervisor::operating_area::ResidentWorkProvider::Offline(Box::new(
+            rx_supervisor::operating_area::OfflineWorkUseProvider::new(path),
+        )),
+        None => rx_supervisor::operating_area::ResidentWorkProvider::Unconfigured,
+    };
+    let mut prepared_work: Option<rx_supervisor::work_use::Prepared> = None;
+    let mut last_work_observation = String::new();
     let root = Path::new("/opt/rx");
     // Capture signed metadata once. A plan-selected state subdirectory cannot
     // reset the installation-wide release floor. No runtime root-key override.
@@ -165,6 +176,15 @@ async fn run() -> Result<()> {
     };
     let release = verify_release(root, &release_bytes, &revocation_bytes)?;
     let mut programs = programs_from_release(root, &release)?;
+    if configuration
+        .plan
+        .processes
+        .iter()
+        .any(|p| p.program.as_str() == rx_package::operating_area::PROGRAM)
+    {
+        let work = rx_supervisor::builtin::development_work_program(root, &release)?;
+        programs.insert(work.id.clone(), work);
+    }
     let initializers = if let Some(services) = &configuration.services {
         let initializers = services_from_release(root, services, &mut programs, &release)?;
         validate_service_plan(&configuration.plan, &initializers)?
@@ -260,7 +280,10 @@ async fn run() -> Result<()> {
         if configuration.services.is_some()
             || next.services.is_some()
             || configuration.plan.processes.len() != 1
-            || configuration.plan.processes[0].program.as_str() != "rx/status-http"
+            || !matches!(
+                configuration.plan.processes[0].program.as_str(),
+                "rx/status-http" | rx_package::operating_area::PROGRAM
+            )
             || configuration.state_subdirectory != next.state_subdirectory
             || configuration.plan.id == next.plan.id
         {
@@ -372,24 +395,43 @@ async fn run() -> Result<()> {
                             | rx_supervisor::model::Phase::Starting
                     )
                 }) {
-                    let task = work_task.take().expect("checked task");
-                    let result = supervisor
-                        .prepare_work(
-                            task.clone(),
-                            &rx_supervisor::use_assessment::NoWorkUseProvider,
-                        )
-                        .and_then(|prepared| supervisor.commit_work(&prepared));
-                    match result {
-                        Ok(result) => println!(
-                            "{}",
-                            serde_json::json!({"schema":"rx.work-use-result.v1","result":result})
-                        ),
-                        Err(error) => println!(
-                            "{}",
-                            serde_json::json!({"schema":"rx.work-use-result.v1","operation":task.operation,
-                            "selection":task.selection,"gate":"DENIED","reason":error.to_string(),"current_permission":"NONE",
-                            "operating_area_provider":"NOT_CONNECTED"})
-                        ),
+                    let task = work_task.as_ref().expect("checked task").clone();
+                    if let Some(prepared) = prepared_work.take() {
+                        let result =
+                            work_provider.commit(&prepared, || supervisor.commit_work(&prepared));
+                        match result {
+                            Ok(result) => println!(
+                                "{}",
+                                serde_json::json!({"schema":"rx.work-use-result.v1","result":result,"operating_area_provider":work_provider.observation()})
+                            ),
+                            Err(error) => println!(
+                                "{}",
+                                serde_json::json!({"schema":"rx.work-use-result.v1","operation":task.operation,"selection":task.selection,"gate":"DENIED","reason":error.to_string(),"current_permission":"NONE","operating_area_provider":work_provider.observation()})
+                            ),
+                        }
+                        work_task.take();
+                    } else {
+                        work_provider.begin_attempt();
+                        match supervisor.prepare_work(task.clone(), &work_provider) {
+                            Ok(prepared) => {
+                                println!(
+                                    "{}",
+                                    serde_json::json!({"schema":"rx.work-use-judgment.v1","operation":task.operation,"work_use_permission":prepared.assessment(),"operating_area_provider":work_provider.observation(),"meaning":"JUDGMENT_OBSERVATION_ONLY; COMMIT_RECHECK_REQUIRED"})
+                                );
+                                prepared_work = Some(prepared);
+                            }
+                            Err(error) => {
+                                let pending = work_provider.pending();
+                                let output=serde_json::json!({"schema":"rx.work-use-result.v1","operation":task.operation,"selection":task.selection,"gate":if pending{"PENDING"}else{"DENIED"},"reason":error.to_string(),"current_permission":"NONE","operating_area_provider":work_provider.observation()}).to_string();
+                                if output != last_work_observation {
+                                    println!("{output}");
+                                    last_work_observation = output;
+                                }
+                                if !pending {
+                                    work_task.take();
+                                }
+                            }
+                        }
                     }
                 }
                 if report.all_exited {

@@ -941,3 +941,43 @@ between checking bytes and use. Existing per-launch file hashes remain in force.
 Direct OS/Host/Python invocations and custom trusted Rust compositions are not
 sandboxed by a supervisor checkpoint. This is release-recipe authentication, not
 operating-area work authority, host attestation or physical qualification.
+
+## Offline operating-area judgment (G3)
+
+`rx/status-work-http` is an explicit development opt-in recipe. It clones the
+non-actuating status/readiness/address-space recipe but carries one compiled work
+issuer policy: `development/support-area`, role `work/support-gap-report`, WorkUse
+only. Original `rx/status-http` and the entire ordinary release catalog retain no anchors. The opt-in recipe is added only when the plan explicitly selects its compiled name. Site
+input cannot supply keys or change policy. The offline judge key is separate from
+the release key and never available to the host process through this integration.
+
+An optional `operating_area_mailbox` in startup configuration selects an existing
+real directory. It is transport configuration, not trust. Run or explicitly activate
+with one WorkTask: `rx-solutionsd run|activate CONFIG WORK_TASK`. The host publishes
+one sealed live challenge and waits for external signed bytes, keeping the original
+nonce/deadline across polls. It never launches a signer or reads a signing key.
+The platform one-shot judge evaluates its own bounded report-generation rule;
+policy denial is a real negative outcome, not a signing oracle.
+
+The daemon exposes the scoped judgment from Prepared, then reaches a separate
+commit checkpoint. It rechecks signed revocation and all F10 input/registration/
+readiness/context conditions. A cooperating mailbox lock remains held through the
+whole F10 physical commit, alongside the existing F6 ledger guard. Contention at
+use refuses the operation and is not retried. Awaiting a not-yet-complete publication
+before any permission/use is a bounded pending state, not a failed-use retry.
+Unscoped Registry.query remains NotEvaluated; saved history never becomes permission.
+The opt-in non-actuating recipe uses the same explicit software rearm/resume boundary.
+
+Conditions distinguish unconnected, issuer scope, expired TTL, untrusted claimed
+area, untrusted claimed role/kind, bad signature and verified revocation. Claimed
+field mismatch before F6 verification is not proof of issuer identity. Malformed,
+context/epoch, mailbox failure, pending delivery and issuer rule denial are separate.
+Old files do not restore a live Request after receiver restart; F9's unresolved
+execution gate still applies, and no recovery was weakened to manufacture a request.
+
+This is one development judge. No network judgment service or real safety/quality/
+equipment qualification authority is connected. Noncooperating file publishers
+remain outside the lock ordering guarantee. TTL still runs during post-cut IO and
+HTTP remains an as-of observation. The work result is the actual derived F10 report;
+it is inert history, not a reusable permission receipt. The release boundary reports
+these limits, and development key custody is checked separately from signature use.

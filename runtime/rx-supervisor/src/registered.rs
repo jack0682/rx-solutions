@@ -763,6 +763,10 @@ impl<S: Repository, B: Backend, A: LifecycleAuthority, R: Repository>
                 Ok(Prepared {
                     context: digest("RX-WORK-USE-CONTEXT-v1", &input.context(&task)?)?,
                     task,
+                    assessment: WorkUseAssessment::assessed(
+                        &request,
+                        WorkUseReply::Verified(proof.clone()),
+                    ),
                     proof: *proof,
                 })
             }
