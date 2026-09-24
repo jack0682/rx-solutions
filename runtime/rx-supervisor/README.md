@@ -22,8 +22,9 @@ Only a complete request-bound receipt can produce admitted status. Invalid/stale
 remain UNKNOWN and cannot trigger automatic retry. Existing lifecycle authority and
 `RequiresPlatformAuthority` behavior for undeclared programs is unchanged.
 
-The default backend implements **no cgroup v2, rlimit, CPU/memory reservation or device
-access policy on any OS**. Every required policy is rejected before exec, with named reasons.
+The generic Backend default rejects required policies before exec, with named reasons.
+`OsProcesses` now overrides that boundary for the narrow Linux address-space ceiling
+described in F8 below. CPU/memory reservation, aggregate memory and device policies remain unsupported.
 Empty/NotRequired-only declarations can use the existing spawn path with `NoRequirements`
 evidence. Positive policy application in the F1 tests is explicitly **simulated**.
 
@@ -40,9 +41,9 @@ establish collaboration-resource or physical handover.
 
 The `execution_admission` integration tests cover whole-bundle positive/negative combinations,
 site/catalog downgrade attempts, reservation/access semantics in a model, stale evidence,
-lost authorization, and real non-actuating no-policy/rejection paths. Linux enforcement,
-rollback under partial OS application, resource recovery and physical qualification remain
-unimplemented. A future enforcing backend must validate those responsibilities before use.
+lost authorization, and real non-actuating no-policy/rejection paths. F8 below adds one
+actual Linux policy and gated rollback. General resource recovery, multi-policy rollback
+and physical qualification remain unimplemented.
 This contract covers Supervisor-managed Program startup. Separate metadata-only initializers,
 direct backend/OS callers and hostile changes to trusted host code are not globally sandboxed.
 
@@ -139,9 +140,10 @@ failure between them can leave an unresolved assignment. No distributed commit,
 automatic recovery disposition, PID adoption or replay is claimed. Historical
 assignments retain their original catalog and registration revision.
 
-The `rx/status-http` author recipe now declares an explicit empty F1 requirement
-set. Its `NoRequirements` receipt means no resource policy needed enforcement.
-This changes the catalog/plan digest. Reopening a supervisor store pinned to the
+F2 introduced an explicit empty F1 requirement set for `rx/status-http`. F8 now
+replaces that author declaration with a 256 MiB virtual address-space ceiling.
+An empty set still means `NoRequirements` for other explicitly unbounded recipes.
+Both declaration changes alter the catalog/plan digest. Reopening a supervisor store pinned to the
 old undeclared recipe is refused with a reason; the old records remain readable
 and are not migrated or deleted. Preserve the old release/store, review execution
 and unresolved state, and decide a reviewed transition before creating a new
@@ -168,8 +170,8 @@ execution, F1 admission, instance-correlated HTTP output, owned-child exit and
 reopen in another manager process. It additionally exercises abnormal child
 exit and manager-object recreation while a real child remains alive, labeling
 that last probe separately. Independent functional/physical qualification,
-positive work-use permission, positive binding acceptance, multi-host operation and Linux
-resource enforcement remain unsupported. F3 through F6 below extend this same procedure.
+actual operating-area work/binding decisions, multi-host operation and general capacity
+enforcement remain unsupported. F3 through F8 below extend this same procedure.
 
 ## Explicit software recovery disposition (F3)
 
@@ -349,7 +351,7 @@ The F5 segment has six workers and 24 observed stages including its baseline. It
 segment uses the installed report producer, a registered framework consumer,
 actual persisted results, scoped loss reactions, same-format replacement rejection
 and completion of unrelated catalog-summary work. These observations do not prove
-physical operation, collaborative resources or Linux resource enforcement.
+physical operation, collaborative resources or general Linux resource enforcement.
 
 ## Verified external decisions (F6)
 
@@ -408,7 +410,7 @@ require an OpenSSL 3 CLI supporting Ed25519; the fixture uses
 [`pkeyutl -sign -rawin`](https://docs.openssl.org/3.0/man1/openssl-pkeyutl/).
 These positives prove that the test issuer held its key and signed the exact
 statement, not that a real operating area approved work or that the decision was
-correct. Actual device operation, collaborative resources, Linux enforcement,
+correct. Actual device operation, collaborative resources, general Linux enforcement,
 external recovery investigation, the control-effect signal issue and multi-host
 operation remain outside this verification boundary.
 
@@ -457,6 +459,87 @@ UNKNOWN after a forced test-container crash. This does not install or publish a
 new release image. The original 32-stage library passage remains separate.
 Guarded composition regressions exercise a fake backend; this new daemon passage
 does not qualify actual Host/Executor integration or physical equipment.
+
+## Linux address-space enforcement (F8)
+
+`AddressSpaceBytes` is a **per-process virtual address-space usage ceiling**. It
+is not RSS, physical RAM, reserved capacity or a guarantee that an allocation is
+available. Linux RLIMIT_AS constrains virtual mappings; it is not an aggregate
+process-group limit. Descendants inherit limits but are not collectively budgeted.
+CPU, physical-memory and access/reservation requirements remain named unsupported
+conditions. A mixed bundle is refused before any application; no supported subset
+is silently admitted. Non-Linux backends refuse the requirement rather than skip it.
+
+The existing status recipe now declares 268435456 bytes (256 MiB). In the measured
+runtime, startup `VmPeak` was 52219904 bytes, approximately 49.8 MiB; the selected
+ceiling is 5.14 times that observation and the service remained healthy under it.
+This is a scoped engineering choice, not a universal workload/availability claim.
+Changing this declaration changes the author catalog digest: an existing F7
+registration is refused with `resident catalog digest changed`. Preserve and
+review the old records; there is no automatic migration or weaker fallback.
+
+The Linux backend initially supports only author-verified `/usr/bin/python3`
+non-actuating programs. A fixed embedded bootstrap waits on a private inherited
+socket. The bootstrap uses Python isolated mode with bytecode writes disabled,
+so current-directory and user-site modules cannot run before limit application.
+One live Child owns the same PID throughout bootstrap and target exec.
+The parent applies soft and hard RLIMIT_AS through safe `rustix::process::prlimit`,
+reads `/proc/PID/limits`, then rechecks registration and lifecycle authorization
+before sending EXEC. After EOF it independently checks target argv, the limits and
+the owned Child. EOF alone (including a killed gate) cannot mint a receipt.
+No project unsafe-code exception, new daemon, installed helper, network API or
+container memory/ulimit setting is introduced.
+
+The `LINUX_RLIMIT` receipt contains a private-field `KernelObservation`, tied to
+the whole request. It records a parent observation after exec, not an assertion
+that the operating policy is correct. Public HostReport/Simulation tags are not
+promoted to this kernel-observation type. Stored `resources.last_observed` is a
+separate inert DTO; it cannot be deserialized into a KernelObservation or Receipt.
+`ReportedAtStart` remains historical, never a continuous monitor.
+
+If application, parent observation or authorization fails before EXEC, the gated
+child must be killed and its exit confirmed before whole-bundle rejection. An
+explicit exec error is likewise rolled back. Unconfirmed rollback or uncertain
+exec entry retains the Child and reports `Uncertain`; it is never relabeled
+NotStarted. Tests exercise a real EPERM after lowering the hard ceiling, failure
+of observation after application, authority change, exec failure and a gate killed
+in the exec window. **Multiple kernel policies' partial application is not
+established by these tests.**
+
+Supervisor records preserve `resources` history with distinct lifetime states.
+Owner loss makes it UNCONFIRMED and does not restore a receipt after restart.
+Confirmed direct-child exit is explicitly `DIRECT_CHILD_EXITED_DESCENDANTS_UNASSESSED`;
+it is not proof that descendants or collaborative resources were reclaimed.
+`capacity_reservation` is NONE_CREATED only where this backend established no
+reservation; unresolved attempts remain NOT_ESTABLISHED. `physical_handover` is
+NOT_ASSESSED. Existing stores may omit the additive history field; older writers
+are not claimed to understand it.
+
+The actual daemon and the separate supervisor-process observer are exercised by:
+
+```sh
+python3 tools/resource_enforcement_passage.py --image RX_RUNTIME_IMAGE \
+  --baseline-daemon /absolute/path/to/F7/rx-solutionsd \
+  --evidence /absolute/path/to/fresh-resource-evidence
+```
+
+Supply a Linux F7 daemon built from contribution
+`9fa53afe308f0df89b09d2fa01e92a2e753181cb` for the old-catalog refusal comparison.
+The procedure runs the existing resident passage, observes current daemon and
+child limits from a separate process, checks unchanged container resource
+options, and preserves the old registration/execution entities on digest refusal.
+Its explicitly authored 64 MiB test child is launched by the real RX backend and
+fails a 128 MiB mmap with ENOMEM. This is address-space enforcement evidence, not
+physical memory pressure or physical-equipment qualification. The existing library
+passage retains its 32 stages; its old empty-requirement assertion is now strengthened
+to the actual Linux receipt and exact soft/hard limits, and its Owned test wrapper
+forwards requirement-bearing starts to the real OS implementation.
+
+Kernel semantics: [Linux getrlimit/prlimit manual](https://man7.org/linux/man-pages/man2/getrlimit.2.html).
+Delegation boundary: [Linux cgroup v2 documentation](https://docs.kernel.org/admin-guide/cgroup-v2.html).
+The runtime probe measured a read-only cgroup mount and EROFS on child creation;
+that excluded cgroup v2 for this deployment posture. It is not a claim that
+cgroup v2 cannot enforce limits under a properly delegated host configuration.
 
 ## Further connections
 

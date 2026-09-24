@@ -71,7 +71,7 @@ def main():
     sys.stdout.write(result)
     print(json.dumps({'result': 'PASS', 'runtime_image': runtime_id, 'builder_image': builder_id,
         'status_source_sha256': source_hash, 'evidence': str(evidence),
-        'scope': 'actual Linux registration/recovery, scoped self-report comparison and diagnostic dependency consumption; externally signed test decisions only, actual operating-area service integration and default production anchors absent; no resource enforcement or physical qualification'}))
+        'scope': 'actual Linux registration/recovery with a per-process address-space ceiling, scoped self-report comparison and diagnostic dependency consumption; externally signed test decisions only, actual operating-area service integration and default production anchors absent; no capacity reservation, aggregate memory enforcement or physical qualification'}))
 
 
 if __name__ == '__main__':

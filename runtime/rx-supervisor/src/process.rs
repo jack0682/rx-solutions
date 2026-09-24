@@ -11,6 +11,8 @@ use std::{
     process::{Child, Command, Stdio},
     time::Duration,
 };
+#[cfg(target_os = "linux")]
+mod linux_limits;
 pub enum SpawnFailure {
     NotStarted(Error),
     Uncertain(Error),
@@ -177,6 +179,29 @@ pub fn verify(path: &std::path::Path, expected: Digest) -> Result<()> {
     Ok(())
 }
 impl Backend for OsProcesses {
+    fn spawn_with_requirements(
+        &mut self,
+        launch: &Launch,
+        request: &crate::execution::Request,
+        authorize: &mut dyn FnMut() -> bool,
+    ) -> std::result::Result<crate::execution::Decision, SpawnFailure> {
+        use crate::execution::{Decision, Evidence, Receipt};
+        if !request.requirements().needs_enforcement() {
+            let receipt = Receipt::reported(request, Evidence::NoRequirements)
+                .map_err(SpawnFailure::NotStarted)?;
+            return self
+                .spawn(launch, authorize)
+                .map(|pid| Decision::Admitted { pid, receipt });
+        }
+        #[cfg(target_os = "linux")]
+        {
+            self.spawn_limited(launch, request, authorize)
+        }
+        #[cfg(not(target_os = "linux"))]
+        {
+            Ok(Decision::Rejected { unmet: request.reject("OS enforcement unsupported on this platform; Linux AddressSpaceBytes is the only implemented usage ceiling") })
+        }
+    }
     fn observe_status(
         &mut self,
         launch: &Launch,
