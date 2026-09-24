@@ -5,8 +5,8 @@ use rx_solution_catalog::DeviceCatalog;
 use rx_storage::SqliteRepository;
 use rx_supervisor::{
     builtin::{
-        ServiceConfigurations, programs_from_release, release_boundary, release_metadata,
-        services_from_release, validate_service_plan, verify_release,
+        ServiceConfigurations, preflight_source_assets, programs_from_release, release_boundary,
+        release_metadata, services_from_release, validate_service_plan, verify_release,
     },
     execution_store, initialization,
     model::{GuardedServices, Plan},
@@ -142,6 +142,7 @@ async fn run() -> Result<()> {
     // reset the installation-wide release floor. No runtime root-key override.
     let release_bytes = release_metadata(root, "release.json")?;
     let revocation_bytes = release_metadata(root, "revocations.json")?;
+    preflight_source_assets(root)?;
     let mut release_store = if args[0] == "inspect" {
         None
     } else {

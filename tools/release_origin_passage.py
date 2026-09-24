@@ -106,6 +106,14 @@ def main():
     inventory['files']['tools/solutions_status.py'] = hashlib.sha256((e / 'altered-script').read_bytes()).hexdigest()
     (e / 'forged-inventory.json').write_text(json.dumps(inventory))
     refuse('forged-inventory', ['-v', f'{e}/altered-script:/opt/rx/tools/solutions_status.py:ro', '-v', f'{e}/forged-inventory.json:/opt/rx/manifests/runtime-files.json:ro'], 'release/content-mismatch')
+    # A Host binary is not one of F12's two compiled source pins. Its digest
+    # and a forged matching inventory must still be refused by G2 itself.
+    (e / 'altered-host').write_text('inert replacement of indexed Host bytes\n')
+    refuse('uncompiled-host-content', ['-v', f'{e}/altered-host:/opt/rx/bin/rx-hostd:ro'], 'release/content-mismatch')
+    inventory = json.loads((e / 'extract-inventory.stdout').read_text())
+    inventory['files']['bin/rx-hostd'] = hashlib.sha256((e / 'altered-host').read_bytes()).hexdigest()
+    (e / 'forged-host-inventory.json').write_text(json.dumps(inventory))
+    refuse('uncompiled-host-plus-inventory', ['-v', f'{e}/altered-host:/opt/rx/bin/rx-hostd:ro', '-v', f'{e}/forged-host-inventory.json:/opt/rx/manifests/runtime-files.json:ro'], 'release/content-mismatch')
     # External observer records PROCESS_READY and explicitly stops the real RX child manager.
     observer = '''import json,subprocess,time,sys
 from pathlib import Path

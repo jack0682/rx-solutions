@@ -913,6 +913,7 @@ substitute expected content. F12's two compiled source-content pins remain.
 
 `rx-solutionsd init/run/activate/investigate/resume` record the signed revocation
 checkpoint and admit the release before initializers, registration or execution.
+F12 compiled-source preflight remains before writable-state access; it only rejects and does not authenticate a release or advance state.
 The installation-wide floor is `/var/lib/rx-solutions/release.db`, independent of
 plan `state_subdirectory`. This adds one local store, no daemon, service or network
 endpoint. G1's writer lock and transaction apply. The store closes after the

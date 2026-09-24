@@ -31,6 +31,36 @@ pub fn release_boundary() -> serde_json::Value {
     })
 }
 
+/// Preserve F12's compiled-source refusal before any writable-state access.
+/// This is a rejection-only preflight, never release authentication/admission.
+pub fn preflight_source_assets(root: &Path) -> Result<()> {
+    let inventory: rx_package::release::Inventory =
+        canonical::decode_json(&release_metadata(root, "runtime-files.json")?)
+            .map_err(|e| rx_package::release::Error::Malformed(e.to_string()))?;
+    for (path, bytes) in [
+        (
+            "tools/solutions_status.py",
+            include_bytes!("../../../native/support/solutions_status.py").as_slice(),
+        ),
+        (
+            "catalogs/device-support.v1.json",
+            include_bytes!("../../../catalogs/device-support.v1.json").as_slice(),
+        ),
+    ] {
+        let expected = rx_package::content_digest(bytes);
+        if inventory.files.get(path) != Some(&expected) {
+            return Err(rx_package::release::Error::Content(
+                "release/source-pin-mismatch; inventory cannot authorize changed source assets"
+                    .into(),
+            )
+            .into());
+        }
+        verify(&root.join(path), expected)
+            .map_err(|e| rx_package::release::Error::Content(e.to_string()))?;
+    }
+    Ok(())
+}
+
 pub fn release_metadata(root: &Path, name: &str) -> Result<Vec<u8>> {
     use std::io::Read;
     let path = root.join("manifests").join(name);
