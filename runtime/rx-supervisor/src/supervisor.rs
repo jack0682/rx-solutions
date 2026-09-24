@@ -136,6 +136,7 @@ impl<R: Repository, B: Backend, A: LifecycleAuthority> Supervisor<R, B, A> {
                                 error: None,
                                 guarded_exit: None,
                                 resources: None,
+                                process_identity: None,
                             },
                         )
                     })
@@ -295,6 +296,7 @@ impl<R: Repository, B: Backend, A: LifecycleAuthority> Supervisor<R, B, A> {
                 r.exit_code = None;
                 r.error = None;
                 r.resources = None;
+                r.process_identity = None;
             }
         })?;
         self.stop_latched = false;
@@ -330,7 +332,10 @@ impl<R: Repository, B: Backend, A: LifecycleAuthority> Supervisor<R, B, A> {
         process: &Process,
         launch: &Launch,
         request: &crate::execution::Request,
-    ) -> std::result::Result<u32, crate::process::SpawnFailure> {
+    ) -> std::result::Result<
+        (u32, Option<crate::process_identity::StoredProcessIdentity>),
+        crate::process::SpawnFailure,
+    > {
         use crate::{
             execution::{Application, Decision, Status, Unmet},
             process::SpawnFailure,
@@ -353,9 +358,16 @@ impl<R: Repository, B: Backend, A: LifecycleAuthority> Supervisor<R, B, A> {
             not_applied_reasons: vec![],
         };
         let outcome = match decision {
-            Ok(Decision::Admitted { pid, receipt }) if pid != 0 && receipt.matches(request) => {
+            Ok(Decision::Admitted {
+                pid,
+                receipt,
+                identity,
+            }) if pid != 0
+                && receipt.matches(request)
+                && identity.as_ref().is_none_or(|v| v.matches(request, pid)) =>
+            {
                 status.application = Application::ReportedAtStart { receipt };
-                Ok(pid)
+                Ok((pid, identity.map(|v| v.stored())))
             }
             Ok(Decision::Admitted { .. }) => Err(SpawnFailure::Uncertain(Error::Reconciliation(
                 "execution admission receipt does not match the complete current launch".into(),
@@ -674,6 +686,7 @@ impl<R: Repository, B: Backend, A: LifecycleAuthority> Supervisor<R, B, A> {
                             r.error = None;
                             r.guarded_exit = None;
                             r.resources = None;
+                            r.process_identity = None;
                         })?;
                     }
                     self.change(|s| {
@@ -709,16 +722,19 @@ impl<R: Repository, B: Backend, A: LifecycleAuthority> Supervisor<R, B, A> {
                         // Legacy undeclared programs retain the original execution path.
                         let authority = &self.authority;
                         let plan = &self.plan;
-                        self.backend.spawn(&launch, &mut || {
-                            authority.may_start(plan, &process, &launch)
-                        })
+                        self.backend
+                            .spawn(&launch, &mut || {
+                                authority.may_start(plan, &process, &launch)
+                            })
+                            .map(|pid| (pid, None))
                     };
                     match spawned {
-                        Ok(pid) => {
+                        Ok((pid, process_identity)) => {
                             self.started.insert(instance, Instant::now());
                             self.change(|s| {
                                 let r = s.records.get_mut(&process.id).unwrap();
                                 r.pid = Some(pid);
+                                r.process_identity = process_identity;
                                 r.phase = Phase::Starting;
                             })?;
                         }

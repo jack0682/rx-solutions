@@ -575,6 +575,8 @@ fn unable_to_resolve_is_not_success_or_permission_to_resume() {
     let policy = Policy {
         component: c.component.clone(),
     };
+    let finding = c.registry.investigate(&c.target).unwrap();
+    let observed_at = finding.observed_at().clone();
     let mut r = DispositionRequest {
         target: c.target.clone(),
         kind: DispositionKind::ConfirmedClosure,
@@ -582,12 +584,10 @@ fn unable_to_resolve_is_not_success_or_permission_to_resume() {
             report: RecoveryReport {
                 actor: n("test/recovery-owner"),
                 scope: n("host/execution-investigation"),
-                observed_at: now(),
-                procedure: n("external-provider-unavailable"),
+                observed_at,
+                procedure: n("kernel-investigation"),
             },
-            finding:
-                "This test investigation cannot establish closure through the supported provider."
-                    .into(),
+            finding: Box::new(finding),
         },
     };
     let e = c.registry.dispose(&r, &policy).unwrap_err();
@@ -612,7 +612,7 @@ fn unable_to_resolve_is_not_success_or_permission_to_resume() {
         v.recovery
             .limitations
             .iter()
-            .any(|s| s.contains("total manager-process/Child-handle loss"))
+            .any(|s| s.contains("legacy records without it cannot be backfilled"))
     );
     println!(
         "unable-to-resolve preserves unknown: {}",

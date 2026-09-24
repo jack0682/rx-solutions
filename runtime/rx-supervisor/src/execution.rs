@@ -300,8 +300,14 @@ impl Receipt {
 /// The resource/exec boundary has only all-admitted or none-applied rejection.
 /// Transport/exec uncertainty remains SpawnFailure::Uncertain, never Rejected.
 pub enum Decision {
-    Admitted { pid: u32, receipt: Receipt },
-    Rejected { unmet: Vec<Unmet> },
+    Admitted {
+        pid: u32,
+        receipt: Receipt,
+        identity: Option<Box<crate::process_identity::OwnedProcessIdentity>>,
+    },
+    Rejected {
+        unmet: Vec<Unmet>,
+    },
 }
 
 #[derive(Clone, Debug, Serialize)]

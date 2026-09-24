@@ -113,6 +113,8 @@ pub struct Record {
     /// Historical resource observations never restore a current receipt.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub resources: Option<crate::execution::ResourceHistory>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub process_identity: Option<crate::process_identity::StoredProcessIdentity>,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(

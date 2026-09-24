@@ -326,7 +326,7 @@ impl<S: Repository, B: Backend, A: LifecycleAuthority, R: Repository>
     }
 
     /// Resident lifecycle registration only. This does not enable functional
-    /// readiness, work decisions, dependency consumption, or explicit recovery.
+    /// readiness, work decisions, or dependency consumption.
     /// Existing single-component constructors keep their narrower guarantees.
     #[allow(clippy::too_many_arguments)]
     pub fn open_resident(
@@ -391,6 +391,141 @@ impl<S: Repository, B: Backend, A: LifecycleAuthority, R: Repository>
         };
         this.synchronize()?;
         Ok(this)
+    }
+
+    /// Explicit cold recovery for a single non-actuating resident selection.
+    /// The resident catalog index is checked before the existing F3 constructor.
+    #[allow(clippy::too_many_arguments)]
+    pub fn open_resident_with_resume(
+        store: S,
+        backend: B,
+        authority: A,
+        plan: Plan,
+        programs: BTreeMap<Name, Program>,
+        support: &DeviceCatalog,
+        mut registry: Registry<R>,
+        permit: ResumePermit,
+    ) -> Result<Self> {
+        if plan.processes.len() != 1 {
+            return Err(Error::Invalid(
+                "resident resume supports one non-actuating selection".into(),
+            ));
+        }
+        let process = &plan.processes[0];
+        let program = programs
+            .get(&process.program)
+            .ok_or_else(|| Error::Invalid("resume program absent".into()))?;
+        let declarations = [(
+            process.id.clone(),
+            Declaration {
+                label: process.id.clone(),
+                catalog: catalog_reference(program)?,
+            },
+        )]
+        .into();
+        let accepted = registry.resident_registrations(&declarations, false)?;
+        let component = accepted[&process.id].registration.id.clone();
+        let mut this = Self::open_with_resume(
+            store, backend, authority, plan, programs, support, registry, component, permit,
+        )?;
+        this.single = None;
+        Ok(this)
+    }
+    pub fn investigate_current(&mut self, selection: &Name) -> Result<ProcessInvestigation> {
+        let binding = self
+            .bindings
+            .get(selection)
+            .ok_or_else(|| Error::Invalid("investigation selection absent".into()))?;
+        let state = self.supervisor.state()?;
+        let record = &state.records[selection];
+        if record.phase != Phase::Unknown {
+            return Err(Error::Reconciliation(
+                "cold investigation requires an UNKNOWN original record".into(),
+            ));
+        }
+        let instance = record
+            .instance
+            .as_ref()
+            .ok_or_else(|| Error::Reconciliation("original instance missing".into()))?;
+        let mut registry = self.registry.borrow_mut();
+        let target = registry.recovery_target(&binding.registration, instance)?;
+        Ok(registry.investigate(&target)?)
+    }
+    /// Explicit caller action. Alive/unverifiable findings never automatically
+    /// occupy the immutable disposition key, so later evidence remains usable.
+    pub fn prepare_investigated_resume(
+        &mut self,
+        selection: &Name,
+        next_run: Id,
+        actor: Name,
+        authority: &impl RecoveryAuthority,
+    ) -> Result<ResumePermit> {
+        if self.bindings.len() != 1 || next_run == self.run {
+            return Err(Error::Invalid(
+                "resume requires one selection and a new run".into(),
+            ));
+        }
+        let finding = self.investigate_current(selection)?;
+        if !finding.outcome().permits_closure() {
+            return Err(Error::Reconciliation(format!(
+                "investigation-blocks-resume: {:?}",
+                finding.outcome()
+            )));
+        }
+        let target = finding.target().clone();
+        let mut registry = self.registry.borrow_mut();
+        let view = registry.query(&target.registration)?;
+        let disposition = if let Some(d) = view
+            .recovery
+            .dispositions
+            .iter()
+            .find(|d| d.target == target)
+        {
+            d.clone()
+        } else {
+            registry.dispose(
+                &DispositionRequest {
+                    target: target.clone(),
+                    kind: DispositionKind::ConfirmedClosure,
+                    evidence: RecoveryEvidence::Investigation {
+                        report: RecoveryReport {
+                            actor: actor.clone(),
+                            scope: Name::new("host/execution-investigation").expect("literal"),
+                            observed_at: finding.observed_at().clone(),
+                            procedure: Name::new("linux/scoped-process-identity").expect("literal"),
+                        },
+                        finding: Box::new(finding),
+                    },
+                },
+                authority,
+            )?
+        };
+        // Fresh provider evidence is also required for a reissued, unconsumed request.
+        let finding = registry.investigate(&target)?;
+        let request = view
+            .recovery
+            .resume_requests
+            .iter()
+            .find(|r| r.request.disposition == disposition.id)
+            .map(|r| r.request.clone())
+            .unwrap_or_else(|| ResumeRequest {
+                id: Id::new(uuid::Uuid::new_v4().to_string()).expect("UUID"),
+                disposition: disposition.id,
+                actor: actor.clone(),
+                requested_at: finding.observed_at().clone(),
+                next_run: next_run.clone(),
+            });
+        if request.next_run != next_run || request.actor != actor {
+            return Err(Error::Reconciliation(
+                "existing explicit resume names another run/actor".into(),
+            ));
+        }
+        Ok(registry.request_investigated_resume(
+            &target.registration,
+            request,
+            &finding,
+            authority,
+        )?)
     }
 
     /// Read-only views, keyed by current plan selection. Persisted observations
@@ -584,6 +719,7 @@ impl<S: Repository, B: Backend, A: LifecycleAuthority, R: Repository>
             };
             observations.push((execution.binding.clone(), Observation {
                 state, pid: record.pid, exit_code: record.exit_code,
+                process_identity: record.process_identity.clone(),
                 detail: format!("supervisor phase {:?}; {}; functional readiness and work-use permission are not assessed",
                     record.phase, record.error.as_deref().unwrap_or("no additional lifecycle error")),
             }));

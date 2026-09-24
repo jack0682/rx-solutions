@@ -1,5 +1,59 @@
 //! Explicit local software recovery. Historical execution reports are never rewritten.
 use super::*;
+use crate::process_identity::{self, InvestigationOutcome, StoredProcessIdentity};
+
+/// A live provider result, never constructible from an operator string or stored
+/// JSON. The registry, not its caller, selects the birth record being investigated.
+///
+/// ```compile_fail
+/// use rx_supervisor::registration::ProcessInvestigation;
+/// let _: ProcessInvestigation = serde_json::from_str("{}").unwrap();
+/// ```
+/// ```compile_fail
+/// use rx_supervisor::registration::{ProcessInvestigation, EvidenceReference};
+/// let old = EvidenceReference::Investigation { finding: "gone".into() };
+/// let _: ProcessInvestigation = old.into();
+/// ```
+/// ```compile_fail
+/// use rx_supervisor::registration::{RecoveryEvidence, RecoveryReport};
+/// fn forge(report: RecoveryReport) -> RecoveryEvidence {
+///     RecoveryEvidence::Investigation { report, finding: "gone".into() }
+/// }
+/// ```
+#[derive(Debug, Serialize)]
+pub struct ProcessInvestigation {
+    reference: Id,
+    target: ObservationRef,
+    identity: Option<StoredProcessIdentity>,
+    outcome: InvestigationOutcome,
+    observed_at: TimePoint,
+}
+impl ProcessInvestigation {
+    pub fn outcome(&self) -> &InvestigationOutcome {
+        &self.outcome
+    }
+    pub fn observed_at(&self) -> &TimePoint {
+        &self.observed_at
+    }
+    pub fn target(&self) -> &ObservationRef {
+        &self.target
+    }
+    fn matches(&self, target: &ObservationRef, execution: &Execution) -> bool {
+        self.target == *target
+            && self.identity == execution.last_observed.process_identity
+            && self
+                .identity
+                .as_ref()
+                .is_none_or(|i| Some(i.pid) == execution.last_observed.pid)
+    }
+    fn current_closure(&self) -> bool {
+        self.outcome.permits_closure()
+            && self
+                .identity
+                .as_ref()
+                .is_some_and(process_identity::scope_matches)
+    }
+}
 
 const DISPOSITION: &str = "rx.component-recovery-disposition.v1";
 const RESUME: &str = "rx.component-recovery-resume.v1";
@@ -88,7 +142,7 @@ pub enum RecoveryEvidence {
     },
     Investigation {
         report: RecoveryReport,
-        finding: String,
+        finding: Box<ProcessInvestigation>,
     },
 }
 #[derive(Debug, Serialize)]
@@ -104,8 +158,19 @@ pub struct DispositionRequest {
     deny_unknown_fields
 )]
 pub enum EvidenceReference {
-    OwnedChildExit { reference: Id, digest: Digest },
-    Investigation { finding: String },
+    OwnedChildExit {
+        reference: Id,
+        digest: Digest,
+    },
+    /// Legacy read-only history. Never accepted as live disposition evidence.
+    Investigation {
+        finding: String,
+    },
+    ProcessInvestigation {
+        reference: Id,
+        digest: Digest,
+        outcome: InvestigationOutcome,
+    },
 }
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
@@ -157,6 +222,7 @@ pub struct ResumeRecord {
 pub struct ResumePermit {
     registration: Id,
     request: ResumeRequest,
+    context: Option<StoredProcessIdentity>,
 }
 /// Bind these decisions to authenticated local policy. Report strings alone do
 /// not authenticate an actor. Implementations must be pure (no OS/network calls
@@ -225,9 +291,18 @@ fn all_dispositions(tx: &mut dyn Transaction, component: &Id) -> Result<Vec<Disp
                     (
                         DispositionKind::ConfirmedClosure,
                         EvidenceReference::OwnedChildExit { .. }
+                            | EvidenceReference::ProcessInvestigation {
+                                outcome: InvestigationOutcome::OriginalNotRunning { .. },
+                                ..
+                            }
                     ) | (
                         DispositionKind::UnableToResolve,
                         EvidenceReference::Investigation { .. }
+                            | EvidenceReference::ProcessInvestigation {
+                                outcome: InvestigationOutcome::Unverifiable { .. }
+                                    | InvestigationOutcome::MatchingProcessPresent,
+                                ..
+                            }
                     )
                 )
             {
@@ -310,8 +385,8 @@ pub(super) fn view(
         resume_requests: rs,
         new_execution: gate,
         limitations: vec![
-            "external investigation provider after total manager-process/Child-handle loss is unsupported",
-            "confirmed closure without the original saved PID binding is unsupported",
+            "cold investigation supports only recorded Linux scoped birth identity; legacy records without it cannot be backfilled",
+            "scope mismatch, zombie and read races remain unverifiable; historical outcome remains unresolved",
             "recovery disposition supplies neither a functional-readiness assessment nor work-use permission",
             "resource recovery, F1 receipt restoration and physical outcome confirmation not claimed",
         ],
@@ -400,7 +475,56 @@ pub(super) fn admit(
     }
     Ok(())
 }
+impl ResumePermit {
+    pub(super) fn check_context(&self) -> Result<()> {
+        if self
+            .context
+            .as_ref()
+            .is_some_and(|c| !process_identity::scope_matches(c))
+        {
+            return Err(invalid("resume scoped context changed"));
+        }
+        Ok(())
+    }
+}
 impl<R: Repository> Registry<R> {
+    /// Kernel reads occur outside transactions; revision and digest are checked
+    /// again when this ephemeral result is submitted for a disposition/resume.
+    ///
+    /// ```compile_fail
+    /// use rx_supervisor::{registration::{Registry, ObservationRef}, process_identity::StoredProcessIdentity};
+    /// fn inject<R: rx_ports::Repository>(r: &mut Registry<R>, target: &ObservationRef, fake: StoredProcessIdentity) {
+    ///     r.investigate(target, fake);
+    /// }
+    /// ```
+    pub fn investigate(&mut self, expected: &ObservationRef) -> Result<ProcessInvestigation> {
+        let execution = self.repository.transact(|tx| target(tx, expected))?;
+        let identity = execution.last_observed.process_identity;
+        let outcome = if identity
+            .as_ref()
+            .is_some_and(|i| Some(i.pid) != execution.last_observed.pid)
+        {
+            InvestigationOutcome::unknown("stored-birth-pid-binding-mismatch")
+        } else {
+            process_identity::investigate(identity.as_ref())
+        };
+        let ns = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_err(|e| invalid(&e.to_string()))?
+            .as_nanos();
+        let ticks_ns = Counter(u64::try_from(ns).map_err(|e| invalid(&e.to_string()))?);
+        Ok(ProcessInvestigation {
+            reference: fresh_id(),
+            target: expected.clone(),
+            identity,
+            outcome,
+            observed_at: TimePoint {
+                clock_id: "unix-utc-ns".into(),
+                ticks_ns,
+            },
+        })
+    }
+
     pub fn recovery_target(&mut self, component: &Id, instance: &Id) -> Result<ObservationRef> {
         self.repository.transact(|tx| {
             load(tx, component)?;
@@ -437,17 +561,22 @@ impl<R: Repository> Registry<R> {
                     },
                 )
             }
-            (
-                DispositionKind::UnableToResolve,
-                RecoveryEvidence::Investigation { report, finding },
-            ) if report.scope.as_str() == "host/execution-investigation"
-                && !finding.trim().is_empty()
-                && finding.len() <= 2048 =>
+            (kind, RecoveryEvidence::Investigation { report, finding })
+                if report.scope.as_str() == "host/execution-investigation"
+                    && report.observed_at == finding.observed_at
+                    && finding.target == request.target
+                    && match kind {
+                        DispositionKind::ConfirmedClosure => finding.current_closure(),
+                        DispositionKind::UnableToResolve => !finding.outcome.permits_closure(),
+                    } =>
             {
                 (
                     report.clone(),
-                    EvidenceReference::Investigation {
-                        finding: finding.clone(),
+                    EvidenceReference::ProcessInvestigation {
+                        reference: finding.reference.clone(),
+                        digest: canonical::digest("RX-PROCESS-INVESTIGATION-v1", finding)
+                            .map_err(|e| invalid(&e.to_string()))?,
+                        outcome: finding.outcome.clone(),
                     },
                 )
             }
@@ -479,6 +608,10 @@ impl<R: Repository> Registry<R> {
                     "owned exit witness requires matching original instance/PID binding; absence is not closure evidence",
                 ));
             }
+            if let RecoveryEvidence::Investigation { finding, .. } = &request.evidence
+                && !finding.matches(&request.target, &e) {
+                return Err(invalid("investigation differs from original stored identity"));
+            }
             if !authority.may_dispose(request) {
                 return Err(invalid("recovery disposition authority changed"));
             }
@@ -509,6 +642,28 @@ impl<R: Repository> Registry<R> {
         request: ResumeRequest,
         authority: &impl RecoveryAuthority,
     ) -> Result<ResumePermit> {
+        self.resume_inner(component, request, None, authority)
+    }
+    /// A persisted investigation summary cannot reissue a live resume permit.
+    pub fn request_investigated_resume(
+        &mut self,
+        component: &Id,
+        request: ResumeRequest,
+        finding: &ProcessInvestigation,
+        authority: &impl RecoveryAuthority,
+    ) -> Result<ResumePermit> {
+        if !finding.current_closure() {
+            return Err(invalid("fresh scoped closure investigation required"));
+        }
+        self.resume_inner(component, request, Some(finding), authority)
+    }
+    fn resume_inner(
+        &mut self,
+        component: &Id,
+        request: ResumeRequest,
+        finding: Option<&ProcessInvestigation>,
+        authority: &impl RecoveryAuthority,
+    ) -> Result<ResumePermit> {
         if !valid_time(&request.requested_at) {
             return Err(invalid("explicit resume request time required"));
         }
@@ -528,6 +683,16 @@ impl<R: Repository> Registry<R> {
                 ));
             }
             let old = target(tx, &d.target)?;
+            let context = if matches!(d.evidence, EvidenceReference::ProcessInvestigation { .. }) {
+                let finding = finding
+                    .filter(|f| f.matches(&d.target, &old))
+                    .ok_or_else(|| {
+                        invalid("stored investigation is history; fresh provider evidence required")
+                    })?;
+                finding.identity.clone()
+            } else {
+                None
+            };
             if old.binding.run == request.next_run
                 || old.binding.catalog != current.registration.declaration.catalog
             {
@@ -570,7 +735,186 @@ impl<R: Repository> Registry<R> {
             Ok(ResumePermit {
                 registration: component.clone(),
                 request,
+                context,
             })
         })
+    }
+}
+
+#[cfg(all(test, target_os = "linux"))]
+mod investigation_tests {
+    use super::*;
+    use crate::execution::{Request, Requirements};
+    use rx_storage::SqliteRepository;
+    use std::{
+        collections::BTreeMap,
+        process::Command,
+        time::{Duration, Instant},
+    };
+    fn fixture(
+        identity: Option<StoredProcessIdentity>,
+        pid: Option<u32>,
+    ) -> (
+        tempfile::TempDir,
+        Registry<SqliteRepository>,
+        ObservationRef,
+    ) {
+        let dir = tempfile::tempdir().unwrap();
+        let mut registry =
+            Registry::new(SqliteRepository::open(dir.path().join("registration.db")).unwrap());
+        let catalog = CatalogReference {
+            program: name("test/sleep"),
+            digest: Digest::from_bytes([1; 32]),
+        };
+        let component = registry
+            .register(Declaration {
+                label: name("test/identity"),
+                catalog: catalog.clone(),
+            })
+            .unwrap();
+        let binding = Binding {
+            registration: component.registration.id,
+            registration_revision: component.revision,
+            catalog,
+            run: fresh_id(),
+            selection: name("sleep"),
+            instance: fresh_id(),
+        };
+        registry.assign(&binding).unwrap();
+        registry
+            .observe(
+                &binding,
+                Observation {
+                    state: ExecutionState::Unknown,
+                    pid,
+                    exit_code: None,
+                    detail: "test manager ownership lost".into(),
+                    process_identity: identity,
+                },
+            )
+            .unwrap();
+        let target = registry
+            .recovery_target(&binding.registration, &binding.instance)
+            .unwrap();
+        (dir, registry, target)
+    }
+    struct Authority;
+    impl RecoveryAuthority for Authority {
+        fn may_dispose(&self, _: &DispositionRequest) -> bool {
+            true
+        }
+        fn may_resume(&self, _: &Disposition, _: &ResumeRequest) -> bool {
+            true
+        }
+    }
+    fn captured(child: &mut std::process::Child) -> StoredProcessIdentity {
+        let request = Request::new(
+            name("test/sleep"),
+            name("sleep"),
+            fresh_id(),
+            Digest::from_bytes([1; 32]),
+            Requirements(BTreeMap::new()),
+        );
+        process_identity::capture(child, &request)
+            .expect("owned live birth capture")
+            .stored()
+    }
+    #[test]
+    fn registry_reads_original_identity_and_does_not_backfill_legacy_records() {
+        let mut child = Command::new("/bin/sleep").arg("60").spawn().unwrap();
+        let identity = captured(&mut child);
+        let (_dir, mut registry, target) = fixture(Some(identity), Some(child.id()));
+        assert_eq!(
+            registry.investigate(&target).unwrap().outcome(),
+            &InvestigationOutcome::MatchingProcessPresent
+        );
+        let mut wrong = target.clone();
+        wrong.digest = Digest::from_bytes([2; 32]);
+        assert!(registry.investigate(&wrong).is_err());
+        let (_legacy, mut registry, target) = fixture(None, Some(child.id()));
+        let before = registry.query(&target.registration).unwrap().executions;
+        assert_eq!(
+            registry.investigate(&target).unwrap().outcome(),
+            &InvestigationOutcome::unknown("birth-identity-missing-permanent-no-backfill")
+        );
+        assert_eq!(
+            registry.query(&target.registration).unwrap().executions,
+            before
+        );
+        child.kill().unwrap();
+        child.wait().unwrap();
+        assert_eq!(
+            registry.investigate(&target).unwrap().outcome(),
+            &InvestigationOutcome::unknown("birth-identity-missing-permanent-no-backfill")
+        );
+    }
+    #[test]
+    fn real_zombie_is_unverifiable_then_reaped_absence_can_confirm_without_changing_unknown() {
+        let mut child = Command::new("/bin/sleep").arg("60").spawn().unwrap();
+        let identity = captured(&mut child);
+        let (_dir, mut registry, target) = fixture(Some(identity), Some(child.id()));
+        let before = registry.query(&target.registration).unwrap().executions;
+        child.kill().unwrap();
+        let end = Instant::now() + Duration::from_secs(3);
+        loop {
+            let finding = registry.investigate(&target).unwrap();
+            if finding.outcome() == &InvestigationOutcome::unknown("process-zombie-unverifiable") {
+                break;
+            }
+            assert!(Instant::now() < end, "zombie was not observed: {finding:?}");
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        child.wait().unwrap();
+        let finding = registry.investigate(&target).unwrap();
+        assert!(finding.outcome().permits_closure());
+        let d = registry
+            .dispose(
+                &DispositionRequest {
+                    target: target.clone(),
+                    kind: DispositionKind::ConfirmedClosure,
+                    evidence: RecoveryEvidence::Investigation {
+                        report: RecoveryReport {
+                            actor: name("test/owner"),
+                            scope: name("host/execution-investigation"),
+                            observed_at: finding.observed_at().clone(),
+                            procedure: name("test/proc"),
+                        },
+                        finding: Box::new(finding),
+                    },
+                },
+                &Authority,
+            )
+            .unwrap();
+        assert_eq!(d.past_outcome, PastOutcome::Unresolved);
+        assert_eq!(
+            registry.query(&target.registration).unwrap().executions,
+            before
+        );
+        let fresh = registry.investigate(&target).unwrap();
+        let request = ResumeRequest {
+            id: fresh_id(),
+            disposition: d.id,
+            actor: name("test/owner"),
+            requested_at: fresh.observed_at().clone(),
+            next_run: fresh_id(),
+        };
+        assert!(
+            registry
+                .request_resume(&target.registration, request.clone(), &Authority)
+                .unwrap_err()
+                .to_string()
+                .contains("fresh provider evidence required")
+        );
+        registry
+            .request_investigated_resume(&target.registration, request, &fresh, &Authority)
+            .unwrap();
+    }
+    #[test]
+    fn legacy_string_summary_decodes_only_as_history() {
+        let old: EvidenceReference = serde_json::from_str(
+            r#"{"basis":"INVESTIGATION","finding":"operator claimed absence"}"#,
+        )
+        .unwrap();
+        assert!(matches!(old, EvidenceReference::Investigation { .. }));
     }
 }
