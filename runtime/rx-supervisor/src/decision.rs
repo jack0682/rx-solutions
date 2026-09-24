@@ -330,6 +330,23 @@ impl Request {
             runtime: self.runtime.clone(),
         })
     }
+    /// Hold revocation ordering across a complete repository transaction. This
+    /// neither signs nor consumes a decision: consumption belongs in that same
+    /// transaction as the work result and rolls back with it.
+    pub(crate) fn commit_guard<'a>(
+        &self,
+        verified: &'a VerifiedDecision,
+    ) -> Result<CommitGuard<'a>> {
+        self.check(verified)?;
+        let ledger = verified
+            .runtime
+            .entries
+            .lock()
+            .map_err(|_| Failure::Receiver)?;
+        let guard = CommitGuard { verified, ledger };
+        guard.check()?;
+        Ok(guard)
+    }
     /// Recheck at each receiving boundary. A prior positive display or serialized
     /// reference is not sufficient to call this method.
     pub(crate) fn check(&self, verified: &VerifiedDecision) -> Result<Reference> {
@@ -351,6 +368,33 @@ impl Request {
         Ok(verified.reference.clone())
     }
 }
+/// Receiving-side guard, not a public capability factory. The ledger remains
+/// locked until the enclosing transact returns, including its physical commit.
+pub(crate) struct CommitGuard<'a> {
+    verified: &'a VerifiedDecision,
+    ledger: std::sync::MutexGuard<'a, BTreeMap<Id, Entry>>,
+}
+impl CommitGuard<'_> {
+    pub(crate) fn check(&self) -> Result<Reference> {
+        let proof = self.verified;
+        proof.runtime.active()?;
+        let entry = self
+            .ledger
+            .get(&proof.reference.decision)
+            .ok_or(Failure::Receiver)?;
+        if entry.reference != proof.reference {
+            return Err(Failure::Identity);
+        }
+        if entry.revoked {
+            return Err(Failure::Revoked);
+        }
+        if Instant::now() >= proof.expires {
+            return Err(Failure::Expired);
+        }
+        Ok(proof.reference.clone())
+    }
+}
+
 /// A locally timed challenge. Serialization exports only the issuer's request
 /// data; it cannot restore the local Instant or receiver after restart.
 #[derive(Debug, Serialize)]

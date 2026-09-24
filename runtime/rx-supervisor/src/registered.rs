@@ -173,18 +173,48 @@ pub struct RegisteredSupervisor<S, B, A, R> {
     run: Id,
     bindings: BTreeMap<Name, Binding>,
     single: Option<SingleComponent>,
+    uses: BTreeMap<Name, AuthoredUse>,
 }
 struct SingleComponent {
     component: Id,
     selection: Name,
     catalog: CatalogReference,
+}
+struct AuthoredUse {
+    effect: Effect,
     readiness: Option<crate::use_assessment::ReadinessContract>,
     decision_policy: Option<crate::decision::Policy>,
     decision_gate: crate::decision::Gate,
 }
+struct UseSnapshot {
+    view: View,
+    state: State,
+    subject: crate::use_assessment::UseSubject,
+    readiness: crate::use_assessment::ReadinessAssessment,
+}
 impl<S: Repository, B: Backend, A: LifecycleAuthority, R: Repository>
     RegisteredSupervisor<S, B, A, R>
 {
+    fn authored_uses(
+        plan: &Plan,
+        programs: &BTreeMap<Name, Program>,
+    ) -> BTreeMap<Name, AuthoredUse> {
+        plan.processes
+            .iter()
+            .map(|p| {
+                let program = &programs[&p.program];
+                (
+                    p.id.clone(),
+                    AuthoredUse {
+                        effect: program.effect,
+                        readiness: program.functional_readiness.clone(),
+                        decision_policy: program.decision_policy.clone(),
+                        decision_gate: crate::decision::Gate::new(),
+                    },
+                )
+            })
+            .collect()
+    }
     /// This first connection supports one non-actuating component. It does not
     /// change the existing unregistered supervisor or enable physical authority.
     #[allow(clippy::too_many_arguments)]
@@ -264,8 +294,7 @@ impl<S: Repository, B: Backend, A: LifecycleAuthority, R: Repository>
             return Err(Error::Invalid("registered execution requires non-actuating effect and explicit catalog requirements".into()));
         }
         let catalog = catalog_reference(program)?;
-        let readiness = program.functional_readiness.clone();
-        let decision_policy = program.decision_policy.clone();
+        let uses = Self::authored_uses(&plan, &programs);
         let accepted = registry.query(&component)?.registration;
         if accepted.registration.declaration.catalog != catalog {
             return Err(Error::Invalid("program/catalog declaration differs from accepted registration; review an explicit revision, preserve prior records".into()));
@@ -303,10 +332,8 @@ impl<S: Repository, B: Backend, A: LifecycleAuthority, R: Repository>
                 component,
                 selection,
                 catalog,
-                readiness,
-                decision_policy,
-                decision_gate: crate::decision::Gate::new(),
             }),
+            uses,
         };
         this.synchronize()?;
         Ok(this)
@@ -339,6 +366,7 @@ impl<S: Repository, B: Backend, A: LifecycleAuthority, R: Repository>
         mut registry: Registry<R>,
     ) -> Result<Self> {
         plan.validate(&programs, support)?;
+        let uses = Self::authored_uses(&plan, &programs);
         let declarations = plan
             .processes
             .iter()
@@ -388,6 +416,7 @@ impl<S: Repository, B: Backend, A: LifecycleAuthority, R: Repository>
             run,
             bindings,
             single: None,
+            uses,
         };
         this.synchronize()?;
         Ok(this)
@@ -544,31 +573,34 @@ impl<S: Repository, B: Backend, A: LifecycleAuthority, R: Repository>
     /// Fresh, explicitly scoped snapshot over component self-report data. No
     /// evaluation is persisted/cached as permission, and query() remains read-only
     /// without probing. A later use requires a fresh operating-area judgment.
-    pub fn assess_use(
+    fn use_snapshot(
         &mut self,
-        scope: crate::use_assessment::UseScope,
-        port: &impl crate::use_assessment::WorkUsePort,
-    ) -> Result<View> {
+        selection: &Name,
+        scope: &crate::use_assessment::UseScope,
+    ) -> Result<UseSnapshot> {
         use crate::use_assessment::*;
-        let mut view = self.query()?;
+        let binding = self
+            .bindings
+            .get(selection)
+            .ok_or_else(|| Error::Invalid("use selection missing".into()))?;
+        let view = self.registry.borrow_mut().query(&binding.registration)?;
         let state = self.supervisor.state()?;
-        let single = self
-            .single
-            .as_mut()
-            .expect("query checked single component");
-        let record = &state.records[&single.selection];
+        let authored = &self.uses[selection];
+        let record = &state.records[selection];
         let subject = UseSubject {
-            registration: single.component.clone(),
+            registration: binding.registration.clone(),
             registration_revision: view.registration.revision,
-            program: single.catalog.program.clone(),
-            catalog_digest: single.catalog.digest,
+            program: binding.catalog.program.clone(),
+            catalog_digest: binding.catalog.digest,
             run: self.run.clone(),
-            selection: single.selection.clone(),
+            selection: selection.clone(),
             instance: record.instance.clone(),
             pid: record.pid,
         };
-        let assessment = if let Some(profile) =
-            single.readiness.as_ref().and_then(|c| c.0.get(&scope.role))
+        let assessment = if let Some(profile) = authored
+            .readiness
+            .as_ref()
+            .and_then(|c| c.0.get(&scope.role))
         {
             let request =
                 StatusObservationRequest::new(subject.clone(), scope.clone(), profile.endpoint);
@@ -587,6 +619,29 @@ impl<S: Repository, B: Backend, A: LifecycleAuthority, R: Repository>
         } else {
             ReadinessAssessment::unobserved(Some(scope.clone()),Some(subject.clone()),ConditionState::Unsupported,Name::new("catalog/readiness-profile").expect("literal"),"author has not declared supported readiness conditions for this intended use; metadata or process liveness cannot supply them".into())
         };
+        Ok(UseSnapshot {
+            view,
+            state,
+            subject,
+            readiness: assessment,
+        })
+    }
+    pub fn assess_use(
+        &mut self,
+        scope: crate::use_assessment::UseScope,
+        port: &impl crate::use_assessment::WorkUsePort,
+    ) -> Result<View> {
+        use crate::use_assessment::*;
+        let selection = self.single()?.selection.clone();
+        let UseSnapshot {
+            mut view,
+            state,
+            subject,
+            readiness: assessment,
+        } = self.use_snapshot(&selection, &scope)?;
+        let single = self.single()?;
+        let authored = &self.uses[&selection];
+        let record = &state.records[&selection];
         let decision = if view.registration.registration.state == RegistrationState::Accepted
             && view.registration.registration.declaration.catalog == single.catalog
             && record.instance.is_some()
@@ -595,8 +650,8 @@ impl<S: Repository, B: Backend, A: LifecycleAuthority, R: Repository>
                 record.phase,
                 Phase::Starting | Phase::ProcessReady | Phase::Unready
             ) {
-            single.decision_policy.as_ref().and_then(|policy| {
-                single
+            authored.decision_policy.as_ref().and_then(|policy| {
+                authored
                     .decision_gate
                     .request(
                         crate::decision::Kind::WorkUse,
@@ -620,6 +675,151 @@ impl<S: Repository, B: Backend, A: LifecycleAuthority, R: Repository>
         view.work_use_permission = WorkUseAssessment::assessed(&request, port.assess(&request));
         view.functional_readiness = assessment;
         Ok(view)
+    }
+    fn work_snapshot(
+        &mut self,
+        task: &crate::work_use::Task,
+    ) -> Result<(
+        crate::work_use::Input,
+        crate::use_assessment::WorkUseRequest,
+    )> {
+        use crate::{use_assessment::*, work_use::*};
+        let readiness_scope = UseScope {
+            operating_area: task.operating_area.clone(),
+            role: name(READINESS_ROLE),
+        };
+        let snapshot = self.use_snapshot(&task.selection, &readiness_scope)?;
+        let authored = &self.uses[&task.selection];
+        let record = &snapshot.state.records[&task.selection];
+        if authored.effect != Effect::NonActuating
+            || snapshot.state.stop_requested
+            || record.phase != Phase::ProcessReady
+        {
+            return Err(invalid(
+                "current-owned-ready-non-actuating-execution-required",
+            ));
+        }
+        if snapshot.view.registration.registration.state != RegistrationState::Accepted
+            || snapshot.view.registration.registration.declaration.catalog
+                != self.bindings[&task.selection].catalog
+        {
+            return Err(invalid("current-registration-changed"));
+        }
+        let profile = authored
+            .readiness
+            .as_ref()
+            .and_then(|r| r.0.get(&name(READINESS_ROLE)))
+            .ok_or_else(|| invalid("support-summary-profile-unsupported"))?;
+        let input = snapshot
+            .readiness
+            .support_gap_input(profile, snapshot.state.plan_digest)?;
+        let policy = authored.decision_policy.as_ref().ok_or_else(|| {
+            invalid("author-policy-absent; operating-area provider is not connected")
+        })?;
+        let scope = UseScope {
+            operating_area: task.operating_area.clone(),
+            role: name(ROLE),
+        };
+        let decision = authored
+            .decision_gate
+            .request(
+                crate::decision::Kind::WorkUse,
+                crate::decision::Owner {
+                    registration: input.subject.registration.clone(),
+                    revision: input.subject.registration_revision,
+                    program: input.subject.program.clone(),
+                    catalog: input.subject.catalog_digest,
+                },
+                &scope.operating_area,
+                &scope.role,
+                input.context(task)?,
+                policy,
+            )
+            .map_err(|e| invalid(&e.to_string()))?;
+        let request =
+            WorkUseRequest::new(scope, snapshot.subject, snapshot.readiness, Some(decision));
+        Ok((input, request))
+    }
+    /// Prepare a bounded support-gap task for an external issuer. This performs
+    /// no work commit and consumes no permission. The prepare/use interval is
+    /// explicit so changed conditions must be checked at the receiving boundary.
+    pub fn prepare_work(
+        &mut self,
+        task: crate::work_use::Task,
+        port: &impl crate::use_assessment::WorkUsePort,
+    ) -> Result<crate::work_use::Prepared> {
+        use crate::{use_assessment::*, work_use::*};
+        self.registry
+            .borrow_mut()
+            .ensure_new_work(&task.operation)?;
+        let (input, request) = self.work_snapshot(&task)?;
+        match port.assess(&request) {
+            WorkUseReply::Verified(proof) => {
+                request
+                    .decision_request()
+                    .expect("work snapshot configured request")
+                    .check(&proof)
+                    .map_err(|e| invalid(&e.to_string()))?;
+                Ok(Prepared {
+                    context: digest("RX-WORK-USE-CONTEXT-v1", &input.context(&task)?)?,
+                    task,
+                    proof: *proof,
+                })
+            }
+            other => {
+                let assessment = WorkUseAssessment::assessed(&request, other);
+                Err(invalid(&format!(
+                    "external-judgment-{:?}: {}",
+                    assessment.state(),
+                    assessment
+                        .conditions()
+                        .iter()
+                        .map(|c| format!("{}: {}", c.name, c.reason))
+                        .collect::<Vec<_>>()
+                        .join("; ")
+                )))
+            }
+        }
+    }
+    /// Reobserve, then commit derived result and unique decision consumption
+    /// atomically. A rollback spends neither. Query by operation ID resolves a
+    /// lost response; duplicate submissions never execute another work result.
+    pub fn commit_work(
+        &mut self,
+        prepared: &crate::work_use::Prepared,
+    ) -> Result<crate::work_use::Report> {
+        use crate::work_use::*;
+        self.registry
+            .borrow_mut()
+            .ensure_new_work(&prepared.task.operation)?;
+        let (input, request) = self.work_snapshot(&prepared.task)?;
+        if digest("RX-WORK-USE-CONTEXT-v1", &input.context(&prepared.task)?)? != prepared.context {
+            return Err(invalid("input-or-current-context-changed-since-judgment"));
+        }
+        let guard = request
+            .decision_request()
+            .expect("work snapshot configured request")
+            .commit_guard(&prepared.proof)
+            .map_err(|e| invalid(&e.to_string()))?;
+        // guard remains alive through the physical transaction commit.
+        Ok(self
+            .registry
+            .borrow_mut()
+            .commit_work(&prepared.task, &input, &guard)?)
+    }
+    pub fn recorded_work(
+        &self,
+        selection: &Name,
+        operation: &Id,
+    ) -> Result<crate::work_use::Report> {
+        let binding = self
+            .bindings
+            .get(selection)
+            .ok_or_else(|| Error::Invalid("work selection missing".into()))?;
+        Ok(self
+            .registry
+            .borrow_mut()
+            .recorded_work(&binding.registration, operation)?)
     }
     pub fn record_verified_decision(
         &self,
