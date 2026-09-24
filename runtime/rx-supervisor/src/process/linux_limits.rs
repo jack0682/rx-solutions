@@ -517,7 +517,16 @@ mod tests {
         assert!(matches!(result, Err(SpawnFailure::Uncertain(_))));
         assert!(!root.path().join("target-entered").exists());
         assert_eq!(backend.owned_instances(), vec![launch.instance.clone()]);
-        assert!(backend.exited(&launch.instance).unwrap().is_some());
+        // EOF and an unconfirmed exec do not promise that waitpid already has
+        // an exit result. Retain the owner until the exit is actually observed.
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while backend.exited(&launch.instance).unwrap().is_none() {
+            assert!(
+                Instant::now() < deadline,
+                "owned gate exit was not observed"
+            );
+            std::thread::sleep(Duration::from_millis(5));
+        }
         backend.forget_exited(&launch.instance).unwrap();
     }
 }
