@@ -309,7 +309,17 @@ fn publish_installation(parent: &Path, stage: &Path, target: &Path) -> Result<()
     }
 }
 
-fn runtime_owner(directory: &Path) -> Result<std::fs::File> {
+#[derive(thiserror::Error)]
+#[error(
+    "host/runtime-ownership-unavailable; service admission refused; owner identity is not established: {0}"
+)]
+struct RuntimeOwnershipError(#[source] rx_ports::OwnershipError);
+impl std::fmt::Debug for RuntimeOwnershipError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        std::fmt::Display::fmt(self, f)
+    }
+}
+fn runtime_owner(directory: &Path) -> Result<rx_storage::ExclusiveFileLock> {
     real_directory(directory)?;
     let lock_path = directory.join("host.lock");
     if let Ok(m) = fs::symlink_metadata(&lock_path)
@@ -317,18 +327,8 @@ fn runtime_owner(directory: &Path) -> Result<std::fs::File> {
     {
         return Err("invalid runtime lock".into());
     }
-    let mut options = fs::OpenOptions::new();
-    options.create(true).truncate(false).read(true).write(true);
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::OpenOptionsExt;
-        options.mode(0o600);
-    }
-    let owner = options.open(lock_path)?;
-    owner
-        .try_lock()
-        .map_err(|e| format!("host/runtime-ownership-unavailable; service admission refused; owner identity is not established: {e}"))?;
-    Ok(owner)
+    rx_storage::ExclusiveFileLock::acquire(lock_path)
+        .map_err(|error| RuntimeOwnershipError(error).into())
 }
 pub async fn run_with<C: Clock + Clone + Send + Sync + 'static, F: AdapterFactory<C>>(
     loaded: Loaded,

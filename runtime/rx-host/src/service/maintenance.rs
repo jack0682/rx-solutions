@@ -152,7 +152,7 @@ pub(crate) fn seal_stop(
 }
 
 /// Acquire the same runtime owner and existing journal as the service; no missing database is initialized.
-fn stopped_store(loaded: &Loaded) -> Result<(std::fs::File, SqliteRepository)> {
+fn stopped_store(loaded: &Loaded) -> Result<(rx_storage::ExclusiveFileLock, SqliteRepository)> {
     super::validate_state_files(&loaded.config.data_directory)?;
     if !loaded.config.data_directory.join("host.db").is_file() {
         return Err("Host journal missing".into());

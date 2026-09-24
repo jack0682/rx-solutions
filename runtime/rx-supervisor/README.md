@@ -871,3 +871,34 @@ physical qualification, multi-host support or operating-area provider integratio
 Tests check failures before/after startup commit, persistence failure after actual spawn, unknown backend results, supervisor restart, loss of shutdown authority, rejection of force termination for control processes, stop latch during storage failure, exit-observation repersistence, dependency ordering and bounded software restart. A separate actual non-actuating HTTP child also checks instance-correlated readiness, incorrect responses/file tampering and owned-process shutdown.
 
 Release recipes, device/network permissions and P/Host lifecycle permit validation for actual ROS/driver/BT processes, native shutdown/support handover evidence, process adoption and the full installation/update supervisor remain incomplete. The F9 section defines the narrower supported kernel proof of direct-process absence after restart. Prepared ports or simulated authority do not count as substitutes for that validation. Current state output is stdout/storage; management command/status integration with the P operations UI also remains future work. The first physical cell is NOT_COMMISSIONED.
+
+## Storage ownership lifetime (G1)
+
+G1 supersedes the normal-close lock-lifetime limitation in the historical F12
+section. The regenerated SDK closes SQLite explicitly before releasing the shared
+file description. A fork child's copy therefore no longer delays legitimate
+normal close/drop. A live writer still refuses another writer, and an inherited
+repository or borrowed transaction cannot execute SQLite operations, commit,
+rollback or unlock its creator's ownership. Runtime creator checks enforce this;
+a non-cloneable Rust type alone cannot prevent fork copying it.
+
+The Host runtime guard uses the same source-owned `ExclusiveFileLock` and retains
+its previous complete service/maintenance scope. The F12 string parser is removed:
+`rx.support-refusal.v1` now derives its condition from typed `StoreError::Ownership`.
+Acquisition failure, contention, foreign-process use, unconfirmed connection close
+and unconfirmed release are distinct local errors. No wire/document schema change,
+retry, lock-file deletion, force termination or process adoption is introduced.
+
+Close failure retains connection and this process's lock descriptor for process
+lifetime, without an active quarantine service. SIGKILL/abort cannot execute Drop.
+A pre-exec inherited description can therefore still block reopening until exec
+or exit. The named condition remains `storage/exclusive-writer-not-established`
+and its recovery text explicitly names that abrupt-loss window. G1 does not erase
+that refusal or establish an old operation's outcome.
+
+The platform's `tools/storage_lock_passage.py --solutions SOLUTIONS --image IMAGE
+--builder BUILDER --evidence FRESH` runs opposing release/refusal scenes and all
+predetermined Host stress rounds without exclusions. Its separate single-thread
+fork fixture is measurement code, not a shipped daemon. Existing F12 passage
+labels and historical evidence remain historical; G1's source-origin guard,
+actual overlap scenes and compatible commits are the current lifetime evidence.
