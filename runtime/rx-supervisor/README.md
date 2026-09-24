@@ -734,6 +734,77 @@ not change Program serialization, shipping catalogs, shared SDK, wire/proto,
 physical-operation permission or F5 diagnostic meaning. Existing observers of
 historical decisions still do not hold a current authorization capability.
 
+## Explicit dependency replacement (F11)
+
+The diagnostic `Consumer` application API can explicitly apply an externally
+approved replacement. `prepare_replacement(ReplacementIntent, BindingJudgment)`
+verifies approval but changes no route. A separate
+`apply_replacement(&PreparedReplacement, Source)` reobserves the candidate and
+atomically commits an immutable binding version, one active route, an application
+receipt and decision consumption in the existing registration repository.
+`assign_current(root, Source)` resolves that route; it rechecks the route inside
+the assignment transaction, so an observation racing a switch cannot publish an
+assignment to the superseded version.
+
+Runs and results keep their binding IDs. Every advance still reads its binding,
+but a sealed binding cannot change. Old runs can therefore finish against A while
+new runs use B. There is no drain barrier: these are non-actuating diagnostic input
+relationships, not exclusive physical or process ownership. There is one route
+for future assignments per relationship and one version per run. Replacement does
+not kill, adopt or transfer a provider process. Returning to A requires a fresh
+approval and explicit application with another new binding ID.
+
+Approval binds the application ID, current route/revision, old binding/revision,
+new binding ID and proposed registration/generation in addition to all F6 context,
+issuer, receiver epoch, TTL and revocation checks. The old binding must already
+have a pinned generation. A changed consumer revision cannot reinterpret that
+binding; historical receipts remain readable. Shipping catalogs have no anchors,
+so replacement defaults to named refusal while ordinary diagnostic work remains
+available. The existing verified-acceptance reason still correctly says it is not
+automatic replacement or work-use permission.
+
+One SQLite Immediate transaction commits the route CAS, immutable memberships,
+receipt and unique consumption key. Concurrent applies from the same revision
+cannot both win. Partial writes roll back; a lost successful reply is resolved by
+`recorded_replacement(application)`, never replayed as new authority. Restart
+recovers either the old route or the committed new route and inert history, not
+source ownership or a live approval. PreparedReplacement is opaque and cannot be
+deserialized or made from assessment/receipt DTOs. Stored receipts explicitly say
+historical application only, no process adoption, physical handover unassessed,
+operating-area policy not evaluated by the host, and work_use Unsupported.
+
+The logical cut is the final live decision check in a successful transaction.
+SQLite serializes route/registration/consumption changes; the F6 ledger mutex is
+held through physical commit and blocks interleaving revocation. Two timing
+residuals remain: TTL can expire after the cut during commit IO, and the fresh HTTP
+observation is as of its own timestamp/instance, not atomic with the SQL commit.
+
+Inspection, routing and receipts emit `CheckpointPolicy`. There is no timer or
+bounded detection delay. Preparation-only captures at ASSIGN and reuses that
+input; result-generation captures at FINISH; continuous observes at explicit
+ASSIGN/BEGIN/POLL/FINISH calls. INSPECT explicitly observes dependent providers,
+and APPLY probes its candidate. At the next required observation, known loss or
+changed identity/report is NOT_MET and unavailable evidence is NOT_EVALUATED.
+Affected transitions/result consumption are withheld; history is preserved.
+Unrelated diagnostic work can continue. No automatic stop, retry or replacement
+and no continuous monitoring service is added.
+
+```sh
+python3 tools/dependency_replacement_passage.py --image RX_RUNTIME_IMAGE \
+  --builder RUST_BUILDER --evidence /absolute/path/to/fresh-replacement-evidence
+```
+
+This exercises the application API with real Linux HTTP processes, an external
+test signer, concurrent applications, partial staging rollback, reply loss and
+actual manager SIGKILL before/after commit. It also switches a route while a run
+is running and shows that run still consumes A while a new run consumes B.
+The initial mutable-row counterexample is retained as a test intervention, not a
+replacement API. There is no new resident routing CLI or production operating-area
+provider integration. The five existing passages remain distinct regression
+checks. This adds four registration document schemas and additive Inspection
+output, but changes no Program/catalog/Run/TrackedBinding layout, SDK or wire API.
+Older writers do not enforce these routes; downgrade writing is unsupported.
+
 ## Further connections
 
 Tests check failures before/after startup commit, persistence failure after actual spawn, unknown backend results, supervisor restart, loss of shutdown authority, rejection of force termination for control processes, stop latch during storage failure, exit-observation repersistence, dependency ordering and bounded software restart. A separate actual non-actuating HTTP child also checks instance-correlated readiness, incorrect responses/file tampering and owned-process shutdown.
