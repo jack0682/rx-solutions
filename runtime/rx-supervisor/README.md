@@ -902,3 +902,42 @@ predetermined Host stress rounds without exclusions. Its separate single-thread
 fork fixture is measurement code, not a shipped daemon. Existing F12 passage
 labels and historical evidence remain historical; G1's source-origin guard,
 actual overlap scenes and compatible commits are the current lifetime evidence.
+
+## Authenticated development release checkpoint (G2)
+
+The compiled root lives in platform `rx-package::release::root`, exported into the
+SDK. `release_programs` and `add_guarded_services` authenticate signed metadata and
+all inventory bytes before deriving recipes; the daemon shares the same opaque
+verified object between both projections. The inventory cannot introduce keys or
+substitute expected content. F12's two compiled source-content pins remain.
+
+`rx-solutionsd init/run/activate/investigate/resume` record the signed revocation
+checkpoint and admit the release before initializers, registration or execution.
+F12 compiled-source preflight remains before writable-state access; it only rejects and does not authenticate a release or advance state.
+The installation-wide floor is `/var/lib/rx-solutions/release.db`, independent of
+plan `state_subdirectory`. This adds one local store, no daemon, service or network
+endpoint. G1's writer lock and transaction apply. The store closes after the
+admission checkpoint; it is not a background revocation monitor or global runtime
+ownership lock. Inspection authenticates captured content but neither advances
+nor certifies the durable floor. Its report is not permission.
+
+The six public refusal conditions distinguish unsigned, invalid signature, unknown
+key, revoked release, rollback and content mismatch. `rx.release-refusal.v1`
+reports their names; malformed input and state failures remain distinct. An old
+unsigned image is refused by the new supervisor. Build the ordinary image first,
+sign its final inventory offline with platform `tools/sign_release.py`, and create
+a derived image adding only `manifests/release.json` and `manifests/revocations.json`.
+Do not copy the signing key into either image or its build context. Existing
+passages accept this signed image through their unchanged `--image` input.
+
+The public key is **development-only**. Product release custody and rotation are
+**NOT_ESTABLISHED**. The verifier and OS remain trusted installed binaries, not
+self-authenticated artifacts. Whole-state rollback/deletion is **NOT_DETECTED**;
+the floor protects ordinary restart with intact retained state. Offline revocation
+freshness is **NOT_ESTABLISHED**. `release_boundary()` reports all four limits.
+Checks are `EXPLICIT_CALLER_DRIVEN_CHECKPOINTS`, with
+`NO_TIMER_OR_BACKGROUND_MONITOR`; trusted installation stability remains required
+between checking bytes and use. Existing per-launch file hashes remain in force.
+Direct OS/Host/Python invocations and custom trusted Rust compositions are not
+sandboxed by a supervisor checkpoint. This is release-recipe authentication, not
+operating-area work authority, host attestation or physical qualification.
