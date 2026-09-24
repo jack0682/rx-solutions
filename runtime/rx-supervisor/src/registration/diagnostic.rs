@@ -5,7 +5,9 @@ use crate::use_assessment::{
     ConditionAssessment, ConditionState, ReadinessAssessment, ReportOrigin, UseScope, WorkUseState,
 };
 use std::collections::BTreeMap;
+mod replacement;
 mod store;
+pub use replacement::*;
 pub use store::Consumer;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -281,6 +283,7 @@ pub struct Inspection {
     pub ongoing: Assessment,
     pub result_consumption: Assessment,
     pub work_use: WorkUsePermission,
+    pub checkpoints: CheckpointPolicy,
     pub limitations: Vec<&'static str>,
 }
 #[derive(Clone, Debug, Serialize)]

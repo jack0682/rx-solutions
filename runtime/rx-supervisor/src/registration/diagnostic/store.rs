@@ -1,12 +1,16 @@
 use super::*;
-const BINDING: &str = "rx.diagnostic-binding.v1";
+pub(super) const BINDING: &str = "rx.diagnostic-binding.v1";
 const RUN: &str = "rx.diagnostic-run.v1";
 const RESULT: &str = "rx.diagnostic-result.v1";
 const MAX_SAMPLES: usize = 16;
-fn entity_key(kind: &str, component: &Id, id: &Id) -> Name {
+pub(super) fn entity_key(kind: &str, component: &Id, id: &Id) -> Name {
     name(&format!("components/diagnostic/{kind}/{component}/{id}"))
 }
-fn binding(tx: &mut dyn Transaction, component: &Id, id: &Id) -> Result<(Record, TrackedBinding)> {
+pub(super) fn binding(
+    tx: &mut dyn Transaction,
+    component: &Id,
+    id: &Id,
+) -> Result<(Record, TrackedBinding)> {
     let row = tx
         .get(&entity_key("binding", component, id))?
         .ok_or_else(|| invalid("diagnostic binding not found"))?;
@@ -14,6 +18,7 @@ fn binding(tx: &mut dyn Transaction, component: &Id, id: &Id) -> Result<(Record,
     if value.id != *id || value.consumer.registration != *component {
         return Err(invalid("diagnostic binding identity differs"));
     }
+    replacement::check_version(tx, component, &value)?;
     Ok((row, value))
 }
 fn run(
@@ -52,7 +57,10 @@ fn result(tx: &mut dyn Transaction, component: &Id, id: &Id) -> Result<Diagnosti
     }
     Ok(value)
 }
-fn eligible_consumer(tx: &mut dyn Transaction, expected: &RegistrationRef) -> Result<Assessment> {
+pub(super) fn eligible_consumer(
+    tx: &mut dyn Transaction,
+    expected: &RegistrationRef,
+) -> Result<Assessment> {
     let current = load(tx, &expected.registration)?;
     if current.registration.state != RegistrationState::Accepted {
         return Ok(not_met(
@@ -160,10 +168,10 @@ fn result_use(
 /// watcher or a claim that availability held between observations. History has no
 /// deletion API; use a separately reviewed archival policy if retention is needed.
 pub struct Consumer<R> {
-    registry: Registry<R>,
-    consumer: RegistrationRef,
-    catalog: Catalog,
-    decision_gate: crate::decision::Gate,
+    pub(super) registry: Registry<R>,
+    pub(super) consumer: RegistrationRef,
+    pub(super) catalog: Catalog,
+    pub(super) decision_gate: crate::decision::Gate,
 }
 impl<R: Repository> Consumer<R> {
     pub fn open(mut registry: Registry<R>, component: Id, catalog: Catalog) -> Result<Self> {
@@ -202,7 +210,7 @@ impl<R: Repository> Consumer<R> {
     pub fn history(&mut self) -> Result<Vec<StoredEvent>> {
         self.registry.history(&self.consumer.registration)
     }
-    fn load_binding(
+    pub(super) fn load_binding(
         &mut self,
         id: &Id,
     ) -> Result<(Record, TrackedBinding, Dependency, Assessment)> {
@@ -293,6 +301,9 @@ impl<R: Repository> Consumer<R> {
     }
     pub fn assign(&mut self, id: &Id, source: &mut impl Source) -> Result<Progress> {
         let (row, mut tracked, declaration, eligibility) = self.load_binding(id)?;
+        self.registry
+            .repository
+            .transact(|tx| replacement::admit_assignment(tx, &self.consumer.registration, id))?;
         if eligibility.state != ConditionState::Satisfied {
             return Ok(Progress {
                 assessment: eligibility,
@@ -384,6 +395,9 @@ impl<R: Repository> Consumer<R> {
                 return Err(StoreError::RevisionConflict(
                     "diagnostic binding changed during observation".into(),
                 ));
+            }
+            if old_run.is_none() {
+                replacement::admit_assignment(tx, &self.consumer.registration, &tracked.id)?;
             }
             if old_run.is_none()
                 && tx
@@ -634,7 +648,7 @@ impl<R: Repository> Consumer<R> {
             ProbePurpose::Inspect,
             source,
         );
-        let (new_assignment, ongoing, result_consumption) =
+        let (mut new_assignment, ongoing, result_consumption) =
             if eligibility.state == ConditionState::Satisfied {
                 (
                     assignment(&declaration, &current),
@@ -644,6 +658,14 @@ impl<R: Repository> Consumer<R> {
             } else {
                 (eligibility.clone(), eligibility.clone(), eligibility)
             };
+        if !self.registry.repository.transact(|tx| {
+            replacement::assignment_is_current(tx, &self.consumer.registration, binding_id)
+        })? {
+            new_assignment = not_met(
+                "binding/superseded",
+                "new assignment must resolve the active route; ongoing runs and results keep their immutable binding version",
+            );
+        }
         Ok(Inspection {
             binding: tracked,
             run: active,
@@ -652,6 +674,7 @@ impl<R: Repository> Consumer<R> {
             ongoing,
             result_consumption,
             work_use: WorkUsePermission::Unsupported,
+            checkpoints: CheckpointPolicy::current(),
             limitations: vec![
                 "diagnostic tracking is not initial or replacement binding acceptance",
                 "positive consumer-side binding and work-use providers unsupported",
