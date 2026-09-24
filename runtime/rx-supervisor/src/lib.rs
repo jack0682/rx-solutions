@@ -14,6 +14,8 @@ pub mod use_assessment;
 pub use supervisor::Supervisor;
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
+    #[error(transparent)]
+    Release(#[from] rx_package::release::Error),
     #[error("invalid supervisor input: {0}")]
     Invalid(String),
     #[error("storage: {0}")]

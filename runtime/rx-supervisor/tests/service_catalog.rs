@@ -39,6 +39,17 @@ fn fixture(root: &Path) -> (ServiceConfigurations, Plan) {
         files.insert(format!("bin/{binary}"), rx_package::content_digest(&bytes));
     }
     std::fs::write(root.join("manifests/runtime-files.json"), serde_json::to_vec(&serde_json::json!({"schema":"rx.solutions-runtime-files.v1","files":files,"external_files":{}})).unwrap()).unwrap();
+    // Pre-signed inert fixture: no private key, runtime key override or alternate root.
+    std::fs::write(
+        root.join("manifests/release.json"),
+        include_bytes!("fixtures/service-release/release.json"),
+    )
+    .unwrap();
+    std::fs::write(
+        root.join("manifests/revocations.json"),
+        include_bytes!("fixtures/service-release/revocations.json"),
+    )
+    .unwrap();
     let mut services = BTreeMap::new();
     let mut processes = Vec::new();
     // This fixture validates the catalog projection only. No daemon, TLS or device is started.

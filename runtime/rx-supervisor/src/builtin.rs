@@ -1,7 +1,7 @@
 //! Release-owned launch recipes. A site plan selects parameters, not executable paths or effect classes.
 use crate::{Error, Result, model::*, process::verify};
 use rx_domain::{canonical, types::*};
-use serde::Deserialize;
+
 use std::{
     collections::BTreeMap,
     path::{Path, PathBuf},
@@ -10,33 +10,88 @@ use std::{
 mod services;
 pub use services::{
     ConfigurationPin, Initializer, ServiceConfigurations, ServiceInput, ServiceRole,
-    add_guarded_services, validate_service_plan,
+    add_guarded_services, services_from_release, validate_service_plan,
 };
 
-/// Diagnostic boundary, not authenticated provenance or a permission receipt.
+/// Checkpoint diagnostics, never a current permission receipt.
 pub fn release_boundary() -> serde_json::Value {
     serde_json::json!({
         "trust": "TRUSTED_INSTALLED_RUST_BINARIES_AND_OS",
         "source_assets": "STATUS_SCRIPT_AND_DEVICE_CATALOG_MATCH_COMPILED_SOURCE_CONTENT",
-        "inventory": "CONSISTENCY_INDEX_NOT_AUTHENTICATED_ROOT",
-        "remaining_inventory_pins": ["/usr/bin/python3", "installed Host/Executor Rust binaries"],
-        "authenticated_immutable_provenance": "NOT_ESTABLISHED; SEPARATE_AUTHENTICATED_RELEASE_ORIGIN_SLICE"
+        "inventory": "CONSISTENCY_INDEX_AUTHENTICATED_BY_COMPILED_DEVELOPMENT_ROOT",
+        "authenticated_immutable_provenance": "NOT_ESTABLISHED_FOR_OS_AND_VERIFIER; DEVELOPMENT_RELEASE_CONTENT_AUTHENTICATED_AT_CHECKPOINT",
+        "release_key": rx_package::release::root::KEY_ID,
+        "product_release_custody_and_rotation": "NOT_ESTABLISHED",
+        "whole_state_rollback_or_deletion": "NOT_DETECTED",
+        "offline_revocation_freshness": "NOT_ESTABLISHED",
+        "interval": "EXPLICIT_CALLER_DRIVEN_CHECKPOINTS",
+        "monitor": "NO_TIMER_OR_BACKGROUND_MONITOR",
+        "remaining_interval": "TRUSTED_INSTALLATION_STABILITY_BETWEEN_BYTE_CHECK_AND_USE",
+        "inspection": "OBSERVATION_ONLY; NOT_DURABLE_ADMISSION_OR_WORK_PERMISSION"
     })
 }
 
-#[derive(Deserialize)]
-struct Inventory {
-    schema: String,
-    files: BTreeMap<String, Digest>,
-    external_files: BTreeMap<String, Digest>,
+pub fn release_metadata(root: &Path, name: &str) -> Result<Vec<u8>> {
+    use std::io::Read;
+    let path = root.join("manifests").join(name);
+    let file = match std::fs::File::open(&path) {
+        Ok(file) => file,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound && name != "runtime-files.json" => {
+            return Err(rx_package::release::Error::Unsigned.into());
+        }
+        Err(e) => return Err(rx_package::release::Error::Content(e.to_string()).into()),
+    };
+    let mut bytes = Vec::new();
+    file.take(1_048_577).read_to_end(&mut bytes)?;
+    if bytes.len() > 1_048_576 {
+        return Err(rx_package::release::Error::Malformed("metadata size".into()).into());
+    }
+    Ok(bytes)
+}
+pub fn load_release(root: &Path) -> Result<rx_package::release::VerifiedRelease> {
+    verify_release(
+        root,
+        &release_metadata(root, "release.json")?,
+        &release_metadata(root, "revocations.json")?,
+    )
+}
+pub fn verify_release(
+    root: &Path,
+    release: &[u8],
+    revoked: &[u8],
+) -> Result<rx_package::release::VerifiedRelease> {
+    use std::io::Read;
+    Ok(rx_package::release::verify(
+        release,
+        revoked,
+        &release_metadata(root, "runtime-files.json")?,
+        |name, external| {
+            let path = if external {
+                PathBuf::from(name)
+            } else {
+                root.join(name)
+            };
+            let file = std::fs::File::open(&path)
+                .map_err(|_| rx_package::release::Error::Content(name.into()))?;
+            let mut bytes = Vec::new();
+            file.take(536_870_913)
+                .read_to_end(&mut bytes)
+                .map_err(|_| rx_package::release::Error::Content(name.into()))?;
+            if bytes.len() > 536_870_912 {
+                return Err(rx_package::release::Error::Content(name.into()));
+            }
+            Ok(bytes)
+        },
+    )?)
 }
 pub fn release_programs(root: &Path) -> Result<BTreeMap<Name, Program>> {
-    let bytes = std::fs::read(root.join("manifests/runtime-files.json"))?;
-    let inventory: Inventory =
-        canonical::decode_json(&bytes).map_err(|e| Error::Invalid(e.to_string()))?;
-    if inventory.schema != "rx.solutions-runtime-files.v1" {
-        return Err(Error::Invalid("release inventory schema".into()));
-    }
+    programs_from_release(root, &load_release(root)?)
+}
+pub fn programs_from_release(
+    root: &Path,
+    release: &rx_package::release::VerifiedRelease,
+) -> Result<BTreeMap<Name, Program>> {
+    let inventory = release.inventory();
     let script = root.join("tools/solutions_status.py");
     let digest = |v: Option<&Digest>| -> Result<Digest> {
         v.copied()

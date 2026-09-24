@@ -5,8 +5,8 @@ use rx_solution_catalog::DeviceCatalog;
 use rx_storage::SqliteRepository;
 use rx_supervisor::{
     builtin::{
-        ServiceConfigurations, add_guarded_services, release_boundary, release_programs,
-        validate_service_plan,
+        ServiceConfigurations, programs_from_release, release_boundary, release_metadata,
+        services_from_release, validate_service_plan, verify_release,
     },
     execution_store, initialization,
     model::{GuardedServices, Plan},
@@ -93,6 +93,19 @@ async fn main() -> Result<()> {
             eprintln!("{}", serde_json::to_string(&refusal)?);
             return Err(refusal.condition.into());
         }
+        let release_error = error
+            .downcast_ref::<rx_package::release::Error>()
+            .or_else(|| match error.downcast_ref::<rx_supervisor::Error>() {
+                Some(rx_supervisor::Error::Release(release)) => Some(release),
+                _ => None,
+            });
+        if let Some(release) = release_error {
+            eprintln!(
+                "{}",
+                serde_json::json!({"schema":"rx.release-refusal.v1", "condition":release.condition(), "detail":release.to_string(), "current_permission":"NOT_GRANTED"})
+            );
+            return Err(release.condition().into());
+        }
         return Err(error);
     }
     Ok(())
@@ -125,9 +138,34 @@ async fn run() -> Result<()> {
             None
         };
     let root = Path::new("/opt/rx");
-    let mut programs = release_programs(root)?;
+    // Capture signed metadata once. A plan-selected state subdirectory cannot
+    // reset the installation-wide release floor. No runtime root-key override.
+    let release_bytes = release_metadata(root, "release.json")?;
+    let revocation_bytes = release_metadata(root, "revocations.json")?;
+    let mut release_store = if args[0] == "inspect" {
+        None
+    } else {
+        let base = Path::new("/var/lib/rx-solutions");
+        if !fs::symlink_metadata(base).is_ok_and(|m| m.is_dir() && !m.file_type().is_symlink()) {
+            return Err("release/state-root-invalid".into());
+        }
+        for name in ["release.db", "release.writer.lock"] {
+            match fs::symlink_metadata(base.join(name)) {
+                Ok(m) if !m.is_file() || m.file_type().is_symlink() => {
+                    return Err("release/state-file-invalid".into());
+                }
+                Err(e) if e.kind() != std::io::ErrorKind::NotFound => return Err(e.into()),
+                _ => {}
+            }
+        }
+        let mut store = SqliteRepository::open(base.join("release.db"))?;
+        rx_package::release::update_revocations(&mut store, &revocation_bytes)?;
+        Some(store)
+    };
+    let release = verify_release(root, &release_bytes, &revocation_bytes)?;
+    let mut programs = programs_from_release(root, &release)?;
     let initializers = if let Some(services) = &configuration.services {
-        let initializers = add_guarded_services(root, services, &mut programs)?;
+        let initializers = services_from_release(root, services, &mut programs, &release)?;
         validate_service_plan(&configuration.plan, &initializers)?
     } else {
         Vec::new()
@@ -141,6 +179,10 @@ async fn run() -> Result<()> {
         );
         return Ok(());
     }
+    rx_package::release::admit(release_store.as_mut().expect("non-inspect store"), &release)?;
+    // This is a recorded checkpoint, not continuous revocation monitoring.
+    // Release the global writer only after the durable admission has committed.
+    release_store.take().expect("non-inspect store").close()?;
     let state = state_directory(configuration.state_subdirectory.as_str())?;
     for initializer in &initializers {
         for path in
