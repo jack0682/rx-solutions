@@ -60,7 +60,8 @@ public:
 void host_channel(){
   const auto parent=getppid();ucred peer{};socklen_t length=sizeof(peer);struct stat actual{},expected{};
   // No listener exists. Only the inherited channel addresses this instance.
-  // Parent credentials strengthen this boundary; they are not a same-UID sandbox.
+  // Parent identity is independently required to reject a second callable helper.
+  // Both checks are load-bearing; neither creates a same-UID sandbox.
   if(prctl(PR_SET_PDEATHSIG,SIGKILL)||getppid()!=parent || getsockopt(0,SOL_SOCKET,SO_PEERCRED,&peer,&length)||peer.pid!=parent)
     refuse("DXL_HOST_CHANNEL_REQUIRED");
   auto path=std::string("/proc/")+std::to_string(parent)+"/exe";
