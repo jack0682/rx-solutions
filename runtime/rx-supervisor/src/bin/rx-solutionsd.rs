@@ -88,6 +88,11 @@ impl RecoveryAuthority for ExplicitLocalResume {
         d.kind == DispositionKind::ConfirmedClosure
     }
 }
+fn is_status_program(program: &str) -> bool {
+    program == "rx/status-http"
+        || rx_package::operating_area::for_program(program).is_ok_and(|a| a.is_some())
+}
+
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<()> {
     if let Err(error) = run().await {
@@ -127,13 +132,12 @@ async fn run() -> Result<()> {
     let mut work_task: Option<rx_supervisor::work_use::Task> =
         if matches!(args[0].as_str(), "run" | "activate") && args.len() == 3 {
             let task: rx_supervisor::work_use::Task = read_json(Path::new(&args[2]))?;
-            if !configuration.plan.processes.iter().any(|p| {
-                p.id == task.selection
-                    && matches!(
-                        p.program.as_str(),
-                        "rx/status-http" | rx_package::operating_area::PROGRAM
-                    )
-            }) {
+            if !configuration
+                .plan
+                .processes
+                .iter()
+                .any(|p| p.id == task.selection && is_status_program(p.program.as_str()))
+            {
                 return Err("work task requires a selected non-actuating status program".into());
             }
             Some(task)
@@ -176,14 +180,17 @@ async fn run() -> Result<()> {
     };
     let release = verify_release(root, &release_bytes, &revocation_bytes)?;
     let mut programs = programs_from_release(root, &release)?;
-    if configuration
-        .plan
-        .processes
-        .iter()
-        .any(|p| p.program.as_str() == rx_package::operating_area::PROGRAM)
-    {
-        let work = rx_supervisor::builtin::development_work_program(root, &release)?;
-        programs.insert(work.id.clone(), work);
+    for area in rx_package::operating_area::catalog()? {
+        if configuration
+            .plan
+            .processes
+            .iter()
+            .any(|p| p.program.as_str() == area.program)
+        {
+            let work =
+                rx_supervisor::builtin::development_area_program(root, &release, area.program)?;
+            programs.insert(work.id.clone(), work);
+        }
     }
     let initializers = if let Some(services) = &configuration.services {
         let initializers = services_from_release(root, services, &mut programs, &release)?;
@@ -280,10 +287,7 @@ async fn run() -> Result<()> {
         if configuration.services.is_some()
             || next.services.is_some()
             || configuration.plan.processes.len() != 1
-            || !matches!(
-                configuration.plan.processes[0].program.as_str(),
-                "rx/status-http" | rx_package::operating_area::PROGRAM
-            )
+            || !is_status_program(configuration.plan.processes[0].program.as_str())
             || configuration.state_subdirectory != next.state_subdirectory
             || configuration.plan.id == next.plan.id
         {

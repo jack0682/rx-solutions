@@ -13,7 +13,6 @@ pub(crate) fn digest<T: Serialize>(domain: &str, value: &T) -> Result<Digest> {
 pub(crate) fn invalid(reason: &str) -> Error {
     Error::Invalid(format!("work-use/{reason}"))
 }
-pub(crate) const ROLE: &str = "work/support-gap-report";
 pub(crate) const READINESS_ROLE: &str = "diagnostics/support-summary";
 
 /// Task data only, never a policy or permission.
@@ -73,8 +72,8 @@ pub struct Report {
 /// ```
 /// ```compile_fail
 /// use rx_supervisor::{work_use::{Prepared, Task}, decision::VerifiedDecision};
-/// fn forge(task: Task, proof: VerifiedDecision, context: rx_domain::types::Digest) -> Prepared {
-///     Prepared { task, proof, context }
+/// fn forge(task: Task, proof: VerifiedDecision, context: rx_domain::types::Digest, assessment: rx_supervisor::use_assessment::WorkUseAssessment) -> Prepared {
+///     Prepared { task, proof, context, assessment }
 /// }
 /// ```
 #[derive(Debug)]
