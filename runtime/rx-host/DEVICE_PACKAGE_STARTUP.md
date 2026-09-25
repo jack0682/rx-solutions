@@ -4,17 +4,17 @@ Written 2026-09-12. `MELSEC_PACKAGE` has been connected to the fixed factory in 
 
 ## 1. Product selections
 
-Product configuration has the following three backend forms.
+Product configuration includes the following backend forms.
 
 | kind | Current meaning |
 |---|---|
 | FILE_SIMULATION | Existing file-based device simulation backend |
 | MELSEC_PACKAGE | Restricted MELSEC EnsureState backend from a signed DEVICE_REFERENCE package |
-| VALIDATED_DRIVER | Previously reserved form. Still rejected; it is not treated as an implemented generic driver registry |
+| VALIDATED_DRIVER | Previously reserved form; now only the [fixed DYNAMIXEL simulated Ping profile](DYNAMIXEL_ADAPTER.md). Other profiles remain refused; this is not a generic driver registry |
 
 MELSEC_PACKAGE specifies an **absolute package directory, expected manifest digest, and the path and SHA-256 of an independent policy file**. It does not load executables or shared libraries from user paths. The only selectable implementation is the compiled `rx.melsec.ensure-state.v1`, and the actual model list is currently restricted to Q03UDVCPU. This does not mean actual Q03UDVCPU field validation is complete.
 
-`rx-hostd drivers` outputs current implementation descriptors as JSON without a configuration file. `inspect CONFIG` validates the package, policy and static bindings; `init CONFIG` creates a new installation; `run CONFIG` opens only an existing installation. The program cannot execute arbitrary plugin paths.
+`rx-hostd drivers` (and `drivers dynamixel` for the fixed simulated Ping adapter) outputs current implementation descriptors as JSON without a configuration file. `inspect CONFIG` validates the package, policy and static bindings; `init CONFIG` creates a new installation; `run CONFIG` opens only an existing installation. The program cannot execute arbitrary plugin paths.
 
 ## 2. Package and independent policy
 

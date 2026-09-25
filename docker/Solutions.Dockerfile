@@ -20,6 +20,7 @@ COPY runtime ./runtime
 COPY drivers ./drivers
 COPY catalogs ./catalogs
 COPY native/ros-jtc ./native/ros-jtc
+COPY native/dynamixel ./native/dynamixel
 COPY native/support ./native/support
 COPY dependencies ./dependencies
 COPY interfaces ./interfaces
@@ -47,6 +48,11 @@ RUN --network=none source /opt/ros/jazzy/setup.bash \
     && cmake -S /ros-jtc -B /ros-jtc-build -G Ninja -DCMAKE_BUILD_TYPE=Release -DRX_CATALOG=/catalogs/device-support.v1.json \
     && cmake --build /ros-jtc-build --target rx-ros-jtc-bridge -j1
 
+FROM native-dependencies AS dynamixel-build
+COPY native/dynamixel /dynamixel/
+RUN --network=none cmake -S /dynamixel -B /dynamixel-build -DCMAKE_BUILD_TYPE=Release \
+    && cmake --build /dynamixel-build --target rx-dynamixel-ping -j1
+
 FROM native-dependencies AS runtime
 ENV PYTHONDONTWRITEBYTECODE=1 ROS_LOG_DIR=/var/lib/rx-solutions/ros-log
 COPY LICENSE NOTICE /opt/rx/
@@ -57,6 +63,8 @@ COPY --from=btcpp /3rdparty/lexy/LICENSE /opt/rx/licenses/lexy/LICENSE
 COPY --from=btcpp /3rdparty/minicoro/LICENSE /opt/rx/licenses/minicoro/LICENSE
 COPY --from=btcpp /3rdparty/cppzmq/LICENSE /opt/rx/licenses/cppzmq/LICENSE
 COPY --from=rust-build /out/ /opt/rx/bin/
+COPY --from=dynamixel-build /dynamixel-build/rx-dynamixel-ping /opt/rx/bin/rx-dynamixel-ping
+COPY native/dynamixel/vendor/LICENSE /opt/rx/licenses/DynamixelSDK/LICENSE
 COPY --from=bt-build /bt-build/rx-bt-engine /opt/rx/bin/rx-bt-engine
 COPY --from=ros-jtc-build /ros-jtc-build/rx-ros-jtc-bridge /opt/rx/bin/rx-ros-jtc-bridge
 COPY --from=ui-build /src/dist/ /opt/rx/operator/
@@ -71,6 +79,7 @@ RUN source /opt/ros/jazzy/setup.bash \
     && mkdir -p /var/lib/rx-solutions/ros-log /run/rx-solutions /run/rx-host \
     && chown -R 10001:10001 /var/lib/rx-solutions /run/rx-solutions /run/rx-host \
     && chmod 755 /opt/rx/entrypoint.sh \
+    && /opt/rx/bin/rx-hostd drivers dynamixel > /opt/rx/manifests/dynamixel-driver.json \
     && python3 /opt/rx/tools/write_runtime_inventory.py
 USER 10001:10001
 WORKDIR /var/lib/rx-solutions

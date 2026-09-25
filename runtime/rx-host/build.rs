@@ -118,5 +118,31 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "cargo:rustc-env=RX_JTC_DRIVER_SOURCE_SHA256={:x}",
         digest.finalize()
     );
+    let mut dxl_files = BTreeSet::new();
+    for folder in [solutions.join("native/dynamixel"), host.join("src")] {
+        inventory(&solutions, &folder, &mut dxl_files)?;
+        println!("cargo:rerun-if-changed={}", folder.display());
+    }
+    for path in [
+        "Cargo.lock",
+        "runtime/rx-host/build.rs",
+        "runtime/rx-host/Cargo.toml",
+        "sdk/source-lock.json",
+    ] {
+        dxl_files.insert(path.to_owned());
+    }
+    let mut digest = Sha256::new();
+    digest.update(b"RX-DYNAMIXEL-SOURCE-v1\0");
+    for path in dxl_files {
+        let bytes = fs::read(solutions.join(&path))?;
+        digest.update((path.len() as u64).to_le_bytes());
+        digest.update(path.as_bytes());
+        digest.update((bytes.len() as u64).to_le_bytes());
+        digest.update(bytes);
+    }
+    println!(
+        "cargo:rustc-env=RX_DYNAMIXEL_SOURCE_SHA256={:x}",
+        digest.finalize()
+    );
     Ok(())
 }

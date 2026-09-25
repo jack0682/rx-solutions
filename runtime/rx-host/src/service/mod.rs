@@ -78,6 +78,9 @@ impl<N: NativeAdapter, C: Clock> Drop for AdmissionOwner<N, C> {
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "SCREAMING_SNAKE_CASE", deny_unknown_fields)]
 pub enum NativeInstallation {
+    Dynamixel {
+        identity: crate::dynamixel::Identity,
+    },
     Jtc {
         identity: crate::ros_jtc::Identity,
         manifest_digest: Digest,
@@ -170,19 +173,22 @@ fn validate_state_files(path: &Path) -> Result<()> {
             }
         }
     }
-    let native = path.join("native-melsec");
-    if native.exists() {
-        real_directory(&native)?;
-        for file in [
-            "native.sqlite3",
-            "native.sqlite3-wal",
-            "native.sqlite3-shm",
-            "native.writer.lock",
-        ] {
-            if let Ok(m) = fs::symlink_metadata(native.join(file))
-                && (!m.is_file() || m.file_type().is_symlink())
-            {
-                return Err("invalid native state file".into());
+    for kind in ["native-melsec", "native-dynamixel"] {
+        let native = path.join(kind);
+        if native.exists() {
+            real_directory(&native)?;
+            for file in [
+                "native.sqlite3",
+                "native.sqlite3-wal",
+                "native.sqlite3-shm",
+                "native.writer.lock",
+                "helper-invocations.jsonl",
+            ] {
+                if let Ok(m) = fs::symlink_metadata(native.join(file))
+                    && (!m.is_file() || m.file_type().is_symlink())
+                {
+                    return Err("invalid native state file".into());
+                }
             }
         }
     }
@@ -259,7 +265,7 @@ pub fn initialize_with<C: Clock + Clone + 'static, F: AdapterFactory<C>>(
                 native,
             })?,
         )?;
-        for dir in ["native-melsec", "native-jtc"] {
+        for dir in ["native-melsec", "native-jtc", "native-dynamixel"] {
             if stage.join(dir).exists() {
                 fs::File::open(stage.join(dir))?.sync_all()?;
             }

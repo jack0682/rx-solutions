@@ -1,0 +1,1 @@
+{"schema":"rx.dynamixel-ping-profile.v1","environment":"SIMULATION","backend":"VALIDATED_DRIVER","sdk":"4.1.0","endpoint":"simulation/dynamixel/id-1","protocol":2,"device_id":1,"model":65500,"response_delay_ms":250,"model_kind":"FICTIONAL_RX_MODEL","ready_source":"ready","condition_id":"sim/ready","completion":"rx.dynamixel.ping.v1","physical_qualification":"NOT_PERFORMED"}
