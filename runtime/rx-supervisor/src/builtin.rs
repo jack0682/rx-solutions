@@ -22,6 +22,9 @@ pub fn release_boundary() -> serde_json::Value {
         "inventory": "CONSISTENCY_INDEX_AUTHENTICATED_BY_COMPILED_DEVELOPMENT_ROOT",
         "authenticated_immutable_provenance": "NOT_ESTABLISHED_FOR_OS_AND_VERIFIER; DEVELOPMENT_RELEASE_CONTENT_AUTHENTICATED_AT_CHECKPOINT",
         "release_key": rx_package::release::root::KEY_ID,
+        "development_release_signing_custody": rx_package::release::root::DEVELOPMENT_SIGNING_CUSTODY,
+        "development_release_previous_root": rx_package::release::root::PREVIOUS_ROOT_STATUS,
+        "development_release_dual_root_window": rx_package::release::root::DUAL_ROOT_WINDOW,
         "product_release_custody_and_rotation": "NOT_ESTABLISHED",
         "operating_area_judge": "OPT_IN_DEVELOPMENT_OFFLINE_RULE_JUDGE; PHYSICAL_SAFETY_QUALITY_EQUIPMENT_QUALIFICATION_NOT_GRANTED",
         "operating_areas": "TWO_COMPILED_DEVELOPMENT_AREAS_WITH_DISTINCT_KEYS; SITE_ENROLLMENT_REFUSED; NO_NETWORK_OR_PHYSICAL_AUTHORITY",
@@ -32,7 +35,7 @@ pub fn release_boundary() -> serde_json::Value {
         "dhi": "OPTIONAL_RELEASE_RECIPE; FRESH_PTY_MODEL_ONLY; ORIGINAL_DHI_COMMAND_AUTHOR; CM_LIFECYCLE; RX_DESCRIPTOR_CUSTODY",
         "dhi_effect_classification": "WITHHELD_REGISTERED_RELEASE_ADMISSION_UNVERIFIED",
         "dhi_registered_release_admission_verified": false,
-        "dhi_registered_release_admission_reason": "DEVELOPMENT_SIGNING_CUSTODY_UNAVAILABLE; ROOT_ROTATION_REQUIRES_SEPARATE_VERIFICATION",
+        "dhi_registered_release_admission_reason": "REQUIRES_PLATFORM_AUTHORITY; SIGNED_RESIDENT_PATH_NOT_QUALIFIED",
         "dhi_direct_mechanism_scope": "FRESH_PTY_ONLY; NO_PHYSICAL_ENDPOINT_OR_ADOPTION; PROCESS_EXIT_DOES_NOT_CLEAR_MODEL_RESIDUAL_OR_UNCONFIRMED_STOP",
         "dhi_same_uid_tampering": "OUTSIDE_TRUST_BOUNDARY_CHMOD_PTRACE",
         "dhi_compose_s6_reuse": "NOT_ESTABLISHED",
@@ -41,7 +44,7 @@ pub fn release_boundary() -> serde_json::Value {
         "robotis_bundle_complete": false,
         "work_commit_residuals": ["TTL_CONTINUES_DURING_POST_CUT_IO", "HTTP_OBSERVATION_IS_AS_OF"],
         "whole_state_rollback_or_deletion": "NOT_DETECTED",
-        "offline_revocation_freshness": "NOT_ESTABLISHED",
+        "offline_revocation_freshness": rx_package::release::root::OFFLINE_REVOCATION_FRESHNESS,
         "interval": "EXPLICIT_CALLER_DRIVEN_CHECKPOINTS",
         "monitor": "NO_TIMER_OR_BACKGROUND_MONITOR",
         "remaining_interval": "TRUSTED_INSTALLATION_STABILITY_BETWEEN_BYTE_CHECK_AND_USE",
@@ -340,7 +343,20 @@ mod tests {
         assert_eq!(boundary["dhi_registered_release_admission_verified"], false);
         assert_eq!(
             boundary["dhi_registered_release_admission_reason"],
-            "DEVELOPMENT_SIGNING_CUSTODY_UNAVAILABLE; ROOT_ROTATION_REQUIRES_SEPARATE_VERIFICATION"
+            "REQUIRES_PLATFORM_AUTHORITY; SIGNED_RESIDENT_PATH_NOT_QUALIFIED"
+        );
+        assert_eq!(
+            boundary["development_release_signing_custody"],
+            "ESTABLISHED_BY_TWO_COPY_RECOVERY_REHEARSAL"
+        );
+        assert_eq!(
+            boundary["development_release_previous_root"],
+            "RETIRED_NOT_ACCEPTED"
+        );
+        assert_eq!(boundary["development_release_dual_root_window"], false);
+        assert_eq!(
+            boundary["product_release_custody_and_rotation"],
+            "NOT_ESTABLISHED"
         );
     }
 }

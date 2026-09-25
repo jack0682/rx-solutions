@@ -4,7 +4,7 @@
   "sdk": "DynamixelSDK@f838bc90f72fcf5b9c279432d6e12fc24969daa8",
   "classification": "WITHHELD_REGISTERED_RELEASE_ADMISSION_UNVERIFIED",
   "registered_release_admission_verified": false,
-  "registered_release_admission_reason": "DEVELOPMENT_SIGNING_CUSTODY_UNAVAILABLE; ROOT_ROTATION_REQUIRES_SEPARATE_VERIFICATION",
+  "registered_release_admission_reason": "REQUIRES_PLATFORM_AUTHORITY; SIGNED_RESIDENT_PATH_NOT_QUALIFIED",
   "channels": [
     {
       "id": "hardware-info/port-name",
