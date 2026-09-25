@@ -1,0 +1,8 @@
+cmake_minimum_required(VERSION 3.22)
+project(rx_dhi_custody LANGUAGES C)
+if(NOT CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  message(FATAL_ERROR "DHI_PLATFORM_UNSUPPORTED: Linux kernel descriptor custody required")
+endif()
+add_executable(rx-dhi-custody guardian.c)
+target_compile_options(rx-dhi-custody PRIVATE -Wall -Wextra -Werror)
+target_link_libraries(rx-dhi-custody PRIVATE util)

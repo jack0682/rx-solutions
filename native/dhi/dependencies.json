@@ -1,0 +1,36 @@
+{
+  "schema": "rx.dhi-dependencies.v1",
+  "sources": {
+    "dynamixel_sdk": {
+      "repository": "ROBOTIS-GIT/DynamixelSDK",
+      "commit": "f838bc90f72fcf5b9c279432d6e12fc24969daa8",
+      "archive_sha256": "7f3bcb2350b9166c08f3e55410dc8fd4c144ef7b8c2dca84b2b64279071bc3a4",
+      "content_tree_sha256": "32153002965a600603cb5ce481a4652a3a6ca326363ca53d74ab0984b87acc16"
+    },
+    "dynamixel_hardware_interface": {
+      "repository": "ROBOTIS-GIT/dynamixel_hardware_interface",
+      "commit": "6bb5f93ecad1fe3c231e3ece580344e8f0a6efc3",
+      "archive_sha256": "23d66628df2788c96aa4462c5c8a21f545f595aded564bdaeb72977712d42c18",
+      "content_tree_sha256": "f10a6a76545fe2fe2bf53c2d883653001a519d998083903832c04407075c0a73"
+    },
+    "dynamixel_interfaces": {
+      "repository": "ROBOTIS-GIT/dynamixel_interfaces",
+      "commit": "d8885f8c377bfc39ef2d98f75d0c22ece7ac998f",
+      "archive_sha256": "2712a9b20851f912274b2f9cd58137cf0265ef92871c3e1855fe20f6a4451265",
+      "content_tree_sha256": "6743d230915f6e3f072d8fba94f332a8b3d5d2d55df2abc6c342b3f5a00f5b86"
+    }
+  },
+  "controller_manager": {
+    "repository": "ros-controls/ros2_control",
+    "commit": "cdbc1127521074c2c5d19b4af2b73591e69d762b",
+    "version": "4.48.0",
+    "debian_version": "4.48.0-1noble.20260904.013127"
+  },
+  "model_assets": {
+    "share/dynamixel_hardware_interface/param/dxl_model/dynamixel.model": "6163de96af23c859764e9cae4c1e4ee2a14617e92a1d04b620705eb5038b3ece",
+    "share/dynamixel_hardware_interface/param/dxl_model/xl430_w250.model": "b09e65756611a9c787bb708d7ed8d6332863f9ddcadc9c1e5520ce75aea5da6d"
+  },
+  "upstream_floating_main": "REJECTED_BY_RX_SOURCE_PINS",
+  "physical_qualification": "NOT_PERFORMED",
+  "same_uid_tampering": "OUTSIDE_TRUST_BOUNDARY_CHMOD_PTRACE"
+}

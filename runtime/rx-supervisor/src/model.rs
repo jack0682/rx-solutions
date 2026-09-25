@@ -152,6 +152,9 @@ pub struct Status {
     pub physical_shutdown_assessed: bool,
     pub guarded_shutdown_confirmed: bool,
     pub reconciliation_required: bool,
+    /// OS exit cannot settle the DHI model residual. Empty preserves legacy JSON.
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    pub unconfirmed_component_stops: BTreeMap<Name, String>,
     pub execution_admission: BTreeMap<Name, crate::execution::Status>,
 }
 /// This port must validate existing platform lifecycle authority for control owners.

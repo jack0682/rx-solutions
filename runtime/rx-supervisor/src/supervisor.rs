@@ -840,7 +840,14 @@ impl<R: Repository, B: Backend, A: LifecycleAuthority> Supervisor<R, B, A> {
                 .records
                 .values()
                 .all(|r| matches!(r.phase, Phase::Exited | Phase::Skipped | Phase::StartFailed));
+        let unconfirmed_component_stops: BTreeMap<Name, String> = self.plan.processes.iter()
+            .filter(|p| p.program.as_str() == "rx/dhi-pty-simulation")
+            .filter(|p| state.records[&p.id].instance.is_some()
+                && matches!(state.records[&p.id].phase, Phase::Exited | Phase::Unknown | Phase::StartFailed))
+            .map(|p| (p.id.clone(), "DHI_MODEL_STOP_UNCONFIRMED; owned process exit does not erase instance-log residuals".into()))
+            .collect();
         let guarded_shutdown_confirmed = all_exited
+            && unconfirmed_component_stops.is_empty()
             && self.plan.processes.iter().all(|p| {
                 self.programs[&p.program].effect != Effect::ProtocolGuardedService
                     || matches!(
@@ -852,16 +859,17 @@ impl<R: Repository, B: Backend, A: LifecycleAuthority> Supervisor<R, B, A> {
                         Some(GuardedExit::Confirmed { .. })
                     )
             });
-        let reconciliation_required = state.records.values().any(|r| {
-            matches!(
-                r.guarded_exit,
-                Some(GuardedExit::Unconfirmed { .. })
-                    | Some(GuardedExit::Confirmed {
-                        reconciliation_required: true,
-                        ..
-                    })
-            )
-        });
+        let reconciliation_required = !unconfirmed_component_stops.is_empty()
+            || state.records.values().any(|r| {
+                matches!(
+                    r.guarded_exit,
+                    Some(GuardedExit::Unconfirmed { .. })
+                        | Some(GuardedExit::Confirmed {
+                            reconciliation_required: true,
+                            ..
+                        })
+                )
+            });
         Ok(Status {
             schema: "rx.supervisor-status.v1",
             execution_admission: self.execution_status(&state),
@@ -872,6 +880,7 @@ impl<R: Repository, B: Backend, A: LifecycleAuthority> Supervisor<R, B, A> {
             physical_shutdown_assessed: false,
             guarded_shutdown_confirmed,
             reconciliation_required,
+            unconfirmed_component_stops,
         })
     }
     pub fn into_parts(self) -> (R, B, A) {

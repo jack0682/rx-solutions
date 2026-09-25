@@ -1,0 +1,142 @@
+{
+  "schema": "rx.dhi-endpoint-channels.v1",
+  "component": "dynamixel_hardware_interface@6bb5f93ecad1fe3c231e3ece580344e8f0a6efc3",
+  "sdk": "DynamixelSDK@f838bc90f72fcf5b9c279432d6e12fc24969daa8",
+  "classification": "WITHHELD_REGISTERED_RELEASE_ADMISSION_UNVERIFIED",
+  "registered_release_admission_verified": false,
+  "registered_release_admission_reason": "DEVELOPMENT_SIGNING_CUSTODY_UNAVAILABLE; ROOT_ROTATION_REQUIRES_SEPARATE_VERIFICATION",
+  "channels": [
+    {
+      "id": "hardware-info/port-name",
+      "reaches_sdk": true,
+      "origin": "DHI on_init copies HardwareInfo.hardware_parameters.port_name into one PortHandlerLinux",
+      "coverage": "RESOURCE_IDENTITY_GATE_BEFORE_OPEN",
+      "evidence": "SOURCE_AND_P5"
+    },
+    {
+      "id": "ros/initial-robot-description-topic",
+      "reaches_sdk": true,
+      "origin": "controller_manager subscription; publisher identity is not authority",
+      "coverage": "RESOURCE_IDENTITY_GATE_INDEPENDENT_OF_PUBLISHER",
+      "evidence": "P5_OUTSIDE_WRITES_ZERO_AND_TWO_CUSTODY_GRANTS"
+    },
+    {
+      "id": "ros/late-robot-description-topic",
+      "reaches_sdk": false,
+      "origin": "same topic after the measured manager initialized its resource manager",
+      "coverage": "MEASURED_IGNORED_AFTER_INITIALIZATION; R1_REMAINS_REQUIRED_FOR_OTHER_VERSIONS_OR_RELOADS",
+      "evidence": "P9_LATE_DESCRIPTION"
+    },
+    {
+      "id": "controller-manager/robot-description-parameter",
+      "reaches_sdk": false,
+      "origin": "direct robot_description parameter on controller_manager 4.48.0",
+      "coverage": "MEASURED_SUBSCRIBES_AND_WAITS_FOR_TOPIC; NOT_USED_AS_AUTHORITY",
+      "evidence": "P9_PARAMETER_REQUESTS_ZERO"
+    },
+    {
+      "id": "environment/direct-port-name",
+      "reaches_sdk": false,
+      "origin": "no getenv or ROS parameter callback for port_name in pinned DHI",
+      "coverage": "SOURCE_ABSENT; SESSION_REEXECS_WITH_FIXED_ENVIRONMENT",
+      "evidence": "SOURCE_SEARCH"
+    },
+    {
+      "id": "runtime/dhi-port-reconfigure",
+      "reaches_sdk": false,
+      "origin": "pinned DHI assigns port_name only in on_init and registers no port callback",
+      "coverage": "SOURCE_ABSENT",
+      "evidence": "SOURCE_SEARCH"
+    },
+    {
+      "id": "sdk/public-set-port-name",
+      "reaches_sdk": false,
+      "origin": "public SDK API exists, but pinned DHI calls it only through PortHandler construction",
+      "coverage": "NOT_REACHABLE_FROM_PINNED_COMPONENT_AFTER_CONSTRUCTION; A_CHANGED_COMPONENT_REQUIRES_NEW_QUALIFICATION",
+      "evidence": "SOURCE_SEARCH"
+    },
+    {
+      "id": "filesystem/absolute-or-symlink-alias",
+      "reaches_sdk": true,
+      "origin": "port_name string",
+      "coverage": "STAT_RESOLVED_CHARACTER_RESOURCE_IDENTITY; CUSTODY_ALIAS_GRANTED; NONCUSTODY_ALIAS_DENIED",
+      "evidence": "P6_ALIAS_SYMLINK_AND_SURFACES"
+    },
+    {
+      "id": "filesystem/relative-at-fdcwd",
+      "reaches_sdk": true,
+      "origin": "relative port_name used by SDK open",
+      "coverage": "REQUESTING_TASK_CWD_RESOURCE_IDENTITY; CUSTODY_ALIAS_GRANTED",
+      "evidence": "P6_ALIAS_RELATIVE"
+    },
+    {
+      "id": "filesystem/proc-self-fd-or-dev-fd",
+      "reaches_sdk": true,
+      "origin": "port_name alias to an existing descriptor",
+      "coverage": "REQUESTING_TASK_PROC_IDENTITY; NONCUSTODY_CHARACTER_RESOURCE_DENIED",
+      "evidence": "P6_PROC_SELF_FD"
+    },
+    {
+      "id": "syscall/openat-non-at-fdcwd",
+      "reaches_sdk": false,
+      "origin": "not emitted by pinned SDK, exercised as a private syscall counterexample",
+      "coverage": "REQUESTING_TASK_DIRFD_RESOURCE_IDENTITY",
+      "evidence": "P6_DIRFD"
+    },
+    {
+      "id": "fd/scm-rights-or-preexisting-descriptor-injection",
+      "reaches_sdk": false,
+      "origin": "pinned SDK accepts a path, not a caller-supplied fd, and does not receive SCM_RIGHTS",
+      "coverage": "UNFILTERED_NOT_REACHABLE_FROM_PINNED_COMPONENT; OUTSIDE_TRUST_BOUNDARY_IF_INSTALLED_CODE_CHANGES",
+      "evidence": "SOURCE_SEARCH"
+    }
+  ],
+  "syscalls": [
+    {
+      "name": "openat",
+      "coverage": "USER_NOTIFICATION_RESOURCE_GATE",
+      "evidence": "A_LINUX_PINNED_SDK_AND_P6"
+    },
+    {
+      "name": "open",
+      "coverage": "FILTERED_WHEN_ARCHITECTURE_EXPOSES_NR_OPEN",
+      "evidence": "B_SOURCE_ONLY; NOT_PRESENT_ON_MEASURED_AARCH64"
+    },
+    {
+      "name": "openat2",
+      "coverage": "USER_NOTIFICATION_RESOURCE_GATE; NONZERO_RESOLVE_AND_UNKNOWN_LAYOUT_REFUSED",
+      "evidence": "A_LINUX_PRIVATE_COUNTEREXAMPLE"
+    },
+    {
+      "name": "open_by_handle_at",
+      "coverage": "DHI_OPEN_BY_HANDLE_UNSUPPORTED",
+      "evidence": "A_LINUX_WITH_OUTER_SECCOMP_UNCONFINED"
+    },
+    {
+      "name": "io_uring_setup",
+      "coverage": "DHI_IO_URING_UNSUPPORTED_PREVENTS_ASYNC_OPEN_OPERATIONS",
+      "evidence": "A_LINUX_WITH_OUTER_SECCOMP_UNCONFINED"
+    },
+    {
+      "name": "pidfd_getfd",
+      "coverage": "DHI_PIDFD_IMPORT_UNSUPPORTED",
+      "evidence": "A_LINUX_WITH_OUTER_SECCOMP_UNCONFINED"
+    }
+  ],
+  "inheritance": {
+    "thread_clone": "ALLOWED_AND_MEASURED_WITH_ACTUAL_MANAGER",
+    "process_fork_clone_vfork": "DHI_PROCESS_FORK_UNSUPPORTED",
+    "granted_fd": "FORCED_FD_CLOEXEC",
+    "negative_control": "REMOVING_PROCESS_FORK_GATE_CREATED_CHILD_AND_ONE_INHERITED_FD_WRITE",
+    "redundancy": "TGID_MEMBERSHIP_IS_SECONDARY_FOR_FORKED_NEW-OPEN_CLAIMS_AFTER_PROCESS_FORK_DENIAL; EXECUTABLE_IDENTITY_STILL_GUARDS_AN_EXEC_REPLACEMENT_OPEN"
+  },
+  "limits": [
+    "TRUSTED_INSTALLED_CODE_AND_OS; NOT_A_GENERIC_SANDBOX",
+    "SAME_UID_FILESYSTEM_OR_PTRACE_MUTATION_OUTSIDE_TRUST_BOUNDARY",
+    "RESOURCE_CLASSIFICATION_USES_STABLE_TRUSTED_FILESYSTEM_BETWEEN_STAT_AND_CONTINUE",
+    "SCM_RIGHTS_AND_ARBITRARY_CHANGED_COMPONENTS_REQUIRE_NEW_QUALIFICATION",
+    "PHYSICAL_QUALIFICATION_NOT_PERFORMED",
+    "COMPOSE_S6_REUSE_NOT_ESTABLISHED",
+    "ROS_ADMIN_AUTHORITY_NOT_ESTABLISHED"
+  ]
+}

@@ -9,7 +9,10 @@ ROS, Rust, and Node base images are pinned by digest in the Dockerfile. Prepare 
 ```sh
 vcs import vendor < dependencies/behaviortree_cpp.repos
 python3 tools/check_device_catalog_sources.py
+python3 tools/prepare_dhi_sources.py --output .cache/dhi-sources
+python3 tools/prepare_dhi_sources.py --output .cache/dhi-sources --check
 docker build --build-context btcpp=vendor/BehaviorTree.CPP \
+  --build-context dhi=.cache/dhi-sources \
   -f docker/Solutions.Dockerfile --target runtime \
   -t rx-solutions:runtime-draft .
 python3 tools/test_solutions_image.py --image rx-solutions:runtime-draft --evidence /tmp/rx-solutions-image.json
@@ -28,3 +31,5 @@ The default entrypoint sets up the ROS environment and runs read-only software d
 At startup, SHA-256 values are checked for executables, the catalog, UI, diagnostic code, and installation inventory. Default startup does not start a controller manager, device driver, BT engine, Host, Executor, or ROS router. The UI bundle is included, but the diagnostic server does not replace a production operator API.
 
 The image smoke test checks diagnostics, control rejection, SIGTERM shutdown, and catalog-tampering rejection with a read-only root, cap-drop ALL, no-new-privileges, and no connected devices. Physical devices, site handover, real-time performance, multi-domain operation, and a production Authority provider remain separate open items. Explicit `supervise` and `host` execution follows the contracts of the respective services.
+
+The [DHI PTY investigation](../native/dhi/README.md) builds three immutable source archives and exact controller-manager package4.48.0. Upstream floating `.repos` entries are not used. The image build rechecks the prepared source inventory before compiling. Direct component tests exercise the simulated ownership mechanism, while registered release admission remains authority-gated because development signing custody and root rotation are unestablished. This is not physical support or general Compose/s6 integration.
