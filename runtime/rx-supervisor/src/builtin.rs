@@ -7,6 +7,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
+mod dhi;
 mod services;
 pub use services::{
     ConfigurationPin, Initializer, ServiceConfigurations, ServiceInput, ServiceRole,
@@ -28,6 +29,14 @@ pub fn release_boundary() -> serde_json::Value {
         "judge_delivery_order": "COOPERATING_MAILBOX_LOCK_THROUGH_WORK_COMMIT; NONCOOPERATING_PUBLICATION_NOT_ORDERED",
         "dynamixel": "ONE_HOST_OWNED_HELPER; OFFICIAL_SDK_4.1.0_PROTOCOL2_PING; SIMULATED_TRANSPORT_ONLY; REAL_ENDPOINT_REFUSED",
         "dynamixel_physical_qualification": "NOT_PERFORMED",
+        "dhi": "OPTIONAL_RELEASE_RECIPE; FRESH_PTY_MODEL_ONLY; ORIGINAL_DHI_COMMAND_AUTHOR; CM_LIFECYCLE; RX_DESCRIPTOR_CUSTODY",
+        "dhi_effect_classification": "WITHHELD_REGISTERED_RELEASE_ADMISSION_UNVERIFIED",
+        "dhi_registered_release_admission_verified": false,
+        "dhi_registered_release_admission_reason": "DEVELOPMENT_SIGNING_CUSTODY_UNAVAILABLE; ROOT_ROTATION_REQUIRES_SEPARATE_VERIFICATION",
+        "dhi_direct_mechanism_scope": "FRESH_PTY_ONLY; NO_PHYSICAL_ENDPOINT_OR_ADOPTION; PROCESS_EXIT_DOES_NOT_CLEAR_MODEL_RESIDUAL_OR_UNCONFIRMED_STOP",
+        "dhi_same_uid_tampering": "OUTSIDE_TRUST_BOUNDARY_CHMOD_PTRACE",
+        "dhi_compose_s6_reuse": "NOT_ESTABLISHED",
+        "dhi_ros_admin_authority": "NOT_ESTABLISHED",
         "sdk_baseline_complete": false,
         "robotis_bundle_complete": false,
         "work_commit_residuals": ["TTL_CONTINUES_DURING_POST_CUT_IO", "HTTP_OBSERVATION_IS_AS_OF"],
@@ -67,6 +76,7 @@ pub fn preflight_source_assets(root: &Path) -> Result<()> {
         verify(&root.join(path), expected)
             .map_err(|e| rx_package::release::Error::Content(e.to_string()))?;
     }
+    dhi::source_pins(root, &inventory)?;
     Ok(())
 }
 
@@ -197,7 +207,11 @@ pub fn programs_from_release(
             port_parameter: name("port"),
         },
     };
-    Ok([(program.id.clone(), program)].into())
+    let mut programs: BTreeMap<Name, Program> = [(program.id.clone(), program)].into();
+    if let Some(dhi) = dhi::program(root, release)? {
+        programs.insert(dhi.id.clone(), dhi);
+    }
+    Ok(programs)
 }
 
 /// Explicit compiled opt-in. The ordinary release catalog stays unconfigured;
@@ -310,4 +324,23 @@ fn status_readiness() -> crate::use_assessment::ReadinessContract {
         ]
         .into(),
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn dhi_registered_release_admission_is_explicitly_unverified() {
+        let boundary = release_boundary();
+        assert_eq!(
+            boundary["dhi_effect_classification"],
+            "WITHHELD_REGISTERED_RELEASE_ADMISSION_UNVERIFIED"
+        );
+        assert_eq!(boundary["dhi_registered_release_admission_verified"], false);
+        assert_eq!(
+            boundary["dhi_registered_release_admission_reason"],
+            "DEVELOPMENT_SIGNING_CUSTODY_UNAVAILABLE; ROOT_ROTATION_REQUIRES_SEPARATE_VERIFICATION"
+        );
+    }
 }

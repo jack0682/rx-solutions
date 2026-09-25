@@ -522,3 +522,81 @@ fn default_authority_does_not_start_control_owners_and_other_stores_are_not_clai
     assert_eq!(rows.len(), 1);
     assert_eq!(rows[0].document.value["preserved"], true);
 }
+
+#[test]
+fn dhi_os_exit_cannot_erase_unconfirmed_component_stop() {
+    let dir = tempfile::tempdir().unwrap();
+    let backend = Fake::default();
+    let mut recipe = program(Effect::NonActuating);
+    recipe.id = name("rx/dhi-pty-simulation");
+    let mut selected = plan();
+    selected.processes[0].program = recipe.id.clone();
+    let programs: BTreeMap<_, _> = [(recipe.id.clone(), recipe)].into();
+    let mut supervisor = Supervisor::open(
+        SqliteRepository::open(dir.path().join("state.db")).unwrap(),
+        backend.clone(),
+        SoftwareOnly,
+        selected.clone(),
+        programs.clone(),
+        &support(),
+    )
+    .unwrap();
+    supervisor.tick().unwrap();
+    supervisor.tick().unwrap();
+    assert_eq!(
+        supervisor.state().unwrap().records[&name("main")].phase,
+        Phase::ProcessReady
+    );
+    supervisor.request_stop().unwrap();
+    let mut result = supervisor.tick().unwrap();
+    for _ in 0..4 {
+        if result.all_exited {
+            break;
+        }
+        result = supervisor.tick().unwrap();
+    }
+    assert!(result.all_exited);
+    assert_eq!(result.state.records[&name("main")].exit_code, Some(0));
+    assert!(!result.guarded_shutdown_confirmed);
+    assert!(result.reconciliation_required);
+    assert!(
+        result.unconfirmed_component_stops[&name("main")].contains("DHI_MODEL_STOP_UNCONFIRMED")
+    );
+    let (store, _, _) = supervisor.into_parts();
+    let mut reopened = Supervisor::open(
+        store,
+        Fake::default(),
+        SoftwareOnly,
+        selected,
+        programs,
+        &support(),
+    )
+    .unwrap();
+    let recovered = reopened.tick().unwrap();
+    assert!(recovered.reconciliation_required);
+    assert_eq!(
+        recovered.unconfirmed_component_stops,
+        result.unconfirmed_component_stops
+    );
+}
+
+#[test]
+fn dhi_recipe_refuses_physical_plan_and_automatic_restart() {
+    let mut recipe = program(Effect::NonActuating);
+    recipe.id = name("rx/dhi-pty-simulation");
+    let mut selected = plan();
+    selected.processes[0].program = recipe.id.clone();
+    let programs = [(recipe.id.clone(), recipe)].into();
+    assert!(selected.validate(&programs, &support()).is_ok());
+    selected.environment = Environment::Physical;
+    assert!(
+        selected
+            .validate(&programs, &support())
+            .unwrap_err()
+            .to_string()
+            .contains("DHI_SIMULATION_ONLY")
+    );
+    selected.environment = Environment::Simulation;
+    selected.processes[0].restart_limit = Counter(1);
+    assert!(selected.validate(&programs, &support()).is_err());
+}

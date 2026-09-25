@@ -30,6 +30,13 @@ impl Plan {
             let program = programs
                 .get(&p.program)
                 .ok_or_else(|| Error::Invalid("program not in release catalog".into()))?;
+            if program.id.as_str() == "rx/dhi-pty-simulation"
+                && (self.environment != Environment::Simulation || p.restart_limit.0 != 0)
+            {
+                return Err(Error::Invalid(
+                    "DHI_SIMULATION_ONLY_EXPLICIT_SESSION; physical plans and automatic restart are unsupported".into(),
+                ));
+            }
             if let Some(policy) = &program.decision_policy {
                 policy.fingerprint().map_err(Error::Invalid)?;
             }

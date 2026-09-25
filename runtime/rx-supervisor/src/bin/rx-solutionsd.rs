@@ -439,6 +439,9 @@ async fn run() -> Result<()> {
                     }
                 }
                 if report.all_exited {
+                    if !report.unconfirmed_component_stops.is_empty() {
+                        return Err("DHI_MODEL_STOP_UNCONFIRMED; process exit settled, component residual requires reconciliation".into());
+                    }
                     if !report.guarded_shutdown_confirmed {
                         return Err("managed daemons exited without confirmed cooperative-stop reports; reconciliation required".into());
                     }
