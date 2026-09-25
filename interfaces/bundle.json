@@ -1,5 +1,6 @@
 {
   "files": {
+    "README.md": "ffe8a29ee035492d4679d4e68228a065f413b3fcd0b0c23ddc347fa94727a2ae",
     "cell_operations_manifest.json": "5e75ab4d3d72d4b22082003dbec5e2ca54562cc4302d2e306b07ce64d215d71b",
     "contracts_manifest.json": "d32519ffd33cc02f5e6f82406ad2fe253421527dc047b807c11beb11a8f7583c",
     "rx/cell/v1/cell.proto": "79471c513559c862f8461de355e7dc7f79bbe6907f94d2c5d518b234b7013b83",
@@ -11,7 +12,10 @@
     "rx/host/configuration/v1/configuration.proto": "641bd1edf2038dda0b49072d48a520798bb8a6c8c463bde2de03bae9d6babdbf",
     "rx/host/qualification/v1/qualification.proto": "71c0192b3684c5a73ae1b6499f78709cb088122ed7857ed5764475bda903f744",
     "rx/host/read/v1/read.proto": "66cfb6c5dde27063834398d11713006578cc83c9dfd7ec4e6f864b4f9bc7efc3",
-    "semantic_fields.json": "766ee1084d41fdc64d435911300bf898709a28953b8b007cfa361969c471b60e"
+    "semantic_fields.json": "766ee1084d41fdc64d435911300bf898709a28953b8b007cfa361969c471b60e",
+    "strict-wire-v1/README.md": "520758b766823eb7ebdc1a41396a5fcf5d1f570c903bd36df42573fe7b74f799",
+    "strict-wire-v1/probe.proto": "5642c154c6427e4ebaf33184a51c9c45caacd4d0347ac7f3e6780b957bc1576e",
+    "strict-wire-v1/vectors.json": "6561f18484c6d8772c63895bdad80c66640d98f313699d964e680a61d307aed1"
   },
   "schema": "rx.protocol-source-bundle.v1"
 }
