@@ -154,6 +154,14 @@ impl OfflineWorkUseProvider {
         result
     }
 }
+/// Catalog programs cannot enter the legacy single-area fallback. This is
+/// selected from the owner's sealed subject, never from requested area or reply.
+pub(crate) fn receiver_binding(program: &str) -> crate::Result<&'static authored::Area> {
+    Ok(authored::for_program(program)
+        .map_err(|e| Error::Invalid(e.into()))?
+        .unwrap_or(&authored::SUPPORT))
+}
+
 impl WorkUsePort for OfflineWorkUseProvider {
     fn assess(&self, request: &WorkUseRequest) -> WorkUseReply {
         let Some(decision) = request.decision_request() else {
@@ -169,7 +177,11 @@ impl WorkUsePort for OfflineWorkUseProvider {
         let mut slot = self.session.borrow_mut();
         if slot.is_none() {
             let started = Instant::now();
-            let challenge = match decision.challenge(&n(authored::KEY_ID)) {
+            let binding = match receiver_binding(request.subject().program.as_str()) {
+                Ok(value) => value,
+                Err(e) => return self.denial("work-use/area-catalog-invalid", e),
+            };
+            let challenge = match decision.challenge(&n(binding.key_id)) {
                 Ok(v) => v,
                 Err(e) => return self.failed(e),
             };
@@ -353,5 +365,26 @@ impl WorkUsePort for ResidentWorkProvider {
             Self::Unconfigured => NoWorkUseProvider.assess(r),
             Self::Offline(p) => p.assess(r),
         }
+    }
+}
+
+#[cfg(test)]
+mod catalog_selection_tests {
+    use super::*;
+    #[test]
+    fn every_catalog_program_selects_its_record_without_legacy_fallback() {
+        for area in authored::catalog().unwrap() {
+            let binding = receiver_binding(area.program).unwrap();
+            assert!(std::ptr::eq(binding, area));
+            assert_eq!(binding.role, area.role);
+            assert_eq!(binding.key_id, area.key_id);
+        }
+        let legacy = receiver_binding("test/unrelated-authored-library-program").unwrap();
+        assert_eq!(legacy.key_id, authored::KEY_ID);
+        assert_eq!(legacy.role, authored::ROLE);
+        assert_ne!(
+            receiver_binding(authored::COMPACT.program).unwrap().role,
+            legacy.role
+        );
     }
 }

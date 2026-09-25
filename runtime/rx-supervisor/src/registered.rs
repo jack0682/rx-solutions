@@ -718,7 +718,9 @@ impl<S: Repository, B: Backend, A: LifecycleAuthority, R: Repository>
         })?;
         let scope = UseScope {
             operating_area: task.operating_area.clone(),
-            role: name(ROLE),
+            role: name(
+                crate::operating_area::receiver_binding(input.subject.program.as_str())?.role,
+            ),
         };
         let decision = authored
             .decision_gate

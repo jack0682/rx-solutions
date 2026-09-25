@@ -61,3 +61,20 @@ fn author_anchors_are_pinned_and_site_data_cannot_override_them() {
     let site = serde_json::json!({"id":"x","program":"rx/status-http","parameters":{},"depends_on":[],"startup_timeout_ms":"1000","shutdown_timeout_ms":"1000","restart_limit":"0","restart_backoff_ms":"100","decision_policy":policy()});
     assert!(serde_json::from_value::<Process>(site).is_err());
 }
+
+#[test]
+fn f6_authority_count_is_one_through_eight_without_g4_uniqueness_restrictions() {
+    let authority = policy().authorities.into_values().next().unwrap();
+    for count in [0, 1, 8, 9] {
+        let mut authored = catalog();
+        authored.decision_policy = Some(Policy {
+            // Generic F6 intentionally permits multiple keys for the same area/issuer.
+            authorities: (0..count)
+                .map(|i| (n(&format!("test/key-{i}")), authority.clone()))
+                .collect(),
+        });
+        let result = authored.reference();
+        assert_eq!(result.is_ok(), (1..=8).contains(&count));
+        println!("F6-count-{count}: {result:?}");
+    }
+}

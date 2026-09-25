@@ -23,6 +23,8 @@ pub fn release_boundary() -> serde_json::Value {
         "release_key": rx_package::release::root::KEY_ID,
         "product_release_custody_and_rotation": "NOT_ESTABLISHED",
         "operating_area_judge": "OPT_IN_DEVELOPMENT_OFFLINE_RULE_JUDGE; PHYSICAL_SAFETY_QUALITY_EQUIPMENT_QUALIFICATION_NOT_GRANTED",
+        "operating_areas": "TWO_COMPILED_DEVELOPMENT_AREAS_WITH_DISTINCT_KEYS; SITE_ENROLLMENT_REFUSED; NO_NETWORK_OR_PHYSICAL_AUTHORITY",
+        "area_declaration_uniqueness": "COMPILED_CATALOG_ONLY; GENERIC_F6_POLICY_RETAINS_1_TO_8_AUTHORITIES",
         "judge_delivery_order": "COOPERATING_MAILBOX_LOCK_THROUGH_WORK_COMMIT; NONCOOPERATING_PUBLICATION_NOT_ORDERED",
         "work_commit_residuals": ["TTL_CONTINUES_DURING_POST_CUT_IO", "HTTP_OBSERVATION_IS_AS_OF"],
         "whole_state_rollback_or_deletion": "NOT_DETECTED",
@@ -200,22 +202,33 @@ pub fn development_work_program(
     root: &Path,
     release: &rx_package::release::VerifiedRelease,
 ) -> Result<Program> {
+    development_area_program(root, release, rx_package::operating_area::SUPPORT.program)
+}
+/// Selection names only an existing compiled declaration. No site key or policy
+/// argument exists, and catalog validation precedes authority-map construction.
+pub fn development_area_program(
+    root: &Path,
+    release: &rx_package::release::VerifiedRelease,
+    program: &str,
+) -> Result<Program> {
+    let area = rx_package::operating_area::for_program(program)
+        .map_err(|e| Error::Invalid(e.into()))?
+        .ok_or_else(|| Error::Invalid("area-catalog/program-not-authored".into()))?;
     let mut work = programs_from_release(root, release)?
         .remove(&Name::new("rx/status-http").expect("literal"))
         .expect("standard status recipe");
     let name = |s: &str| Name::new(s).expect("literal name");
-    let policy = rx_package::operating_area::PUBLIC_KEY;
-    work.id = name(rx_package::operating_area::PROGRAM);
+    work.id = name(area.program);
     work.decision_policy = Some(crate::decision::Policy {
         authorities: [(
-            name(rx_package::operating_area::KEY_ID),
+            name(area.key_id),
             crate::decision::Authority {
-                issuer: name(rx_package::operating_area::ISSUER),
-                public_key: policy,
-                operating_area: name(rx_package::operating_area::AREA),
-                roles: [name(rx_package::operating_area::ROLE)].into(),
+                issuer: name(area.issuer),
+                public_key: area.public_key,
+                operating_area: name(area.area),
+                roles: [name(area.role)].into(),
                 kinds: [crate::decision::Kind::WorkUse].into(),
-                max_ttl_ms: Counter(rx_package::operating_area::MAX_TTL_MS),
+                max_ttl_ms: Counter(area.max_ttl_ms),
             },
         )]
         .into(),
