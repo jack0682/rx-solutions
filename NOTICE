@@ -6,3 +6,8 @@ See LICENSE for the complete terms.
 
 Third-party components retain their respective copyrights and licenses.
 Existing third-party notices and license files remain applicable.
+
+DYNAMIXEL SDK 4.1.0 protocol 2 source subset
+Copyright ROBOTIS CO., LTD. Licensed under Apache License 2.0.
+Unmodified upstream content and provenance: native/dynamixel/vendor/source.json.
+The helper links no OS serial PortHandler implementation.

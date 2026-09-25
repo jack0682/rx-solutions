@@ -82,6 +82,7 @@ fn startup_rejects_policy_tampering_unknown_fields_and_unimplemented_physical_ba
     loaded.config.backend = Backend::ValidatedDriver {
         profile: name("simulation/arm"),
         driver_digest: Digest::from_bytes([1; 32]),
+        endpoint: "simulation/dynamixel/id-1".into(),
     };
     assert!(service::initialize_with(&loaded, clock, &service::Builtin).is_err());
     assert!(!dir.path().join("data").exists());
@@ -780,4 +781,19 @@ async fn unavailable_runtime_lock_refuses_service_without_claiming_a_known_owner
     println!(
         "runtime_lock_refusal={error}; explicit retry after observed holder exit succeeded; no automatic retry"
     );
+}
+
+#[test]
+fn existing_native_installation_wire_records_roundtrip_without_new_fields() {
+    // Frozen pre-DYNAMIXEL persisted variants; the new arm is additive.
+    for kind in ["JTC", "MELSEC"] {
+        let old = serde_json::json!({
+            "kind":kind,
+            "identity":{"journal":"11111111-1111-4111-8111-111111111111","profile":"11".repeat(32)},
+            "manifest_digest":"22".repeat(32)
+        });
+        let bytes = canonical::bytes(&old).unwrap();
+        let record: service::NativeInstallation = canonical::decode_json(&bytes).unwrap();
+        assert_eq!(canonical::bytes(&record).unwrap(), bytes);
+    }
 }

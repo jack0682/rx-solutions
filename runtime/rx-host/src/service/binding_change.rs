@@ -171,10 +171,16 @@ pub fn inspect(plan: &Plan, current: &Loaded, proposed: &Loaded) -> Result<Inspe
         proposed_bindings_digest: proposed.config.bindings.sha256,
         software_matches: issues.is_empty(),
         issues,
-        runtime_provider_available: !matches!(
-            proposed.config.backend,
-            Backend::JtcPackage { .. } | Backend::ValidatedDriver { .. }
-        ),
+        runtime_provider_available: match &proposed.config.backend {
+            Backend::JtcPackage { .. } => false,
+            Backend::ValidatedDriver { .. } => {
+                crate::dynamixel::profile::validate(&proposed.config.backend, &proposed.bindings)
+                    .is_ok()
+                    && crate::dynamixel::profile::executable_pin(std::path::Path::new("/opt/rx"))
+                        .is_ok()
+            }
+            _ => true,
+        },
         installation_changed: false,
         activation_authorized: false,
         native_processes_started: Counter(0),

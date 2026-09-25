@@ -7,7 +7,7 @@ import subprocess
 from pathlib import Path
 
 REQUIRED = ('rx-hostd', 'rx-executor-service', 'rx-process-compile', 'rx-solutionsd',
-            'rx-process-package', 'rx-device-package', 'rx-bt-engine', 'rx-ros-jtc-bridge')
+            'rx-process-package', 'rx-device-package', 'rx-bt-engine', 'rx-ros-jtc-bridge', 'rx-dynamixel-ping')
 
 def audit(prefix, catalog_path):
     catalog = json.loads(catalog_path.read_text())

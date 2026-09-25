@@ -7,11 +7,12 @@ use std::path::Path;
 pub struct Builtin;
 pub enum BuiltinAdapter<C: Clock> {
     File(crate::simulation::FileDevice<C>),
+    Dynamixel(Box<crate::dynamixel::Dynamixel<C>>),
     Melsec(Box<crate::melsec::Melsec<C>>),
 }
 macro_rules! delegate {
     ($self:ident,$method:ident($($arg:expr),*)) => {
-        match $self {Self::File(v)=>v.$method($($arg),*),Self::Melsec(v)=>v.$method($($arg),*)}
+        match $self {Self::File(v)=>v.$method($($arg),*),Self::Melsec(v)=>v.$method($($arg),*),Self::Dynamixel(v)=>v.$method($($arg),*)}
     };
 }
 impl<C: Clock> NativeAdapter for BuiltinAdapter<C> {
@@ -75,6 +76,11 @@ impl<C: Clock + 'static> AdapterFactory<C> for Builtin {
             {
                 Ok(())
             }
+            Backend::ValidatedDriver { .. } => {
+                crate::dynamixel::profile::validate(backend, bindings)?;
+                crate::dynamixel::profile::executable_pin(Path::new("/opt/rx"))?;
+                Ok(())
+            }
             Backend::MelsecPackage { .. } => {
                 device_package::load(backend)?.validate_bindings(bindings)
             }
@@ -89,6 +95,9 @@ impl<C: Clock + 'static> AdapterFactory<C> for Builtin {
     ) -> Result<Option<NativeInstallation>> {
         match backend {
             Backend::FileSimulation => Ok(None),
+            Backend::ValidatedDriver { .. } => Ok(Some(NativeInstallation::Dynamixel {
+                identity: crate::dynamixel::initialize(&data.join("native-dynamixel"))?,
+            })),
             Backend::JtcPackage { .. } => {
                 let p = jtc_package::load(backend)?;
                 let identity =
@@ -109,12 +118,17 @@ impl<C: Clock + 'static> AdapterFactory<C> for Builtin {
                     manifest_digest: p.manifest_digest,
                 }))
             }
-            _ => Err("unsupported backend metadata".into()),
         }
     }
     fn open_passive(&self, backend: &Backend, data: &Path, clock: C) -> Result<Self::Adapter> {
         match backend {
             Backend::JtcPackage { .. } => Err("JTC_CONTROL_PROVIDER_NOT_CONFIGURED: validated package cannot supply controller authority; no ROS process started".into()),
+            Backend::ValidatedDriver { .. } => {
+                let installation: Installation = canonical::decode_json(&std::fs::read(data.join("installation.json"))?)?;
+                let Some(NativeInstallation::Dynamixel { identity })=installation.native else { return Err("DXL_NATIVE_IDENTITY_MISSING".into()); };
+                let pin=crate::dynamixel::profile::executable_pin(Path::new("/opt/rx"))?;
+                Ok(BuiltinAdapter::Dynamixel(Box::new(crate::dynamixel::Dynamixel::open(&data.join("native-dynamixel"),identity,pin,clock)?)))
+            }
             Backend::FileSimulation => Ok(BuiltinAdapter::File(
                 crate::simulation::FileDevice::open(data.join("device"), clock)?,
             )),
@@ -143,7 +157,6 @@ impl<C: Clock + 'static> AdapterFactory<C> for Builtin {
                     )?,
                 )))
             }
-            _ => Err("unsupported backend".into()),
         }
     }
 }

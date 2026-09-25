@@ -56,6 +56,13 @@ async fn run() -> service::Result<()> {
         );
         return Ok(());
     }
+    if args.as_slice() == ["drivers", "dynamixel"] {
+        println!(
+            "{}",
+            serde_json::to_string(&rx_host::dynamixel::profile::descriptor())?
+        );
+        return Ok(());
+    }
     if args.as_slice() == ["drivers", "jtc"] {
         println!(
             "{}",
