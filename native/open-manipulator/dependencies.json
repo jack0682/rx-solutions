@@ -1,0 +1,27 @@
+{
+  "schema": "rx.open-manipulator-dependencies.v1",
+  "open_manipulator": {
+    "repository": "ROBOTIS-GIT/open_manipulator",
+    "version": "5.1.2",
+    "commit": "0a4af6a923b8b7d80b8c20506d1839c54d2e993e",
+    "archive_sha256": "fe8eb51b23944c964c7cded56f89d8659b99a35081a2cb8978cbe2e0fcc4a34c",
+    "content_tree_sha256": "ff2d4f8768652a6ccec9447ffbcce4d1d2f3d520075de55036020b353cc85712",
+    "file_count": 310
+  },
+  "git_dependencies": {
+    "DynamixelSDK": "f838bc90f72fcf5b9c279432d6e12fc24969daa8",
+    "cyclo_manager": "6bdf945c967ec50a10d4efcf579a27ddd5e1a865",
+    "dynamixel_hardware_interface": "6bb5f93ecad1fe3c231e3ece580344e8f0a6efc3",
+    "dynamixel_interfaces": "d8885f8c377bfc39ef2d98f75d0c22ece7ac998f",
+    "realsense-ros": "cbd8b8487d4c0126bb590822db9469414496e62a",
+    "robotis_interfaces": "7a5670cb3fb3f42b479a1fbf17c1e767b43db067"
+  },
+  "s6_overlay": {
+    "version": "3.2.1.0",
+    "noarch_sha256": "42e038a9a00fc0fef70bf0bc42f625a9c14f8ecdfe77d4ad93281edf717e10c5",
+    "aarch64_sha256": "c8fd6b1f0380d399422fc986a1e6799f6a287e2cfa24813ad0b6a4fb4fa755cc"
+  },
+  "upstream_floating_refs": "REJECTED_BY_RX_SOURCE_PINS",
+  "realsense_physical_qualification": "NOT_PERFORMED",
+  "maintenance_handoff": "NOT_ESTABLISHED"
+}
