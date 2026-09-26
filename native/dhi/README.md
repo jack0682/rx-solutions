@@ -1,10 +1,10 @@
 # DHI foreign component ownership, PTY simulation only
 
 `rx/dhi-pty-simulation` is declared as a release-owned recipe in the existing
-supervisor catalog. Its direct-component path runs the original pinned
-`dynamixel_hardware_interface` plugin in the actual ROS 2 controller_manager
-against a fresh device-side PTY register model. Registered release admission for
-this revision is not verified and remains authority-gated. This is not physical
+supervisor catalog. Its direct-component and signed registered paths run the
+original pinned `dynamixel_hardware_interface` plugin in the actual ROS 2
+controller_manager against a fresh device-side PTY register model. Registered
+admission is verified only for this simulation recipe. This is not physical
 DYNAMIXEL support, an operating-area work permission, exclusive ROS
 administration, or a general supervisor adapter.
 
@@ -37,7 +37,7 @@ fallback. The guardian checks effective, permitted and inheritable capabilities 
 allocation. This is an RX admission check, not an inference from container
 options. Privileged outside actors remain outside the trusted-OS boundary. The process namespace is derived from its supervisor instance.
 
-## Effect classification remains withheld
+## Effect classification: fresh-PTY `NonActuating`
 
 The competing-description counterexample disproved path-based containment: an
 ordinary ROS description directed the unchanged plugin to another PTY before a
@@ -60,30 +60,38 @@ and write one byte. Granted descriptors are also forced `FD_CLOEXEC`. The older
 TGID membership check is secondary for forked new-open claims after this gate;
 it is not reported as a separate proof of fork safety.
 
-These direct-component observations support reconsidering `NonActuating` only
-for the internally allocated fresh PTY model, but they do not qualify the
-registered resident path. Development signing custody and root rotation are now
-established separately; that does not promote direct mechanism evidence into a
-resident lifecycle result. The catalog therefore retains
-`RequiresPlatformAuthority` and reports
-`registered_release_admission_verified: false` with reason
-`REQUIRES_PLATFORM_AUTHORITY; SIGNED_RESIDENT_PATH_NOT_QUALIFIED`. This
-classification must not be inferred merely from simulation or copied to a
-real-device recipe. The
-resource classifier assumes the trusted installed filesystem is stable between
-stat and continuation; same-UID filesystem/ptrace mutation remains outside the
-stated trusted-code/OS boundary.
+The registered P-REG passage independently crosses the segment that the direct
+tools do not: `rx-solutionsd` verifies signed `release.json`, constructs the
+release-owned catalog, validates the resident plan, records the registration and
+then spawns this recipe. Replaying the competing-description counterexample on
+that path produced zero outside writes, a named resource refusal before the
+first of exactly two legitimate custody grants, and a ready registered child.
+The one-at-a-time negative control replaced only the guardian's non-custody
+character-resource refusal in a separately signed private mutant. The same
+registered path then wrote to the outside PTY, demonstrating that the admission
+gate is load-bearing rather than decorative.
+
+The catalog therefore classifies only `rx/dhi-pty-simulation` as
+`NonActuating` and reports `registered_release_admission_verified: true` with
+reason `SIGNED_RESIDENT_PATH_R1_PRESERVED; FRESH_PTY_ONLY;
+PHYSICAL_NOT_QUALIFIED`. Its explicit empty supervisor requirement bundle means
+that the generic OS backend has no additional capacity/access policy to apply;
+it is not the R1 proof. R1 remains the release-pinned DHI guardian's
+character-resource admission. The classification must not be copied to a
+real-device recipe. The resource classifier assumes the trusted installed
+filesystem is stable between stat and continuation; same-UID filesystem/ptrace
+mutation remains outside the stated trusted-code/OS boundary.
 
 The direct P5-P9 tools instantiate `session.py` against the image's actual
 controller manager, unchanged DHI plugin, SDK, model and custody guardian. They
-exercise the descriptor/resource mechanism before device I/O. They diverge from
-registered operation before `rx-solutionsd` loads and verifies `release.json`,
-constructs the release-owned program catalog, validates a resident plan and
-spawns the program through the supervisor. Direct evidence therefore supports
-the custody mechanism only; it does not establish signed catalog admission,
-resident lifecycle integration, or release-origin acceptance for this revision.
+exercise the descriptor/resource mechanism before device I/O. They still
+diverge from registered operation before `rx-solutionsd` loads and verifies
+`release.json`, constructs the release-owned program catalog, validates a
+resident plan and spawns the program through the supervisor. Their measurements
+remain direct-path measurements. P-REG supplies separate resident-path numbers;
+the two evidence sets are never substituted for one another.
 
-If a later authenticated release classifies this recipe as `NonActuating`,
+With this authenticated release classifying the recipe as `NonActuating`,
 `OwnedNonActuatingExit` may settle the supervisor's owned OS Child only. It must
 not clear the component's independently emitted residual, request/effect distinction,
 or `stop_effect: UNCONFIRMED`. Every observed torque transition, diagnostic
@@ -94,10 +102,9 @@ can be retired while its last torque value is1, and that residual remains in the
 log. The supervisor exposes `unconfirmed_component_stops`, keeps
 `reconciliation_required: true`, and refuses an overall successful shutdown with
 `DHI_MODEL_STOP_UNCONFIRMED` even when its owned OS child exited0. The lifecycle
-test establishes that conditional behavior; it does not change the current
-`RequiresPlatformAuthority` catalog gate. Component uncertainty would take
-priority over the aggregate success verdict, and that future classification
-must not be copied to a real-device recipe.
+test and registered passage retain that behavior. Component uncertainty takes
+priority over the aggregate success verdict, and this classification must not
+be copied to a real-device recipe.
 
 The upstream torque service accepts a request; actual writes occur elsewhere.
 In the measured inactive case it replied success/Already enabled while register64

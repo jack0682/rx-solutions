@@ -1,4 +1,4 @@
-//! Fresh-PTY investigation only. Registered release admission remains withheld.
+//! Release-owned fresh-PTY simulation with registered resident admission.
 use super::*;
 
 const SOURCES: &[(&str, &[u8])] = &[
@@ -99,11 +99,10 @@ pub(super) fn program(
     let name = |value| Name::new(value).expect("literal");
     Ok(Some(Program {
         id: name("rx/dhi-pty-simulation"),
-        // Direct P5-P8 evidence exercises the resource gate, but the current
-        // development release cannot authenticate this catalog revision after
-        // its offline signing key was destroyed. Keep resident launch denied
-        // until release signing custody/rotation is established separately.
-        effect: Effect::RequiresPlatformAuthority,
+        // The signed resident path preserves the guardian's character-resource
+        // admission. This classification is limited to the internally allocated
+        // fresh PTY model; it never grants physical-device authority.
+        effect: Effect::NonActuating,
         executable: python,
         executable_sha256,
         files,
@@ -121,7 +120,10 @@ pub(super) fn program(
         ready: ReadyProbe::HttpStatus {
             port_parameter: name("port"),
         },
-        execution_requirements: None,
+        // Explicitly declare that the generic OS execution backend has no
+        // additional capacity/access policy to apply. Device-resource custody
+        // remains the DHI guardian's distinct, release-pinned admission gate.
+        execution_requirements: Some(crate::execution::Requirements(BTreeMap::new())),
         functional_readiness: None,
         decision_policy: None,
     }))

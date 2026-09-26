@@ -105,7 +105,7 @@ while True:rclpy.spin_once(n,timeout_sec=.1)
             "custody_grants": owned.grants,
             "manager_pid": owned.manager_pid,
             "physical_qualification": "NOT_PERFORMED",
-            "effect_classification": "WITHHELD_REGISTERED_RELEASE_ADMISSION_UNVERIFIED",
+            "effect_classification": "DIRECT_MECHANISM_ONLY; REGISTERED_CLASSIFICATION_VERIFIED_SEPARATELY",
         }
     except Exception as caught:
         error = repr(caught)
