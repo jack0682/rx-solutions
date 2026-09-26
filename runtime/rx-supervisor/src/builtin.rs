@@ -7,6 +7,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
+mod ai_sapiens;
 mod ai_worker;
 mod dhi;
 mod open_manipulator;
@@ -67,7 +68,30 @@ pub fn release_boundary() -> serde_json::Value {
         ),
         ("open_manipulator_realsense", "NOT_INSTALLED_OR_QUALIFIED"),
         ("open_manipulator_maintenance_handoff", "NOT_ESTABLISHED"),
-        ("remaining_robotis_product", "AI_SAPIENS_0_2_2"),
+        (
+            "ai_sapiens",
+            "0.2.2; ASSET_GATE_SIMULATION_ONLY; PHYSICAL_START_WITHHELD",
+        ),
+        (
+            "ai_sapiens_onnx_runtime",
+            "1.23.2_DECLARED_SEPARATELY_FROM_POLICY_ASSETS",
+        ),
+        (
+            "ai_sapiens_policy_assets",
+            "FOUR_HASHED_POLICIES; REQUIRED_BEFORE_OUTPUT",
+        ),
+        (
+            "ai_sapiens_residual_control",
+            "MISSING_OR_FAILED_POLICY_OUTPUTS_ZERO",
+        ),
+        (
+            "remaining_robotis_product",
+            "NONE_UNTOUCHED; BUNDLE_QUALIFICATION_STILL_REQUIRED",
+        ),
+        (
+            "robotis_bundle_completion_gaps",
+            "FULL_NATIVE_BUILDS; CROSS_PRODUCT_COMPATIBILITY; PHYSICAL_QUALIFICATION; ASSET_LICENSE_CLOSURE; DEPLOYMENT_RECOVERY",
+        ),
     ] {
         object.insert(key.into(), value.into());
     }
@@ -103,6 +127,7 @@ pub fn preflight_source_assets(root: &Path) -> Result<()> {
     }
     dhi::source_pins(root, &inventory)?;
     ai_worker::source_pins(root, &inventory)?;
+    ai_sapiens::source_pins(root, &inventory)?;
     open_manipulator::source_pins(root, &inventory)?;
     Ok(())
 }
@@ -240,6 +265,9 @@ pub fn programs_from_release(
     }
     if let Some(ai_worker) = ai_worker::program(root, release)? {
         programs.insert(ai_worker.id.clone(), ai_worker);
+    }
+    if let Some(ai_sapiens) = ai_sapiens::program(root, release)? {
+        programs.insert(ai_sapiens.id.clone(), ai_sapiens);
     }
     if let Some(open_manipulator) = open_manipulator::program(root, release)? {
         programs.insert(open_manipulator.id.clone(), open_manipulator);
