@@ -37,6 +37,13 @@ impl Plan {
                     "DHI_SIMULATION_ONLY_EXPLICIT_SESSION; physical plans and automatic restart are unsupported".into(),
                 ));
             }
+            if program.id.as_str() == "rx/ai-worker-l3-simulation"
+                && (self.environment != Environment::Simulation || p.restart_limit.0 != 0)
+            {
+                return Err(Error::Invalid(
+                    "AI_WORKER_L3_SIMULATION_ONLY_EXPLICIT_SESSION; physical plans and RX automatic restart are unsupported".into(),
+                ));
+            }
             if let Some(policy) = &program.decision_policy {
                 policy.fingerprint().map_err(Error::Invalid)?;
             }

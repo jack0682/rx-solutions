@@ -841,10 +841,14 @@ impl<R: Repository, B: Backend, A: LifecycleAuthority> Supervisor<R, B, A> {
                 .values()
                 .all(|r| matches!(r.phase, Phase::Exited | Phase::Skipped | Phase::StartFailed));
         let unconfirmed_component_stops: BTreeMap<Name, String> = self.plan.processes.iter()
-            .filter(|p| p.program.as_str() == "rx/dhi-pty-simulation")
-            .filter(|p| state.records[&p.id].instance.is_some()
+            .filter_map(|p| match p.program.as_str() {
+                "rx/dhi-pty-simulation" => Some((p, "DHI_MODEL_STOP_UNCONFIRMED; owned process exit does not erase instance-log residuals")),
+                "rx/ai-worker-l3-simulation" => Some((p, "AI_WORKER_L3_STOP_UNCONFIRMED; owned process-tree exit does not prove a foreign supervisor cannot replace the service generation")),
+                _ => None,
+            })
+            .filter(|(p, _)| state.records[&p.id].instance.is_some()
                 && matches!(state.records[&p.id].phase, Phase::Exited | Phase::Unknown | Phase::StartFailed))
-            .map(|p| (p.id.clone(), "DHI_MODEL_STOP_UNCONFIRMED; owned process exit does not erase instance-log residuals".into()))
+            .map(|(p, reason)| (p.id.clone(), reason.into()))
             .collect();
         let guarded_shutdown_confirmed = all_exited
             && unconfirmed_component_stops.is_empty()
