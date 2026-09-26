@@ -61,14 +61,15 @@ TGID membership check is secondary for forked new-open claims after this gate;
 it is not reported as a separate proof of fork safety.
 
 These direct-component observations support reconsidering `NonActuating` only
-for the internally allocated fresh PTY model, but they do not authenticate the
-registered catalog revision. The development release signing key was destroyed
-after its original offline use, while signing custody and root rotation remain
-unestablished. The catalog therefore retains `RequiresPlatformAuthority` and
-reports `registered_release_admission_verified: false`; key re-establishment,
-root rotation, SDK regeneration, old/new release rejection tests and revocation
-tests belong in a separate release-governance slice. This classification must
-not be inferred merely from simulation or copied to a real-device recipe. The
+for the internally allocated fresh PTY model, but they do not qualify the
+registered resident path. Development signing custody and root rotation are now
+established separately; that does not promote direct mechanism evidence into a
+resident lifecycle result. The catalog therefore retains
+`RequiresPlatformAuthority` and reports
+`registered_release_admission_verified: false` with reason
+`REQUIRES_PLATFORM_AUTHORITY; SIGNED_RESIDENT_PATH_NOT_QUALIFIED`. This
+classification must not be inferred merely from simulation or copied to a
+real-device recipe. The
 resource classifier assumes the trusted installed filesystem is stable between
 stat and continuation; same-UID filesystem/ptrace mutation remains outside the
 stated trusted-code/OS boundary.
