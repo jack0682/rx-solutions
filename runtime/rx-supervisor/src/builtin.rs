@@ -452,7 +452,10 @@ mod tests {
             boundary["open_manipulator_maintenance_handoff"],
             "NOT_ESTABLISHED"
         );
-        assert_eq!(boundary["remaining_robotis_product"], "AI_SAPIENS_0_2_2");
+        assert_eq!(
+            boundary["remaining_robotis_product"],
+            "NONE_UNTOUCHED; BUNDLE_QUALIFICATION_STILL_REQUIRED"
+        );
         assert_eq!(boundary["robotis_bundle_complete"], false);
     }
 }
