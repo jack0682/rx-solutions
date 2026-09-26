@@ -73,6 +73,8 @@ pub(super) fn program(
             "serve".into(),
             "--state".into(),
             "/var/lib/rx-solutions/ai-worker-l3".into(),
+            "--service-generation".into(),
+            "ai-worker/2.2.7/l3-simulation".into(),
             "--owner".into(),
             "rx".into(),
         ],

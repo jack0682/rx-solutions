@@ -15,7 +15,10 @@ import time
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 ROOT = Path("/opt/rx")
-SERVICE = "ai-worker/2.2.7/l3-simulation"
+SERVICES = {
+    "ai-worker/2.2.7/l3-simulation",
+    "open-manipulator/5.1.2/l3-simulation",
+}
 SOURCE_FILES = ("tools/ai-worker/l3_guard.py", "tools/ai-worker/dependencies.json")
 
 
@@ -23,10 +26,10 @@ class Refusal(Exception):
     pass
 
 
-def append_event(state, event, **fields):
+def append_event(state, service, event, **fields):
     row = {
         "schema": "rx.l3-supervision-observation.v1",
-        "service_generation": SERVICE,
+        "service_generation": service,
         "event": event,
         "recorded_at_ns": time.monotonic_ns(),
         "confirmed_stop": False,
@@ -138,7 +141,7 @@ while not stop: time.sleep(.05)
     return [sys.executable, "-I", "-B", "-c", code]
 
 
-def serve(state, owner, port):
+def serve(state, service, owner, port):
     installed_content()
     state.mkdir(parents=True, exist_ok=True)
     lock = (state / "owner.lock").open("a+")
@@ -147,6 +150,7 @@ def serve(state, owner, port):
     except BlockingIOError:
         append_event(
             state,
+            service,
             "L3_SECOND_SUPERVISOR_REFUSED_ACTIVE_OWNER",
             attempted_owner=owner,
             disposition="BLOCKED",
@@ -156,6 +160,7 @@ def serve(state, owner, port):
     if fence.exists():
         append_event(
             state,
+            service,
             "L3_FOREIGN_RESTART_AFTER_RX_STOP_REFUSED",
             attempted_owner=owner,
             disposition="BLOCKED",
@@ -166,6 +171,7 @@ def serve(state, owner, port):
     child = subprocess.Popen(child_command(), env={"PATH": "/usr/bin:/bin", "LANG": "C.UTF-8"})
     append_event(
         state,
+        service,
         "L3_SERVICE_GENERATION_STARTED",
         owner=owner,
         generation=generation,
@@ -188,7 +194,7 @@ def serve(state, owner, port):
             body = json.dumps(
                 {
                     "schema": "rx.ai-worker-l3-status.v1",
-                    "service_generation": SERVICE,
+                    "service_generation": service,
                     "owner": owner,
                     "generation": generation,
                     "child_pid": child.pid,
@@ -220,7 +226,7 @@ def serve(state, owner, port):
             "reason": "L3_EXTERNAL_RESTART_CAPABILITY_UNRECONCILED",
         }
         atomic_json(fence, stop)
-        append_event(state, "L3_STOP_REQUEST_ACCEPTED", **stop)
+        append_event(state, service, "L3_STOP_REQUEST_ACCEPTED", **stop)
         child.terminate()
         try:
             child.wait(timeout=5)
@@ -229,6 +235,7 @@ def serve(state, owner, port):
             child.wait()
         append_event(
             state,
+            service,
             "L3_OWNED_PROCESS_TREE_EXIT_OBSERVED",
             owner=owner,
             generation=generation,
@@ -239,6 +246,7 @@ def serve(state, owner, port):
         return
     append_event(
         state,
+        service,
         "L3_OWNED_PROCESS_TREE_EXIT_UNEXPECTED",
         owner=owner,
         generation=generation,
@@ -255,6 +263,7 @@ def main():
     inspect.add_argument("requirement", choices=("zed", "rt"))
     run = sub.add_parser("serve")
     run.add_argument("--state", required=True, type=Path)
+    run.add_argument("--service-generation", required=True, choices=sorted(SERVICES))
     run.add_argument("--owner", required=True, choices=("rx", "compose"))
     run.add_argument("--port", required=True, type=int)
     args = parser.parse_args()
@@ -263,7 +272,7 @@ def main():
     elif not 1024 <= args.port <= 65535:
         raise Refusal("AI_WORKER_L3_PORT_INVALID")
     else:
-        serve(args.state, args.owner, args.port)
+        serve(args.state, args.service_generation, args.owner, args.port)
 
 
 if __name__ == "__main__":

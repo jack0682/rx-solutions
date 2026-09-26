@@ -9,6 +9,7 @@ use std::{
 
 mod ai_worker;
 mod dhi;
+mod open_manipulator;
 mod services;
 pub use services::{
     ConfigurationPin, Initializer, ServiceConfigurations, ServiceInput, ServiceRole,
@@ -17,7 +18,7 @@ pub use services::{
 
 /// Checkpoint diagnostics, never a current permission receipt.
 pub fn release_boundary() -> serde_json::Value {
-    serde_json::json!({
+    let mut boundary = serde_json::json!({
         "trust": "TRUSTED_INSTALLED_RUST_BINARIES_AND_OS",
         "source_assets": "STATUS_SCRIPT_AND_DEVICE_CATALOG_MATCH_COMPILED_SOURCE_CONTENT",
         "inventory": "CONSISTENCY_INDEX_AUTHENTICATED_BY_COMPILED_DEVELOPMENT_ROOT",
@@ -47,7 +48,7 @@ pub fn release_boundary() -> serde_json::Value {
         "ai_worker_compose_restart_disposition": "BLOCKED_AND_RECORDED_AT_RX_SERVICE_GENERATION_GATE",
         "ai_worker_zed_assets": "NOT_INSTALLED_OR_QUALIFIED; PHYSICAL_PROFILE_REFUSED",
         "ai_worker_rt_authority": "NOT_GRANTED_OR_QUALIFIED; PHYSICAL_PROFILE_REFUSED",
-        "open_manipulator_l3_reuse": "NOT_ESTABLISHED; NEXT_SLICE_DISCRIMINATING_TEST",
+        "open_manipulator_l3_reuse": "VARIANT_REQUIRED; CATALOG_BOUND_SERVICE_IDENTITY; S6_PROCESS_RESTART_BLOCKED_AND_RECORDED",
         "sdk_baseline_complete": false,
         "robotis_bundle_complete": false,
         "work_commit_residuals": ["TTL_CONTINUES_DURING_POST_CUT_IO", "HTTP_OBSERVATION_IS_AS_OF"],
@@ -57,7 +58,20 @@ pub fn release_boundary() -> serde_json::Value {
         "monitor": "NO_TIMER_OR_BACKGROUND_MONITOR",
         "remaining_interval": "TRUSTED_INSTALLATION_STABILITY_BETWEEN_BYTE_CHECK_AND_USE",
         "inspection": "OBSERVATION_ONLY; NOT_DURABLE_ADMISSION_OR_WORK_PERMISSION"
-    })
+    });
+    let object = boundary.as_object_mut().expect("release boundary object");
+    for (key, value) in [
+        (
+            "open_manipulator",
+            "5.1.2; L3_SIMULATION_ONLY; PHYSICAL_START_WITHHELD",
+        ),
+        ("open_manipulator_realsense", "NOT_INSTALLED_OR_QUALIFIED"),
+        ("open_manipulator_maintenance_handoff", "NOT_ESTABLISHED"),
+        ("remaining_robotis_product", "AI_SAPIENS_0_2_2"),
+    ] {
+        object.insert(key.into(), value.into());
+    }
+    boundary
 }
 
 /// Preserve F12's compiled-source refusal before any writable-state access.
@@ -89,6 +103,7 @@ pub fn preflight_source_assets(root: &Path) -> Result<()> {
     }
     dhi::source_pins(root, &inventory)?;
     ai_worker::source_pins(root, &inventory)?;
+    open_manipulator::source_pins(root, &inventory)?;
     Ok(())
 }
 
@@ -225,6 +240,9 @@ pub fn programs_from_release(
     }
     if let Some(ai_worker) = ai_worker::program(root, release)? {
         programs.insert(ai_worker.id.clone(), ai_worker);
+    }
+    if let Some(open_manipulator) = open_manipulator::program(root, release)? {
+        programs.insert(open_manipulator.id.clone(), open_manipulator);
     }
     Ok(programs)
 }
@@ -385,9 +403,28 @@ mod tests {
         );
         assert_eq!(
             boundary["open_manipulator_l3_reuse"],
-            "NOT_ESTABLISHED; NEXT_SLICE_DISCRIMINATING_TEST"
+            "VARIANT_REQUIRED; CATALOG_BOUND_SERVICE_IDENTITY; S6_PROCESS_RESTART_BLOCKED_AND_RECORDED"
         );
         assert_eq!(boundary["dhi_compose_s6_reuse"], "NOT_ESTABLISHED");
+        assert_eq!(boundary["robotis_bundle_complete"], false);
+    }
+
+    #[test]
+    fn open_manipulator_l3_is_an_explicit_variant_not_unchanged_reuse() {
+        let boundary = release_boundary();
+        assert_eq!(
+            boundary["open_manipulator_l3_reuse"],
+            "VARIANT_REQUIRED; CATALOG_BOUND_SERVICE_IDENTITY; S6_PROCESS_RESTART_BLOCKED_AND_RECORDED"
+        );
+        assert_eq!(
+            boundary["open_manipulator_realsense"],
+            "NOT_INSTALLED_OR_QUALIFIED"
+        );
+        assert_eq!(
+            boundary["open_manipulator_maintenance_handoff"],
+            "NOT_ESTABLISHED"
+        );
+        assert_eq!(boundary["remaining_robotis_product"], "AI_SAPIENS_0_2_2");
         assert_eq!(boundary["robotis_bundle_complete"], false);
     }
 }

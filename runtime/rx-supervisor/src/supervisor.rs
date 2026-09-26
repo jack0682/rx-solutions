@@ -844,6 +844,7 @@ impl<R: Repository, B: Backend, A: LifecycleAuthority> Supervisor<R, B, A> {
             .filter_map(|p| match p.program.as_str() {
                 "rx/dhi-pty-simulation" => Some((p, "DHI_MODEL_STOP_UNCONFIRMED; owned process exit does not erase instance-log residuals")),
                 "rx/ai-worker-l3-simulation" => Some((p, "AI_WORKER_L3_STOP_UNCONFIRMED; owned process-tree exit does not prove a foreign supervisor cannot replace the service generation")),
+                "rx/open-manipulator-l3-simulation" => Some((p, "OPEN_MANIPULATOR_L3_STOP_UNCONFIRMED; owned process-tree exit does not prove s6 cannot replace the service generation")),
                 _ => None,
             })
             .filter(|(p, _)| state.records[&p.id].instance.is_some()

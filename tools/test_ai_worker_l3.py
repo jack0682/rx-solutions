@@ -101,6 +101,8 @@ def main():
             "runtime/rx-supervisor/src/builtin.rs",
             "runtime/rx-supervisor/src/builtin/ai_worker.rs",
             "runtime/rx-supervisor/src/supervisor.rs",
+            "native/open-manipulator/dependencies.json",
+            "native/open-manipulator/requirements.py",
         )
     }
     pins = evidence / "source-pins.json"
@@ -207,6 +209,8 @@ def main():
     os.chmod(current / "rx-solutionsd", 0o755)
     shutil.copy2(ROOT / "native/ai-worker/l3_guard.py", current / "l3_guard.py")
     shutil.copy2(ROOT / "native/ai-worker/dependencies.json", current / "dependencies.json")
+    shutil.copy2(ROOT / "native/open-manipulator/dependencies.json", current / "open-manipulator-dependencies.json")
+    shutil.copy2(ROOT / "native/open-manipulator/requirements.py", current / "open-manipulator-requirements.py")
 
     inventory = json.loads(
         run(
@@ -217,6 +221,8 @@ def main():
     inventory["files"]["bin/rx-solutionsd"] = digest(current / "rx-solutionsd")
     inventory["files"]["tools/ai-worker/l3_guard.py"] = digest(current / "l3_guard.py")
     inventory["files"]["tools/ai-worker/dependencies.json"] = digest(current / "dependencies.json")
+    inventory["files"]["tools/open-manipulator/dependencies.json"] = digest(current / "open-manipulator-dependencies.json")
+    inventory["files"]["tools/open-manipulator/requirements.py"] = digest(current / "open-manipulator-requirements.py")
     (current / "runtime-files.json").write_text(json.dumps(inventory, indent=2) + "\n")
     sign("sign-current", current, 4)
 
@@ -228,6 +234,8 @@ def main():
     mutant.mkdir()
     (mutant / "l3_guard.py").write_text(source.replace(mutation_before, mutation_after))
     shutil.copy2(ROOT / "native/ai-worker/dependencies.json", mutant / "dependencies.json")
+    shutil.copy2(current / "open-manipulator-dependencies.json", mutant / "open-manipulator-dependencies.json")
+    shutil.copy2(current / "open-manipulator-requirements.py", mutant / "open-manipulator-requirements.py")
     run("clean-before-mutant", clean, timeout=300)
     mutant_build = build[:]
     insertion = mutant_build.index("-w")
@@ -251,6 +259,8 @@ def main():
             "COPY --chmod=0755 rx-solutionsd /opt/rx/bin/rx-solutionsd\n"
             "COPY l3_guard.py /opt/rx/tools/ai-worker/l3_guard.py\n"
             "COPY dependencies.json /opt/rx/tools/ai-worker/dependencies.json\n"
+            "COPY open-manipulator-dependencies.json /opt/rx/tools/open-manipulator/dependencies.json\n"
+            "COPY open-manipulator-requirements.py /opt/rx/tools/open-manipulator/requirements.py\n"
             "COPY runtime-files.json /opt/rx/manifests/runtime-files.json\n"
             "COPY metadata/release.json /opt/rx/manifests/release.json\n"
             "COPY metadata/revocations.json /opt/rx/manifests/revocations.json\n"
@@ -396,6 +406,8 @@ def main():
                                 "serve",
                                 "--state",
                                 "/var/lib/rx-solutions/ai-worker-l3",
+                                "--service-generation",
+                                "ai-worker/2.2.7/l3-simulation",
                                 "--owner",
                                 "compose",
                                 "--port",
