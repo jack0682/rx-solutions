@@ -25,6 +25,7 @@ COPY native/dynamixel ./native/dynamixel
 COPY native/support ./native/support
 COPY native/dhi ./native/dhi
 COPY native/ai-worker ./native/ai-worker
+COPY native/ai-sapiens ./native/ai-sapiens
 COPY native/open-manipulator ./native/open-manipulator
 COPY dependencies ./dependencies
 COPY interfaces ./interfaces
@@ -87,6 +88,7 @@ COPY --from=dhi-build /opt/ros/jazzy/lib/controller_manager/ros2_control_node /o
 COPY --from=dhi-build /dhi-input/source-lock.json /opt/rx/manifests/dhi-source-lock.json
 COPY native/dhi/session.py native/dhi/model.py native/dhi/guardian.c native/dhi/dependencies.json native/dhi/endpoint-channels.json /opt/rx/tools/dhi/
 COPY native/ai-worker/l3_guard.py native/ai-worker/dependencies.json /opt/rx/tools/ai-worker/
+COPY native/ai-sapiens/asset_gate.py native/ai-sapiens/dependencies.json /opt/rx/tools/ai-sapiens/
 COPY native/open-manipulator/dependencies.json native/open-manipulator/requirements.py /opt/rx/tools/open-manipulator/
 COPY --from=dhi /src/dynamixel_hardware_interface/LICENSE /opt/rx/licenses/dynamixel_hardware_interface/LICENSE
 COPY --from=dhi /src/dynamixel_interfaces/LICENSE /opt/rx/licenses/dynamixel_interfaces/LICENSE
