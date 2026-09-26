@@ -24,6 +24,7 @@ COPY native/ros-jtc ./native/ros-jtc
 COPY native/dynamixel ./native/dynamixel
 COPY native/support ./native/support
 COPY native/dhi ./native/dhi
+COPY native/ai-worker ./native/ai-worker
 COPY dependencies ./dependencies
 COPY interfaces ./interfaces
 RUN --mount=type=cache,id=rx-solutions-registry,target=/usr/local/cargo/registry \
@@ -84,6 +85,7 @@ COPY --from=dhi-build /dhi-guardian-build/rx-dhi-custody /opt/rx/bin/rx-dhi-cust
 COPY --from=dhi-build /opt/ros/jazzy/lib/controller_manager/ros2_control_node /opt/rx/bin/rx-dhi-controller-manager
 COPY --from=dhi-build /dhi-input/source-lock.json /opt/rx/manifests/dhi-source-lock.json
 COPY native/dhi/session.py native/dhi/model.py native/dhi/guardian.c native/dhi/dependencies.json native/dhi/endpoint-channels.json /opt/rx/tools/dhi/
+COPY native/ai-worker/l3_guard.py native/ai-worker/dependencies.json /opt/rx/tools/ai-worker/
 COPY --from=dhi /src/dynamixel_hardware_interface/LICENSE /opt/rx/licenses/dynamixel_hardware_interface/LICENSE
 COPY --from=dhi /src/dynamixel_interfaces/LICENSE /opt/rx/licenses/dynamixel_interfaces/LICENSE
 COPY --from=dynamixel-build /dynamixel-build/rx-dynamixel-ping /opt/rx/bin/rx-dynamixel-ping

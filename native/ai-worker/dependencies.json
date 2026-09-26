@@ -1,0 +1,35 @@
+{
+  "schema": "rx.ai-worker-dependencies.v1",
+  "ai_worker": {
+    "repository": "ROBOTIS-GIT/ai_worker",
+    "version": "2.2.7",
+    "commit": "897ef342ff0e1b2ef59d6afbb5195b410d57b85f",
+    "archive_sha256": "ad3e25940c2de3f6c89a2173203f34b1de1bd69ee2c85f2e494e47d0dfd1503e",
+    "content_tree_sha256": "10431e807afae6e3831c754a465575c46df315acc7d64c6968d10e4d2c9b2864",
+    "file_count": 380
+  },
+  "git_dependencies": {
+    "DynamixelSDK": "f838bc90f72fcf5b9c279432d6e12fc24969daa8",
+    "Lakibeam_ROS2_Driver": "248a0cc4111e613bd9975e287371d58a3c3a3b0d",
+    "cyclo_control": "d1c78a9734bcff877db5354f5c0f21f9d5c33152",
+    "cyclo_manager": "6bdf945c967ec50a10d4efcf579a27ddd5e1a865",
+    "dual_laser_merger": "e354b5f289ae579422a3fcd0495df17fc5dc27ab",
+    "dynamixel_hardware_interface": "6bb5f93ecad1fe3c231e3ece580344e8f0a6efc3",
+    "dynamixel_interfaces": "d8885f8c377bfc39ef2d98f75d0c22ece7ac998f",
+    "librealsense": "1e34346894be975e8e594fab22f8b31a89a710bb",
+    "realsense-ros": "cbd8b8487d4c0126bb590822db9469414496e62a",
+    "robotis_hand": "d4f872795abfe6331a924f9fe12b8b69395303e4",
+    "robotis_interfaces": "7a5670cb3fb3f42b479a1fbf17c1e767b43db067",
+    "zed-ros2-wrapper": "4c8ee060862c9a85d711d68b6a4f1571bfa3dcc9"
+  },
+  "upstream_floating_refs": "REJECTED_BY_RX_SOURCE_PINS",
+  "upstream_compose_restart": "always",
+  "s6_overlay_version": "3.2.1.0",
+  "unqualified_build_inputs": {
+    "base_image_digests": "NOT_ESTABLISHED",
+    "s6_overlay_archive_digests": "NOT_ESTABLISHED",
+    "zed_sdk_installer_digest": "NOT_ESTABLISHED"
+  },
+  "physical_qualification": "NOT_PERFORMED",
+  "open_manipulator_reuse": "NOT_ESTABLISHED"
+}

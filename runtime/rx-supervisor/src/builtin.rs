@@ -7,6 +7,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
+mod ai_worker;
 mod dhi;
 mod services;
 pub use services::{
@@ -40,6 +41,13 @@ pub fn release_boundary() -> serde_json::Value {
         "dhi_same_uid_tampering": "OUTSIDE_TRUST_BOUNDARY_CHMOD_PTRACE",
         "dhi_compose_s6_reuse": "NOT_ESTABLISHED",
         "dhi_ros_admin_authority": "NOT_ESTABLISHED",
+        "ai_worker": "2.2.7; PINNED_SOURCE; L3_SIMULATION_RECIPE_ONLY; PHYSICAL_START_WITHHELD",
+        "ai_worker_l3_owner": "ONE_SERVICE_GENERATION_OWNER; AUTHORITY_TO_CREATE_REPLACEMENT_ROOT_PROCESS_TREE",
+        "ai_worker_compose_restart_admission_verified": true,
+        "ai_worker_compose_restart_disposition": "BLOCKED_AND_RECORDED_AT_RX_SERVICE_GENERATION_GATE",
+        "ai_worker_zed_assets": "NOT_INSTALLED_OR_QUALIFIED; PHYSICAL_PROFILE_REFUSED",
+        "ai_worker_rt_authority": "NOT_GRANTED_OR_QUALIFIED; PHYSICAL_PROFILE_REFUSED",
+        "open_manipulator_l3_reuse": "NOT_ESTABLISHED; NEXT_SLICE_DISCRIMINATING_TEST",
         "sdk_baseline_complete": false,
         "robotis_bundle_complete": false,
         "work_commit_residuals": ["TTL_CONTINUES_DURING_POST_CUT_IO", "HTTP_OBSERVATION_IS_AS_OF"],
@@ -80,6 +88,7 @@ pub fn preflight_source_assets(root: &Path) -> Result<()> {
             .map_err(|e| rx_package::release::Error::Content(e.to_string()))?;
     }
     dhi::source_pins(root, &inventory)?;
+    ai_worker::source_pins(root, &inventory)?;
     Ok(())
 }
 
@@ -213,6 +222,9 @@ pub fn programs_from_release(
     let mut programs: BTreeMap<Name, Program> = [(program.id.clone(), program)].into();
     if let Some(dhi) = dhi::program(root, release)? {
         programs.insert(dhi.id.clone(), dhi);
+    }
+    if let Some(ai_worker) = ai_worker::program(root, release)? {
+        programs.insert(ai_worker.id.clone(), ai_worker);
     }
     Ok(programs)
 }
@@ -358,5 +370,24 @@ mod tests {
             boundary["product_release_custody_and_rotation"],
             "NOT_ESTABLISHED"
         );
+    }
+
+    #[test]
+    fn ai_worker_l3_boundary_is_blocking_not_observation_only() {
+        let boundary = release_boundary();
+        assert_eq!(
+            boundary["ai_worker_compose_restart_admission_verified"],
+            true
+        );
+        assert_eq!(
+            boundary["ai_worker_compose_restart_disposition"],
+            "BLOCKED_AND_RECORDED_AT_RX_SERVICE_GENERATION_GATE"
+        );
+        assert_eq!(
+            boundary["open_manipulator_l3_reuse"],
+            "NOT_ESTABLISHED; NEXT_SLICE_DISCRIMINATING_TEST"
+        );
+        assert_eq!(boundary["dhi_compose_s6_reuse"], "NOT_ESTABLISHED");
+        assert_eq!(boundary["robotis_bundle_complete"], false);
     }
 }
