@@ -1,6 +1,6 @@
 # Core dependencies and optional device sources
 
-The default solutions image contains ROS Jazzy, generic JointTrajectoryController communication, BehaviorTree.CPP, RX executables, and the operator application. The development image also carries the pinned DHI/SDK/interfaces trio and actual controller_manager for the fresh-PTY investigation. Development signing custody and root rotation do not qualify that recipe's registered resident path, which remains authority-gated. These are solution dependencies, not ROS-independent platform dependencies or physical device qualification.
+The default solutions image contains ROS Jazzy, generic JointTrajectoryController communication, BehaviorTree.CPP, RX executables, and the operator application. The development image also carries the pinned DHI/SDK/interfaces trio and actual controller_manager for the fresh-PTY investigation. The signed registered resident path is qualified only for the release-pinned fresh-PTY simulation and its resource-custody guardian. These are solution dependencies, not ROS-independent platform dependencies or physical device qualification.
 
 `native-stack.lock.json` records the ROS base image digest and dependency scope. The external device repository list in `native.repos` is currently empty. Adding a device requires recording an immutable Git commit for each repository and the actual SHA-256 of required assets, followed by separate qualification. Inclusion in a repository does not grant operating authority.
 

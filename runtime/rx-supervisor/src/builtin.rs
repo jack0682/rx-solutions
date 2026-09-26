@@ -33,9 +33,9 @@ pub fn release_boundary() -> serde_json::Value {
         "dynamixel": "ONE_HOST_OWNED_HELPER; OFFICIAL_SDK_4.1.0_PROTOCOL2_PING; SIMULATED_TRANSPORT_ONLY; REAL_ENDPOINT_REFUSED",
         "dynamixel_physical_qualification": "NOT_PERFORMED",
         "dhi": "OPTIONAL_RELEASE_RECIPE; FRESH_PTY_MODEL_ONLY; ORIGINAL_DHI_COMMAND_AUTHOR; CM_LIFECYCLE; RX_DESCRIPTOR_CUSTODY",
-        "dhi_effect_classification": "WITHHELD_REGISTERED_RELEASE_ADMISSION_UNVERIFIED",
-        "dhi_registered_release_admission_verified": false,
-        "dhi_registered_release_admission_reason": "REQUIRES_PLATFORM_AUTHORITY; SIGNED_RESIDENT_PATH_NOT_QUALIFIED",
+        "dhi_effect_classification": "NONACTUATING_FRESH_PTY_REGISTERED_RELEASE_VERIFIED",
+        "dhi_registered_release_admission_verified": true,
+        "dhi_registered_release_admission_reason": "SIGNED_RESIDENT_PATH_R1_PRESERVED; FRESH_PTY_ONLY; PHYSICAL_NOT_QUALIFIED",
         "dhi_direct_mechanism_scope": "FRESH_PTY_ONLY; NO_PHYSICAL_ENDPOINT_OR_ADOPTION; PROCESS_EXIT_DOES_NOT_CLEAR_MODEL_RESIDUAL_OR_UNCONFIRMED_STOP",
         "dhi_same_uid_tampering": "OUTSIDE_TRUST_BOUNDARY_CHMOD_PTRACE",
         "dhi_compose_s6_reuse": "NOT_ESTABLISHED",
@@ -334,16 +334,16 @@ mod tests {
     use super::*;
 
     #[test]
-    fn dhi_registered_release_admission_is_explicitly_unverified() {
+    fn dhi_registered_release_admission_is_explicitly_verified_and_bounded() {
         let boundary = release_boundary();
         assert_eq!(
             boundary["dhi_effect_classification"],
-            "WITHHELD_REGISTERED_RELEASE_ADMISSION_UNVERIFIED"
+            "NONACTUATING_FRESH_PTY_REGISTERED_RELEASE_VERIFIED"
         );
-        assert_eq!(boundary["dhi_registered_release_admission_verified"], false);
+        assert_eq!(boundary["dhi_registered_release_admission_verified"], true);
         assert_eq!(
             boundary["dhi_registered_release_admission_reason"],
-            "REQUIRES_PLATFORM_AUTHORITY; SIGNED_RESIDENT_PATH_NOT_QUALIFIED"
+            "SIGNED_RESIDENT_PATH_R1_PRESERVED; FRESH_PTY_ONLY; PHYSICAL_NOT_QUALIFIED"
         );
         assert_eq!(
             boundary["development_release_signing_custody"],

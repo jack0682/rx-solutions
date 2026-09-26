@@ -2,9 +2,9 @@
   "schema": "rx.dhi-endpoint-channels.v1",
   "component": "dynamixel_hardware_interface@6bb5f93ecad1fe3c231e3ece580344e8f0a6efc3",
   "sdk": "DynamixelSDK@f838bc90f72fcf5b9c279432d6e12fc24969daa8",
-  "classification": "WITHHELD_REGISTERED_RELEASE_ADMISSION_UNVERIFIED",
-  "registered_release_admission_verified": false,
-  "registered_release_admission_reason": "REQUIRES_PLATFORM_AUTHORITY; SIGNED_RESIDENT_PATH_NOT_QUALIFIED",
+  "classification": "NONACTUATING_FRESH_PTY_REGISTERED_RELEASE_VERIFIED",
+  "registered_release_admission_verified": true,
+  "registered_release_admission_reason": "SIGNED_RESIDENT_PATH_R1_PRESERVED; FRESH_PTY_ONLY; PHYSICAL_NOT_QUALIFIED",
   "channels": [
     {
       "id": "hardware-info/port-name",
