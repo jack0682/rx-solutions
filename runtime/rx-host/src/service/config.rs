@@ -62,6 +62,7 @@ pub enum Backend {
     ValidatedDriver {
         profile: Name,
         driver_digest: Digest,
+        endpoint: String,
     },
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]

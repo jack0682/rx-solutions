@@ -82,6 +82,7 @@ fn startup_rejects_policy_tampering_unknown_fields_and_unimplemented_physical_ba
     loaded.config.backend = Backend::ValidatedDriver {
         profile: name("simulation/arm"),
         driver_digest: Digest::from_bytes([1; 32]),
+        endpoint: "simulation/dynamixel/id-1".into(),
     };
     assert!(service::initialize_with(&loaded, clock, &service::Builtin).is_err());
     assert!(!dir.path().join("data").exists());
@@ -717,4 +718,82 @@ async fn preparation_cannot_swap_both_current_and_proposed_around_the_actual_sto
         );
     }
     assert!(service::maintenance::prepare(&plan, &loaded, &loaded, &id()).is_ok());
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn unavailable_runtime_lock_refuses_service_without_claiming_a_known_owner() {
+    let (dir, file, clock) = fixture();
+    let loaded = Loaded::read(&file).unwrap();
+    service::initialize_with(&loaded, clock.clone(), &service::Builtin).unwrap();
+    let locked = dir.path().join("lock-held");
+    let release = dir.path().join("release-lock");
+    struct Holder(std::process::Child);
+    impl Drop for Holder {
+        fn drop(&mut self) {
+            let _ = self.0.kill();
+            let _ = self.0.wait();
+        }
+    }
+    let mut holder = Holder(std::process::Command::new("/usr/bin/python3")
+        .args(["-c", "import fcntl,sys,time; from pathlib import Path; f=open(sys.argv[1],'a+'); fcntl.flock(f,fcntl.LOCK_EX); Path(sys.argv[2]).write_text('held');\nwhile not Path(sys.argv[3]).exists(): time.sleep(.01)"])
+        .arg(loaded.config.runtime_directory.join("host.lock")).arg(&locked).arg(&release)
+        .spawn().unwrap());
+    let deadline = std::time::Instant::now() + Duration::from_secs(3);
+    while !locked.exists() {
+        assert!(holder.0.try_wait().unwrap().is_none());
+        assert!(std::time::Instant::now() < deadline);
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
+    let before = std::fs::read(loaded.config.data_directory.join("host.db")).unwrap();
+    let error = service::run_with(
+        Loaded::read(&file).unwrap(),
+        clock.clone(),
+        service::Builtin,
+        async {},
+    )
+    .await
+    .unwrap_err()
+    .to_string();
+    assert!(error.contains("host/runtime-ownership-unavailable"));
+    assert!(error.contains("owner identity is not established"));
+    assert!(
+        !loaded
+            .config
+            .runtime_directory
+            .join("host-status.json")
+            .exists()
+    );
+    assert_eq!(
+        std::fs::read(loaded.config.data_directory.join("host.db")).unwrap(),
+        before
+    );
+    std::fs::write(&release, b"release").unwrap();
+    assert!(holder.0.wait().unwrap().success());
+    service::run_with(
+        Loaded::read(&file).unwrap(),
+        clock,
+        service::Builtin,
+        async {},
+    )
+    .await
+    .unwrap();
+    println!(
+        "runtime_lock_refusal={error}; explicit retry after observed holder exit succeeded; no automatic retry"
+    );
+}
+
+#[test]
+fn existing_native_installation_wire_records_roundtrip_without_new_fields() {
+    // Frozen pre-DYNAMIXEL persisted variants; the new arm is additive.
+    for kind in ["JTC", "MELSEC"] {
+        let old = serde_json::json!({
+            "kind":kind,
+            "identity":{"journal":"11111111-1111-4111-8111-111111111111","profile":"11".repeat(32)},
+            "manifest_digest":"22".repeat(32)
+        });
+        let bytes = canonical::bytes(&old).unwrap();
+        let record: service::NativeInstallation = canonical::decode_json(&bytes).unwrap();
+        assert_eq!(canonical::bytes(&record).unwrap(), bytes);
+    }
 }

@@ -47,6 +47,17 @@ pub struct Program {
     pub fixed_arguments: Vec<String>,
     pub arguments: BTreeMap<Name, Argument>,
     pub ready: ReadyProbe,
+    /// Authored by the catalog. No field in the site Process can replace this.
+    /// Omission preserves the legacy program digest and startup path.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub execution_requirements: Option<crate::execution::Requirements>,
+    /// Author-owned intended-use conditions over a supported observation source.
+    /// Omission preserves legacy catalog/plan digest inputs.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub functional_readiness: Option<crate::use_assessment::ReadinessContract>,
+    /// Optional author-owned external decision anchors; never loaded from site input.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub decision_policy: Option<crate::decision::Policy>,
 }
 #[derive(Clone, Debug, Serialize)]
 pub enum Argument {
@@ -61,6 +72,8 @@ pub enum ReadyProbe {
 }
 #[derive(Clone, Debug)]
 pub struct Launch {
+    /// Current plan selection, never a persistent registration or OS identity.
+    pub selection: Name,
     pub instance: Id,
     pub effect: Effect,
     pub executable: PathBuf,
@@ -97,6 +110,11 @@ pub struct Record {
     pub error: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub guarded_exit: Option<GuardedExit>,
+    /// Historical resource observations never restore a current receipt.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub resources: Option<crate::execution::ResourceHistory>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub process_identity: Option<crate::process_identity::StoredProcessIdentity>,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(
@@ -134,6 +152,10 @@ pub struct Status {
     pub physical_shutdown_assessed: bool,
     pub guarded_shutdown_confirmed: bool,
     pub reconciliation_required: bool,
+    /// OS exit cannot settle the DHI model residual. Empty preserves legacy JSON.
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    pub unconfirmed_component_stops: BTreeMap<Name, String>,
+    pub execution_admission: BTreeMap<Name, crate::execution::Status>,
 }
 /// This port must validate existing platform lifecycle authority for control owners.
 /// No public CLI, process liveness or Boolean from a site file can implement that authority.

@@ -7,6 +7,7 @@ publish.workspace = true
 
 [dependencies]
 rx-domain = {path="../../sdk/crates/rx-domain"}
+rx-ports = {path="../../sdk/crates/rx-ports"}
 serde = {version="1",features=["derive"]}
 sha2 = "0.10"
 thiserror = "2"

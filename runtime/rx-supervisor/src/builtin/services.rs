@@ -47,12 +47,22 @@ pub fn add_guarded_services(
             "service configuration count must be 1..32".into(),
         ));
     }
-    let inventory: Inventory =
-        canonical::decode_json(&std::fs::read(root.join("manifests/runtime-files.json"))?)
-            .map_err(|e| Error::Invalid(e.to_string()))?;
-    if inventory.schema != "rx.solutions-runtime-files.v1" {
-        return Err(Error::Invalid("release inventory schema".into()));
+    let release = load_release(root)?;
+    services_from_release(root, configurations, programs, &release)
+}
+
+pub fn services_from_release(
+    root: &Path,
+    configurations: &ServiceConfigurations,
+    programs: &mut BTreeMap<Name, Program>,
+    release: &rx_package::release::VerifiedRelease,
+) -> Result<Vec<Initializer>> {
+    if configurations.is_empty() || configurations.len() > 32 {
+        return Err(Error::Invalid(
+            "service configuration count must be 1..32".into(),
+        ));
     }
+    let inventory = release.inventory();
     let mut commands = Vec::new();
     for (service, input) in configurations {
         if service.as_str().len() > 64
@@ -233,6 +243,9 @@ pub fn add_guarded_services(
             .insert(
                 id.clone(),
                 Program {
+                    functional_readiness: None,
+                    decision_policy: None,
+                    execution_requirements: None,
                     id,
                     effect: Effect::ProtocolGuardedService,
                     executable,

@@ -30,6 +30,34 @@ impl Plan {
             let program = programs
                 .get(&p.program)
                 .ok_or_else(|| Error::Invalid("program not in release catalog".into()))?;
+            if program.id.as_str() == "rx/dhi-pty-simulation"
+                && (self.environment != Environment::Simulation || p.restart_limit.0 != 0)
+            {
+                return Err(Error::Invalid(
+                    "DHI_SIMULATION_ONLY_EXPLICIT_SESSION; physical plans and automatic restart are unsupported".into(),
+                ));
+            }
+            if program.id.as_str() == "rx/ai-worker-l3-simulation"
+                && (self.environment != Environment::Simulation || p.restart_limit.0 != 0)
+            {
+                return Err(Error::Invalid(
+                    "AI_WORKER_L3_SIMULATION_ONLY_EXPLICIT_SESSION; physical plans and RX automatic restart are unsupported".into(),
+                ));
+            }
+            if program.id.as_str() == "rx/open-manipulator-l3-simulation"
+                && (self.environment != Environment::Simulation || p.restart_limit.0 != 0)
+            {
+                return Err(Error::Invalid("OPEN_MANIPULATOR_L3_SIMULATION_ONLY; physical plans and RX automatic restart are unsupported".into()));
+            }
+            if let Some(policy) = &program.decision_policy {
+                policy.fingerprint().map_err(Error::Invalid)?;
+            }
+            if let Some(requirements) = &program.execution_requirements {
+                requirements.validate()?;
+            }
+            if let Some(contract) = &program.functional_readiness {
+                contract.validate().map_err(Error::Invalid)?;
+            }
             if p.depends_on.iter().any(|d| !ids.contains(d) || d == &p.id)
                 || p.depends_on.iter().collect::<BTreeSet<_>>().len() != p.depends_on.len()
                 || !(100..=30_000).contains(&p.startup_timeout_ms.0)
@@ -148,6 +176,7 @@ impl Process {
             p.ready.clone()
         };
         Ok(Launch {
+            selection: self.id.clone(),
             instance,
             effect: p.effect,
             executable: p.executable.clone(),

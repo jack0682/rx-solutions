@@ -1,0 +1,29 @@
+{
+  "repository": "https://github.com/ROBOTIS-GIT/DynamixelSDK",
+  "tag": "4.1.0",
+  "commit": "f838bc90f72fcf5b9c279432d6e12fc24969daa8",
+  "license": "Apache-2.0",
+  "scope": "Unmodified protocol2 implementation and interfaces only; OS serial implementations are not linked",
+  "files": {
+    "LICENSE": {
+      "upstream_path": "LICENSE",
+      "sha256": "b40930bbcf80744c86c46a12bc9da056641d722716c378f5659b9e555ef833e1"
+    },
+    "port_handler.h": {
+      "upstream_path": "c++/include/dynamixel_sdk/port_handler.h",
+      "sha256": "9cf42755af7d22cba522c6a6e8cb85357764c70f055be46fcac54e45ea42db32"
+    },
+    "packet_handler.h": {
+      "upstream_path": "c++/include/dynamixel_sdk/packet_handler.h",
+      "sha256": "9e46da8e0c0488a5c6e67b1c87db56ecc5a7854ecc8bac10d75898cd096f8119"
+    },
+    "protocol2_packet_handler.h": {
+      "upstream_path": "c++/include/dynamixel_sdk/protocol2_packet_handler.h",
+      "sha256": "a6831d4338866267ce4575d98b6b6fa4556f51ab5f3a878aed93249021b678ad"
+    },
+    "protocol2_packet_handler.cpp": {
+      "upstream_path": "c++/src/dynamixel_sdk/protocol2_packet_handler.cpp",
+      "sha256": "2f113c261634c810eb4ecbaeffe7913c87744408477b79aa7ee57fbe926fc7d3"
+    }
+  }
+}

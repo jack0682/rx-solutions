@@ -1,4 +1,5 @@
 //! Device-side delivery facts and gate. This crate never assigns platform outcomes.
+pub mod dynamixel;
 pub mod gate;
 pub mod journal;
 pub mod melsec;

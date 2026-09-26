@@ -15,6 +15,9 @@ use std::{
     },
     time::Duration,
 };
+
+#[path = "support/execution_retry.rs"]
+mod execution_retry;
 fn name(s: &str) -> Name {
     Name::new(s).unwrap()
 }
@@ -26,6 +29,9 @@ fn support() -> DeviceCatalog {
 }
 fn program(effect: Effect) -> Program {
     Program {
+        functional_readiness: None,
+        decision_policy: None,
+        execution_requirements: None,
         id: name("test/service"),
         effect,
         executable: "/release/test-service".into(),
@@ -515,4 +521,154 @@ fn default_authority_does_not_start_control_owners_and_other_stores_are_not_clai
         .1;
     assert_eq!(rows.len(), 1);
     assert_eq!(rows[0].document.value["preserved"], true);
+}
+
+#[test]
+fn dhi_os_exit_cannot_erase_unconfirmed_component_stop() {
+    let dir = tempfile::tempdir().unwrap();
+    let backend = Fake::default();
+    let mut recipe = program(Effect::NonActuating);
+    recipe.id = name("rx/dhi-pty-simulation");
+    let mut selected = plan();
+    selected.processes[0].program = recipe.id.clone();
+    let programs: BTreeMap<_, _> = [(recipe.id.clone(), recipe)].into();
+    let mut supervisor = Supervisor::open(
+        SqliteRepository::open(dir.path().join("state.db")).unwrap(),
+        backend.clone(),
+        SoftwareOnly,
+        selected.clone(),
+        programs.clone(),
+        &support(),
+    )
+    .unwrap();
+    supervisor.tick().unwrap();
+    supervisor.tick().unwrap();
+    assert_eq!(
+        supervisor.state().unwrap().records[&name("main")].phase,
+        Phase::ProcessReady
+    );
+    supervisor.request_stop().unwrap();
+    let mut result = supervisor.tick().unwrap();
+    for _ in 0..4 {
+        if result.all_exited {
+            break;
+        }
+        result = supervisor.tick().unwrap();
+    }
+    assert!(result.all_exited);
+    assert_eq!(result.state.records[&name("main")].exit_code, Some(0));
+    assert!(!result.guarded_shutdown_confirmed);
+    assert!(result.reconciliation_required);
+    assert!(
+        result.unconfirmed_component_stops[&name("main")].contains("DHI_MODEL_STOP_UNCONFIRMED")
+    );
+    let (store, _, _) = supervisor.into_parts();
+    let mut reopened = Supervisor::open(
+        store,
+        Fake::default(),
+        SoftwareOnly,
+        selected,
+        programs,
+        &support(),
+    )
+    .unwrap();
+    let recovered = reopened.tick().unwrap();
+    assert!(recovered.reconciliation_required);
+    assert_eq!(
+        recovered.unconfirmed_component_stops,
+        result.unconfirmed_component_stops
+    );
+}
+
+#[test]
+fn dhi_recipe_refuses_physical_plan_and_automatic_restart() {
+    let mut recipe = program(Effect::NonActuating);
+    recipe.id = name("rx/dhi-pty-simulation");
+    let mut selected = plan();
+    selected.processes[0].program = recipe.id.clone();
+    let programs = [(recipe.id.clone(), recipe)].into();
+    assert!(selected.validate(&programs, &support()).is_ok());
+    selected.environment = Environment::Physical;
+    assert!(
+        selected
+            .validate(&programs, &support())
+            .unwrap_err()
+            .to_string()
+            .contains("DHI_SIMULATION_ONLY")
+    );
+    selected.environment = Environment::Simulation;
+    selected.processes[0].restart_limit = Counter(1);
+    assert!(selected.validate(&programs, &support()).is_err());
+}
+
+#[test]
+fn ai_worker_owned_exit_cannot_erase_foreign_restart_uncertainty() {
+    let dir = tempfile::tempdir().unwrap();
+    let backend = Fake::default();
+    let mut recipe = program(Effect::NonActuating);
+    recipe.id = name("rx/ai-worker-l3-simulation");
+    let mut selected = plan();
+    selected.processes[0].program = recipe.id.clone();
+    let programs: BTreeMap<_, _> = [(recipe.id.clone(), recipe)].into();
+    let mut supervisor = Supervisor::open(
+        SqliteRepository::open(dir.path().join("state.db")).unwrap(),
+        backend,
+        SoftwareOnly,
+        selected.clone(),
+        programs.clone(),
+        &support(),
+    )
+    .unwrap();
+    supervisor.tick().unwrap();
+    supervisor.tick().unwrap();
+    supervisor.request_stop().unwrap();
+    let mut result = supervisor.tick().unwrap();
+    for _ in 0..4 {
+        if result.all_exited {
+            break;
+        }
+        result = supervisor.tick().unwrap();
+    }
+    assert!(result.all_exited);
+    assert_eq!(result.state.records[&name("main")].exit_code, Some(0));
+    assert!(!result.guarded_shutdown_confirmed);
+    assert!(result.reconciliation_required);
+    assert!(
+        result.unconfirmed_component_stops[&name("main")].contains("AI_WORKER_L3_STOP_UNCONFIRMED")
+    );
+    let (store, _, _) = supervisor.into_parts();
+    let mut reopened = Supervisor::open(
+        store,
+        Fake::default(),
+        SoftwareOnly,
+        selected,
+        programs,
+        &support(),
+    )
+    .unwrap();
+    assert_eq!(
+        reopened.tick().unwrap().unconfirmed_component_stops,
+        result.unconfirmed_component_stops
+    );
+}
+
+#[test]
+fn ai_worker_l3_recipe_refuses_physical_plan_and_rx_restart() {
+    let mut recipe = program(Effect::NonActuating);
+    recipe.id = name("rx/ai-worker-l3-simulation");
+    let mut selected = plan();
+    selected.processes[0].program = recipe.id.clone();
+    let programs = [(recipe.id.clone(), recipe)].into();
+    assert!(selected.validate(&programs, &support()).is_ok());
+    selected.environment = Environment::Physical;
+    assert!(
+        selected
+            .validate(&programs, &support())
+            .unwrap_err()
+            .to_string()
+            .contains("AI_WORKER_L3_SIMULATION_ONLY")
+    );
+    selected.environment = Environment::Simulation;
+    selected.processes[0].restart_limit = Counter(1);
+    assert!(selected.validate(&programs, &support()).is_err());
 }

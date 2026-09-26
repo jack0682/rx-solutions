@@ -86,6 +86,9 @@ HTTPServer(('127.0.0.1',int(sys.argv[2])),Handler).serve_forever()
 "#)).unwrap();
     let python = PathBuf::from("/usr/bin/python3");
     let program = Program {
+        functional_readiness: None,
+        decision_policy: None,
+        execution_requirements: None,
         id: name("test/http"),
         effect: Effect::NonActuating,
         executable: python.clone(),

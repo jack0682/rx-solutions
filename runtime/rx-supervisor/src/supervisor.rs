@@ -67,6 +67,7 @@ pub struct Supervisor<R, B, A> {
     retry_after: BTreeMap<Name, Instant>,
     stop_latched: bool,
     observed_guarded_exits: BTreeMap<Id, GuardedExit>,
+    execution_admission: BTreeMap<Name, (crate::execution::Request, crate::execution::Status)>,
 }
 impl<R: Repository, B: Backend, A: LifecycleAuthority> Supervisor<R, B, A> {
     pub fn open(
@@ -91,7 +92,9 @@ impl<R: Repository, B: Backend, A: LifecycleAuthority> Supervisor<R, B, A> {
             if let Some(old) = tx.get(&name(KEY))? {
                 let mut state = decode(&old)?;
                 if state.plan != plan.id || state.plan_digest != digest {
-                    return Err(StoreError::KeyConflict);
+                    return Err(StoreError::Invalid(
+                        "saved supervisor plan/catalog digest differs: program declaration or plan changed; preserve and inspect the old store, do not migrate or erase unresolved executions".into(),
+                    ));
                 }
                 for record in state.records.values_mut() {
                     if matches!(
@@ -105,6 +108,9 @@ impl<R: Repository, B: Backend, A: LifecycleAuthority> Supervisor<R, B, A> {
                         record.phase = Phase::Unknown;
                         record.error =
                             Some("supervisor ownership lost; no PID adoption or replay".into());
+                        if let Some(resources) = &mut record.resources {
+                            resources.lifetime = crate::execution::ResourceLifetime::Unconfirmed;
+                        }
                     }
                 }
                 tx.put(&name(KEY), Some(old.revision), &document(&state)?)?;
@@ -129,6 +135,8 @@ impl<R: Repository, B: Backend, A: LifecycleAuthority> Supervisor<R, B, A> {
                                 exit_code: None,
                                 error: None,
                                 guarded_exit: None,
+                                resources: None,
+                                process_identity: None,
                             },
                         )
                     })
@@ -158,6 +166,7 @@ impl<R: Repository, B: Backend, A: LifecycleAuthority> Supervisor<R, B, A> {
             retry_after: BTreeMap::new(),
             stop_latched: false,
             observed_guarded_exits: BTreeMap::new(),
+            execution_admission: BTreeMap::new(),
         })
     }
     pub fn state(&mut self) -> Result<State> {
@@ -168,6 +177,64 @@ impl<R: Repository, B: Backend, A: LifecycleAuthority> Supervisor<R, B, A> {
             )
         })?)
     }
+    /// Observe without tick/admission/start/stop or any persistent state change.
+    pub(crate) fn observe_use_status(
+        &mut self,
+        request: &crate::use_assessment::StatusObservationRequest,
+    ) -> Result<crate::use_assessment::StatusObservationResult> {
+        use crate::use_assessment::StatusObservationResult as R;
+        let subject = request.subject();
+        let state = self.state()?;
+        let process = self
+            .plan
+            .processes
+            .iter()
+            .find(|p| p.id == subject.selection)
+            .ok_or_else(|| Error::Invalid("assessment selection absent".into()))?;
+        let record = &state.records[&process.id];
+        if subject.run != self.plan.id
+            || subject.program != process.program
+            || subject.instance != record.instance
+            || subject.pid != record.pid
+        {
+            return Ok(R::NotMet {
+                condition: name("readiness/current-execution"),
+                reason: "assessment context no longer matches current execution".into(),
+            });
+        }
+        if !matches!(
+            record.phase,
+            Phase::Starting | Phase::ProcessReady | Phase::Unready
+        ) {
+            return Ok(R::NotEvaluated {
+                condition: name("execution/current-owner"),
+                reason: format!(
+                    "phase {:?} supplies no current running observation context",
+                    record.phase
+                ),
+            });
+        }
+        let Some(instance) = &record.instance else {
+            return Ok(R::NotEvaluated {
+                condition: name("execution/instance"),
+                reason: "no execution instance".into(),
+            });
+        };
+        let program = &self.programs[&process.program];
+        if program.effect != Effect::NonActuating
+            || !matches!(program.ready, ReadyProbe::HttpStatus { .. })
+        {
+            return Ok(R::Unsupported{condition:name("readiness/status-source"),reason:"this source supports only authored non-actuating HttpStatus programs; AliveOnly is never functional evidence".into()});
+        }
+        let launch = process.launch(program, instance.clone())?;
+        self.backend.observe_status(&launch, request)
+    }
+    /// Read the current owner's requirement observations without admission,
+    /// spawning, readiness probes or lifecycle-authority evaluation.
+    pub fn execution_admission(&mut self) -> Result<BTreeMap<Name, crate::execution::Status>> {
+        let state = self.state()?;
+        Ok(self.execution_status(&state))
+    }
     fn change(&mut self, change: impl FnOnce(&mut State)) -> Result<()> {
         self.repository.transact(|tx| {
             let old = tx
@@ -175,6 +242,13 @@ impl<R: Repository, B: Backend, A: LifecycleAuthority> Supervisor<R, B, A> {
                 .ok_or_else(|| StoreError::Integrity("supervisor state missing".into()))?;
             let mut state = decode(&old)?;
             change(&mut state);
+            for record in state.records.values_mut() {
+                if record.phase == Phase::Unknown
+                    && let Some(resources) = &mut record.resources
+                {
+                    resources.lifetime = crate::execution::ResourceLifetime::Unconfirmed;
+                }
+            }
             tx.put(&name(KEY), Some(old.revision), &document(&state)?)?;
             tx.append(&id(), &document(&state)?)?;
             Ok(())
@@ -221,11 +295,169 @@ impl<R: Repository, B: Backend, A: LifecycleAuthority> Supervisor<R, B, A> {
                 r.pid = None;
                 r.exit_code = None;
                 r.error = None;
+                r.resources = None;
+                r.process_identity = None;
             }
         })?;
         self.stop_latched = false;
         self.retry_after.clear();
+        self.execution_admission.clear();
         Ok(())
+    }
+    fn execution_status(&self, state: &State) -> BTreeMap<Name, crate::execution::Status> {
+        use crate::execution::{Application, Status};
+        self.plan.processes.iter().map(|process| {
+            let program = &self.programs[&process.program];
+            let requested = program.execution_requirements.clone();
+            let current_request = state.records[&process.id].instance.as_ref().zip(requested.as_ref())
+                .map(|(instance, requirements)| crate::execution::Request::new(program.id.clone(),
+                    process.id.clone(), instance.clone(), state.plan_digest, requirements.clone()));
+            let value = self.execution_admission.get(&process.id)
+                .filter(|(request,_)| current_request.as_ref()==Some(request) && state.records[&process.id].phase != Phase::Unknown)
+                .map(|(_,status)| status.clone()).unwrap_or_else(|| {
+                let application = if requested.is_none() {
+                    Application::LegacyNotDeclared
+                } else if state.records[&process.id].attempts.0 > 0
+                    || state.records[&process.id].phase == Phase::Unknown {
+                    Application::Unconfirmed { reason: "no current-owner application receipt; no resource recovery is inferred".into() }
+                } else { Application::NotApplied };
+                Status { requested, application, not_applied_reasons: vec![] }
+            });
+            (process.id.clone(), value)
+        }).collect()
+    }
+
+    fn spawn_required(
+        &mut self,
+        process: &Process,
+        launch: &Launch,
+        request: &crate::execution::Request,
+    ) -> std::result::Result<
+        (u32, Option<crate::process_identity::StoredProcessIdentity>),
+        crate::process::SpawnFailure,
+    > {
+        use crate::{
+            execution::{Application, Decision, Status, Unmet},
+            process::SpawnFailure,
+        };
+        let authority = &self.authority;
+        let plan = &self.plan;
+        // An unknown declaration can never be promoted to an empty requirement by a backend.
+        let unknown = request.unknown();
+        let decision = if unknown.is_empty() {
+            self.backend
+                .spawn_with_requirements(launch, request, &mut || {
+                    authority.may_start(plan, process, launch)
+                })
+        } else {
+            Ok(Decision::Rejected { unmet: unknown })
+        };
+        let mut status = Status {
+            requested: Some(request.requirements().clone()),
+            application: Application::NotApplied,
+            not_applied_reasons: vec![],
+        };
+        let outcome = match decision {
+            Ok(Decision::Admitted {
+                pid,
+                receipt,
+                identity,
+            }) if pid != 0
+                && receipt.matches(request)
+                && identity.as_ref().is_none_or(|v| v.matches(request, pid)) =>
+            {
+                status.application = Application::ReportedAtStart { receipt };
+                Ok((pid, identity.map(|v| v.stored())))
+            }
+            Ok(Decision::Admitted { .. }) => Err(SpawnFailure::Uncertain(Error::Reconciliation(
+                "execution admission receipt does not match the complete current launch".into(),
+            ))),
+            Ok(Decision::Rejected { unmet }) => {
+                if unmet.is_empty()
+                    || unmet.len() > request.requirements().0.len()
+                    || unmet
+                        .iter()
+                        .map(|r| &r.requirement)
+                        .collect::<std::collections::BTreeSet<_>>()
+                        .len()
+                        != unmet.len()
+                    || unmet.iter().any(|r| {
+                        request
+                            .requirements()
+                            .0
+                            .get(&r.requirement)
+                            .is_none_or(|r| matches!(r, crate::execution::Requirement::NotRequired))
+                            || r.reason.trim().is_empty()
+                            || r.reason.len() > 1024
+                    })
+                {
+                    Err(SpawnFailure::Uncertain(Error::Reconciliation(
+                        "backend rejection has no valid named requirement reason".into(),
+                    )))
+                } else {
+                    let reason = unmet
+                        .iter()
+                        .map(|r| format!("{}: {}", r.requirement, r.reason))
+                        .collect::<Vec<_>>()
+                        .join("; ");
+                    status.not_applied_reasons = unmet;
+                    Err(SpawnFailure::NotStarted(Error::Invalid(format!(
+                        "execution admission rejected: {reason}"
+                    ))))
+                }
+            }
+            Err(error) => Err(error),
+        };
+        match &outcome {
+            Err(SpawnFailure::Uncertain(error)) => {
+                status.application = Application::Unconfirmed {
+                    reason: error.to_string(),
+                }
+            }
+            Err(SpawnFailure::NotStarted(error)) if status.not_applied_reasons.is_empty() => {
+                status.not_applied_reasons = request.reject(&error.to_string());
+                if status.not_applied_reasons.is_empty() {
+                    status.not_applied_reasons.push(Unmet {
+                        requirement: name("execution/start"),
+                        reason: error.to_string(),
+                    });
+                }
+            }
+            _ => {}
+        }
+        self.execution_admission
+            .insert(process.id.clone(), (request.clone(), status.clone()));
+        if request.requirements().needs_enforcement() {
+            let mut history = crate::execution::ResourceHistory::unconfirmed();
+            match &outcome {
+                Ok(_) => {
+                    if let Application::ReportedAtStart { receipt } = &status.application {
+                        history.last_observed = receipt.stored_limit();
+                        if history.last_observed.is_some() {
+                            history.lifetime = crate::execution::ResourceLifetime::ObservedAtStart;
+                            history.capacity_reservation = "NONE_CREATED".into();
+                        }
+                    }
+                }
+                Err(SpawnFailure::NotStarted(_)) => {
+                    history.lifetime =
+                        crate::execution::ResourceLifetime::NoPolicyRemainingAfterRejectedStart;
+                    history.capacity_reservation = "NONE_CREATED".into();
+                }
+                Err(SpawnFailure::Uncertain(_)) => {}
+            }
+            if let Err(error) =
+                self.change(|s| s.records.get_mut(&process.id).unwrap().resources = Some(history))
+            {
+                if let Some((_, status)) = self.execution_admission.get_mut(&process.id) {
+                    status.application = Application::Unconfirmed {
+                        reason: error.to_string(),
+                    };
+                }
+                return Err(SpawnFailure::Uncertain(error));
+            }
+        }
+        outcome
     }
     pub fn tick(&mut self) -> Result<Status> {
         let mut blocked = vec![];
@@ -259,6 +491,9 @@ impl<R: Repository, B: Backend, A: LifecycleAuthority> Supervisor<R, B, A> {
                         let r = s.records.get_mut(&process.id).unwrap();
                         r.phase = Phase::Unknown;
                         r.error = Some("live process handle unavailable".into());
+                        if let Some(resources) = &mut r.resources {
+                            resources.lifetime = crate::execution::ResourceLifetime::Unconfirmed;
+                        }
                     })?;
                     continue;
                 }
@@ -307,6 +542,9 @@ impl<R: Repository, B: Backend, A: LifecycleAuthority> Supervisor<R, B, A> {
                         r.phase = Phase::Exited;
                         r.exit_code = code;
                         r.guarded_exit = exit;
+                        if let Some(resources) = &mut r.resources {
+                            resources.lifetime = crate::execution::ResourceLifetime::DirectChildExitedDescendantsUnassessed;
+                        }
                         if !s.stop_requested {
                             r.error = Some("unexpected service exit".into());
                         }
@@ -447,11 +685,20 @@ impl<R: Repository, B: Backend, A: LifecycleAuthority> Supervisor<R, B, A> {
                             r.exit_code = None;
                             r.error = None;
                             r.guarded_exit = None;
+                            r.resources = None;
+                            r.process_identity = None;
                         })?;
                     }
                     self.change(|s| {
                         let r = s.records.get_mut(&process.id).unwrap();
                         r.phase = Phase::SpawnEntered;
+                        if program
+                            .execution_requirements
+                            .as_ref()
+                            .is_some_and(|r| r.needs_enforcement())
+                        {
+                            r.resources = Some(crate::execution::ResourceHistory::unconfirmed());
+                        }
                         r.attempts = Counter(r.attempts.0 + 1);
                     })?;
                     if !self.authority.may_start(&self.plan, &process, &launch) {
@@ -462,16 +709,32 @@ impl<R: Repository, B: Backend, A: LifecycleAuthority> Supervisor<R, B, A> {
                         })?;
                         continue;
                     }
-                    let authority = &self.authority;
-                    let plan = &self.plan;
-                    match self.backend.spawn(&launch, &mut || {
-                        authority.may_start(plan, &process, &launch)
-                    }) {
-                        Ok(pid) => {
+                    let spawned = if let Some(requirements) = &program.execution_requirements {
+                        let request = crate::execution::Request::new(
+                            program.id.clone(),
+                            process.id.clone(),
+                            instance.clone(),
+                            state.plan_digest,
+                            requirements.clone(),
+                        );
+                        self.spawn_required(&process, &launch, &request)
+                    } else {
+                        // Legacy undeclared programs retain the original execution path.
+                        let authority = &self.authority;
+                        let plan = &self.plan;
+                        self.backend
+                            .spawn(&launch, &mut || {
+                                authority.may_start(plan, &process, &launch)
+                            })
+                            .map(|pid| (pid, None))
+                    };
+                    match spawned {
+                        Ok((pid, process_identity)) => {
                             self.started.insert(instance, Instant::now());
                             self.change(|s| {
                                 let r = s.records.get_mut(&process.id).unwrap();
                                 r.pid = Some(pid);
+                                r.process_identity = process_identity;
                                 r.phase = Phase::Starting;
                             })?;
                         }
@@ -484,6 +747,9 @@ impl<R: Repository, B: Backend, A: LifecycleAuthority> Supervisor<R, B, A> {
                                     (Phase::Unknown, error)
                                 }
                             };
+                            if program.execution_requirements.is_some() {
+                                blocked.push(format!("{}: {error}", process.id));
+                            }
                             self.change(|s| {
                                 let r = s.records.get_mut(&process.id).unwrap();
                                 r.phase = phase;
@@ -574,7 +840,19 @@ impl<R: Repository, B: Backend, A: LifecycleAuthority> Supervisor<R, B, A> {
                 .records
                 .values()
                 .all(|r| matches!(r.phase, Phase::Exited | Phase::Skipped | Phase::StartFailed));
+        let unconfirmed_component_stops: BTreeMap<Name, String> = self.plan.processes.iter()
+            .filter_map(|p| match p.program.as_str() {
+                "rx/dhi-pty-simulation" => Some((p, "DHI_MODEL_STOP_UNCONFIRMED; owned process exit does not erase instance-log residuals")),
+                "rx/ai-worker-l3-simulation" => Some((p, "AI_WORKER_L3_STOP_UNCONFIRMED; owned process-tree exit does not prove a foreign supervisor cannot replace the service generation")),
+                "rx/open-manipulator-l3-simulation" => Some((p, "OPEN_MANIPULATOR_L3_STOP_UNCONFIRMED; owned process-tree exit does not prove s6 cannot replace the service generation")),
+                _ => None,
+            })
+            .filter(|(p, _)| state.records[&p.id].instance.is_some()
+                && matches!(state.records[&p.id].phase, Phase::Exited | Phase::Unknown | Phase::StartFailed))
+            .map(|(p, reason)| (p.id.clone(), reason.into()))
+            .collect();
         let guarded_shutdown_confirmed = all_exited
+            && unconfirmed_component_stops.is_empty()
             && self.plan.processes.iter().all(|p| {
                 self.programs[&p.program].effect != Effect::ProtocolGuardedService
                     || matches!(
@@ -586,18 +864,20 @@ impl<R: Repository, B: Backend, A: LifecycleAuthority> Supervisor<R, B, A> {
                         Some(GuardedExit::Confirmed { .. })
                     )
             });
-        let reconciliation_required = state.records.values().any(|r| {
-            matches!(
-                r.guarded_exit,
-                Some(GuardedExit::Unconfirmed { .. })
-                    | Some(GuardedExit::Confirmed {
-                        reconciliation_required: true,
-                        ..
-                    })
-            )
-        });
+        let reconciliation_required = !unconfirmed_component_stops.is_empty()
+            || state.records.values().any(|r| {
+                matches!(
+                    r.guarded_exit,
+                    Some(GuardedExit::Unconfirmed { .. })
+                        | Some(GuardedExit::Confirmed {
+                            reconciliation_required: true,
+                            ..
+                        })
+                )
+            });
         Ok(Status {
             schema: "rx.supervisor-status.v1",
+            execution_admission: self.execution_status(&state),
             state,
             blocked,
             all_exited,
@@ -605,6 +885,7 @@ impl<R: Repository, B: Backend, A: LifecycleAuthority> Supervisor<R, B, A> {
             physical_shutdown_assessed: false,
             guarded_shutdown_confirmed,
             reconciliation_required,
+            unconfirmed_component_stops,
         })
     }
     pub fn into_parts(self) -> (R, B, A) {

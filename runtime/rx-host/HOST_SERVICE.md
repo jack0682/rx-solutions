@@ -16,7 +16,7 @@ The product clock uses the Linux kernel boot UUID and CLOCK_BOOTTIME. Time value
 
 The release-owned AdapterFactory validates metadata and creates the adapter through `open_passive`. This function must not cause native motion, torque or mode changes, and closing the connection before first admission must have no physical control effect. If actual driver initialization causes an action, that part must move to a separately authorized lifecycle operation.
 
-Builtin currently registers FileDevice and the Melsec adapter from a validated DEVICE_REFERENCE package. VALIDATED_DRIVER profile/digest values produce an explicit unsupported error. External device SDKs, ROS and models are added through separately validated configurations; drivers must not be launched collectively without individual validation or allowed physical effects in constructors/destructors. Physical operation requires acceptance of the current process context and qualification, followed by a separate Arm. The generic driver factory and full lifecycle authority remain future work.
+Builtin currently registers FileDevice and the Melsec adapter from a validated DEVICE_REFERENCE package. VALIDATED_DRIVER accepts only the [fixed DYNAMIXEL simulated Ping profile](DYNAMIXEL_ADAPTER.md); all other profiles and real endpoints are refused. External device SDKs, ROS and models are added through separately validated configurations; drivers must not be launched collectively without individual validation or allowed physical effects in constructors/destructors. Physical operation requires acceptance of the current process context and qualification, followed by a separate Arm. The generic driver factory and full lifecycle authority remain future work.
 
 ## Readiness and execution
 
