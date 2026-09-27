@@ -121,10 +121,62 @@ jobs:
       - run: npm run test:bundle
       - run: npm run build
 
+  skills:
+    name: Installed skills (${{ matrix.arch }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Read pinned platform revision
+        id: platform
+        run: |
+          python3 - <<'PY'
+          import json, os, re
+          v = json.load(open('deployment/local-skills/platform-source.json'))
+          assert v['repository'] == 'jack0682/rx-platform'
+          assert re.fullmatch('[0-9a-f]{40}', v['commit'])
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as out:
+              out.write('ref=' + v['commit'] + '\n')
+          PY
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          repository: jack0682/rx-platform
+          ref: ${{ steps.platform.outputs.ref }}
+          path: platform-src
+          persist-credentials: false
+      - name: Build and exercise the installed release
+        run: |
+          echo /platform-src/ >> .git/info/exclude
+          python3 tools/build_skill_release.py --platform platform-src --architecture '${{ matrix.arch }}' --output "$RUNNER_TEMP/skill-bundle"
+          python3 tools/test_skill_install.py --bundle "$RUNNER_TEMP/skill-bundle/bundle" --evidence "$RUNNER_TEMP/skill-acceptance"
+          cp "$RUNNER_TEMP/skill-acceptance/result.json" "$RUNNER_TEMP/skill-bundle/acceptance-${{ matrix.arch }}.json"
+          cp "$RUNNER_TEMP/skill-bundle/bundle/release.json" "$RUNNER_TEMP/skill-bundle/release-${{ matrix.arch }}.json"
+          cp deployment/local-skills/install.sh "$RUNNER_TEMP/skill-bundle/install.sh"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: rx-local-skills-${{ matrix.arch }}
+          if-no-files-found: error
+          retention-days: 14
+          path: |
+            ${{ runner.temp }}/skill-bundle/*.tar.gz
+            ${{ runner.temp }}/skill-bundle/*.sha256
+            ${{ runner.temp }}/skill-bundle/*.json
+            ${{ runner.temp }}/skill-bundle/install.sh
+
   ci:
     name: ${{ github.event_name == 'pull_request' && 'CI' || 'Branch CI' }}
     if: ${{ always() }}
-    needs: [repository, rust, operator, dynamixel]
+    needs: [repository, rust, operator, dynamixel, skills]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
