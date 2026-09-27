@@ -1,0 +1,8 @@
+{
+  "name": "add",
+  "version": "1.0.0",
+  "environment": "LOCAL_SIM",
+  "inputs": {"a": "number", "b": "number"},
+  "outputs": {"sum": "number"},
+  "timeout_ms": 2000
+}
