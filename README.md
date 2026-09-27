@@ -1,5 +1,9 @@
 # RX Solutions
 
+The [local skill developer preview](deployment/local-skills/README.md) provides
+an installer, Python skill registration, execution and a local dashboard. It is
+an explicit simulation profile, separate from physical device commissioning.
+
 Since 2026-09-13, RX has been a personal project aimed at collaboration among heterogeneous robots and facilities, complete door-to-door tasks, and expansion across districts, villages, and cities. This repository owns device and facility integration, workflows, operator applications, and application packages. The [current project goal](https://github.com/jack0682/rx_docs/blob/main/docs/01_product_definition.md) and [scope](https://github.com/jack0682/rx_docs/blob/main/docs/03_product_scope.md) are maintained in the documentation repository in the same workspace.
 
 It owns RX device Hosts, ROS/native integration, declarative processes and the BT executor, site packages, and configuration and operator web applications. It does not bypass the platform's authoritative ledger or authorization rules.

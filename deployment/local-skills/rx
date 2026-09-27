@@ -1,0 +1,223 @@
+#!/usr/bin/env python3
+"""RX local simulation installation and skill client; Python standard library only."""
+import argparse
+import ast
+import hashlib
+import json
+import os
+from pathlib import Path
+import secrets
+import shutil
+import subprocess
+import sys
+import time
+import urllib.request
+import urllib.error
+import uuid
+import webbrowser
+
+ROOT = Path(__file__).resolve().parent
+HOME = Path(os.environ.get("RX_SKILLS_HOME", str(Path.home() / ".local/share/rx-skills"))).absolute()
+
+
+def docker(*args, check=True):
+    r = subprocess.run(["docker", *args], check=check, capture_output=True, text=True)
+    return r.stdout.strip()
+
+
+def config():
+    return json.loads((HOME / "installation.json").read_text())
+
+
+def save(path, value):
+    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    raw = value if isinstance(value, str) else json.dumps(value, indent=2) + "\n"
+    temporary = path.with_suffix(".new")
+    with temporary.open("w") as stream:
+        os.chmod(temporary, 0o600)
+        stream.write(raw)
+        stream.flush()
+        os.fsync(stream.fileno())
+    os.replace(temporary, path)
+
+
+def api(path, value=None):
+    c = config()
+    token = (HOME / "client-token").read_text().strip()
+    req = urllib.request.Request(c["url"] + path,
+                                 None if value is None else json.dumps(value).encode(),
+                                 {"Authorization": "Bearer " + token, "Content-Type": "application/json"})
+    with urllib.request.urlopen(req, timeout=10) as response:
+        return json.load(response)
+
+
+def install(args):
+    if args.profile != "local-sim":
+        raise ValueError("only local-sim is supported")
+    if (HOME / "installation.json").exists():
+        c = config()
+        expected = json.loads((ROOT / "release.json").read_text())
+        if c["version"] != expected["version"]:
+            raise ValueError("existing installation has a different version; explicit migration is required")
+        up()
+        return
+    if HOME.exists() and any(HOME.iterdir()):
+        raise ValueError("installation directory is not empty; preserve it and use RX_SKILLS_HOME for a new installation")
+    info = json.loads(docker("info", "--format", "{{json .}}"))
+    if info["OSType"] != "linux":
+        raise ValueError("a Linux Docker engine is required (Docker Desktop is supported)")
+    release = json.loads((ROOT / "release.json").read_text())
+    architecture = {"aarch64": "arm64", "x86_64": "amd64"}.get(info["Architecture"], info["Architecture"])
+    if architecture != release["architecture"]:
+        raise ValueError("bundle architecture differs from the Docker engine")
+    image = ROOT / "runtime.tar.gz"
+    digest = hashlib.file_digest(image.open("rb"), "sha256").hexdigest()
+    if digest != release["image_sha256"]:
+        raise ValueError("runtime image checksum mismatch")
+    subprocess.run(["docker", "load", "--input", str(image)], check=True, stdout=subprocess.DEVNULL)
+    actual = docker("image", "inspect", release["image"], "--format", "{{.Id}}")
+    if actual != release["image_id"]:
+        raise ValueError("runtime image identity mismatch")
+    HOME.mkdir(parents=True, mode=0o700, exist_ok=True)
+    os.chmod(HOME, 0o700)
+    name = "rx-skills-" + uuid.uuid4().hex[:12]
+    save(HOME / "client-token", secrets.token_hex(32))
+    save(HOME / "worker-token", secrets.token_hex(32))
+    c = {"schema": "rx.local-sim.installation.v1", "version": release["version"],
+         "image": actual, "name": name, "port": args.port,
+         "url": "http://127.0.0.1:" + str(args.port), "profile": "LOCAL_SIM"}
+    save(HOME / "installation.json", c)
+    up()
+    print("Installed RX " + release["version"] + " (LOCAL_SIM).")
+    print("Register: rx skill add --example add")
+    print("Execute:  rx run add --input '{\"a\":2,\"b\":3}'")
+    print("Dashboard: " + c["url"] + " (use rx token to sign in)")
+
+
+def exists(kind, name):
+    return subprocess.run(["docker", kind, "inspect", name], stdout=subprocess.DEVNULL,
+                          stderr=subprocess.DEVNULL).returncode == 0
+
+
+def up():
+    c = config()
+    n = c["name"]
+    if not exists("network", n):
+        docker("network", "create", "--internal", "--label", "rx.installation=" + n, n)
+    if not exists("network", n + "-web"):
+        docker("network", "create", "--label", "rx.installation=" + n, n + "-web")
+    for role in ("server", "worker"):
+        volume = n + "-" + role + "-data"
+        if not exists("volume", volume):
+            docker("volume", "create", "--label", "rx.installation=" + n, volume)
+        secret_volume = n + "-" + role + "-config"
+        if not exists("volume", secret_volume):
+            docker("volume", "create", "--label", "rx.installation=" + n, secret_volume)
+            material = {"worker-token": (HOME / "worker-token").read_text()}
+            if role == "server": material["client-token"] = (HOME / "client-token").read_text()
+            provision = "import json,sys,os; from pathlib import Path; data=json.load(sys.stdin); [(Path('/config',n).write_text(v),os.chown('/config/'+n,10001,10001),os.chmod('/config/'+n,0o400)) for n,v in data.items()]; os.chown('/config',10001,10001); os.chmod('/config',0o700)"
+            subprocess.run(["docker", "run", "--rm", "-i", "--network", "none", "--user", "0:0",
+                            "-v", secret_volume + ":/config", c["image"], "python3", "-c", provision],
+                           input=json.dumps(material), text=True, check=True, capture_output=True)
+    server = n + "-server"
+    worker = n + "-worker"
+    common = ["--read-only", "--cap-drop", "ALL", "--security-opt", "no-new-privileges:true",
+              "--pids-limit", "128", "--memory", "384m", "--cpus", "1", "--tmpfs", "/tmp:rw,nosuid,nodev,size=64m",
+              "--label", "rx.installation=" + n]
+    if not exists("container", server):
+        docker("create", "--name", server, "--network", n + "-web", *common,
+               "-p", "127.0.0.1:" + str(c["port"]) + ":8080", "-v", n + "-server-data:/data",
+               "-v", n + "-server-config:/config:ro", c["image"],
+               "rx-skill-server", "/data", "/config/client-token", "/config/worker-token")
+        docker("network", "connect", "--alias", "rx-server", n, server)
+    docker("start", server)
+    deadline = time.monotonic() + 20
+    while True:
+        try:
+            api("/v1/skills")
+            break
+        except (OSError, urllib.error.URLError):
+            if time.monotonic() > deadline:
+                raise ValueError("RX server did not become ready; inspect rx logs")
+            time.sleep(.2)
+    if not exists("container", worker):
+        docker("create", "--name", worker, "--network", n, *common, "-v", n + "-worker-data:/data",
+               "-v", n + "-worker-config:/config:ro", c["image"],
+               "python3", "/opt/rx/worker.py", "http://rx-server:8080", "/config/worker-token", "/data")
+    docker("start", worker)
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    sub = parser.add_subparsers(dest="command", required=True)
+    p = sub.add_parser("install"); p.add_argument("--profile", default="local-sim"); p.add_argument("--port", type=int, default=8766)
+    p = sub.add_parser("skill"); s = p.add_subparsers(dest="action", required=True)
+    p = s.add_parser("add"); p.add_argument("directory", type=Path, nargs="?"); p.add_argument("--example", choices=["add"])
+    p = s.add_parser("new"); p.add_argument("directory", type=Path)
+    s.add_parser("list")
+    p = sub.add_parser("run"); p.add_argument("skill"); p.add_argument("--version", default="1.0.0"); p.add_argument("--input", default="{}"); p.add_argument("--request-id"); p.add_argument("--no-wait", action="store_true")
+    p = sub.add_parser("result"); p.add_argument("id")
+    for name in ("runs", "status", "up", "down", "logs", "token", "ui"):
+        sub.add_parser(name)
+    args = parser.parse_args()
+    if args.command == "install":
+        if not 1024 <= args.port <= 65535: raise ValueError("port must be 1024..65535")
+        install(args); return
+    if args.command == "skill":
+        if args.action == "list": result = api("/v1/skills")
+        elif args.action == "new":
+            args.directory.mkdir(parents=True, exist_ok=False)
+            template = json.loads((ROOT / "examples/add/skill.json").read_text())
+            template["name"] = args.directory.name
+            (args.directory / "skill.json").write_text(json.dumps(template, indent=2) + "\n")
+            shutil.copyfile(ROOT / "examples/add/skill.py", args.directory / "skill.py")
+            print("Created " + str(args.directory) + "; edit skill.py and skill.json, then rx skill add this directory.")
+            return
+        else:
+            if bool(args.directory) == bool(args.example): raise ValueError("choose a skill directory or --example add")
+            root = (args.directory or ROOT / "examples" / args.example).resolve()
+            package = json.loads((root / "skill.json").read_text())
+            package["code"] = (root / "skill.py").read_text()
+            ast.parse(package["code"])
+            result = api("/v1/skills", package)
+    elif args.command == "run":
+        value = json.loads(Path(args.input[1:]).read_text() if args.input.startswith("@") else args.input)
+        request_id = str(uuid.UUID(args.request_id)) if args.request_id else str(uuid.uuid4())
+        request = {"request_id": request_id, "skill": args.skill, "version": args.version, "input": value}
+        local = HOME / "requests" / (request_id + ".json")
+        if local.exists() and json.loads(local.read_text()) != request: raise ValueError("request ID already has different input")
+        save(local, request)
+        print("Request: " + request_id, file=sys.stderr, flush=True)
+        result = api("/v1/runs", request)
+        if not args.no_wait:
+            deadline = time.monotonic() + 75
+            while result["operation"]["outcome"] == "NONE" and time.monotonic() < deadline:
+                time.sleep(.2); result = api("/v1/runs/" + request_id)
+        print(json.dumps(result, indent=2))
+        if not args.no_wait and result["operation"]["outcome"] != "SUCCEEDED": sys.exit(2)
+        return
+    elif args.command == "result": result = api("/v1/runs/" + str(uuid.UUID(args.id)))
+    elif args.command == "runs": result = api("/v1/runs")
+    elif args.command == "status":
+        c = config(); result = {"profile": "LOCAL_SIM", "url": c["url"], "version": c["version"], "services": {r: json.loads(docker("inspect", c["name"] + "-" + r))[0]["State"]["Status"] for r in ("server", "worker")}}
+    elif args.command == "up": up(); return
+    elif args.command == "down":
+        c = config(); docker("stop", "--time", "5", c["name"] + "-worker", check=False); docker("stop", "--time", "10", c["name"] + "-server", check=False); return
+    elif args.command == "logs":
+        c = config()
+        for role in ("server", "worker"): subprocess.run(["docker", "logs", "--tail", "40", c["name"] + "-" + role], check=False)
+        return
+    elif args.command == "token": print((HOME / "client-token").read_text().strip()); return
+    elif args.command == "ui": webbrowser.open(config()["url"]); return
+    print(json.dumps(result, indent=2))
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except urllib.error.HTTPError as exc:
+        print("RX: HTTP " + str(exc.code) + " " + exc.read(8192).decode("utf-8", "replace"), file=sys.stderr)
+        sys.exit(1)
+    except (ValueError, OSError, subprocess.CalledProcessError) as exc:
+        print("RX: " + str(exc) + ". Existing requests remain under " + str(HOME / "requests"), file=sys.stderr)
+        sys.exit(1)
