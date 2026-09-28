@@ -263,3 +263,39 @@ fn changed_input_environment_and_target_are_not_accepted() {
     altered["environment"]["path"] = serde_json::json!("/elsewhere");
     assert!(python::assemble(&r, &canonical::bytes(&altered).unwrap(), &recipe).is_err());
 }
+
+#[test]
+#[ignore = "explicit test-only external signing; no private key enters a runtime image"]
+fn sign_python_fixture_message() {
+    use std::io::Write;
+    let input = std::env::var("RX_PYTHON_SIGN_REQUEST").unwrap();
+    let output = std::path::PathBuf::from(std::env::var("RX_PYTHON_SIGN_OUTPUT").unwrap());
+    let request: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(input).unwrap()).unwrap();
+    assert_eq!(request["key"], "test/key");
+    let hex = request["message_hex"].as_str().unwrap();
+    assert!(hex.len() % 2 == 0 && hex.len() < 4 * 1024 * 1024);
+    let bytes = (0..hex.len())
+        .step_by(2)
+        .map(|i| u8::from_str_radix(&hex[i..i + 2], 16).unwrap())
+        .collect::<Vec<_>>();
+    let key = SigningKey::from_bytes(&[71; 32]);
+    let signature = SignatureEnvelope {
+        key: n("test/key"),
+        signature: key
+            .sign(&bytes)
+            .to_bytes()
+            .iter()
+            .map(|b| format!("{b:02x}"))
+            .collect(),
+    };
+    let mut file = std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&output)
+        .unwrap();
+    file.write_all(&canonical::bytes(&signature).unwrap())
+        .unwrap();
+    file.sync_all().unwrap();
+    std::fs::write(output.with_extension("public.json"),canonical::bytes(&serde_json::json!({"verifying_key":Digest::from_bytes(key.verifying_key().to_bytes())})).unwrap()).unwrap();
+}

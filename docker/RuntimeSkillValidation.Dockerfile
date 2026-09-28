@@ -24,7 +24,7 @@ COPY interfaces ./interfaces
 COPY deployment/local-skills/host_runner.py deployment/local-skills/python_environment.py ./deployment/local-skills/
 RUN --mount=type=cache,id=rx-runtime-skill-s-registry,target=/usr/local/cargo/registry \
     --mount=type=cache,id=rx-runtime-skill-s-target,target=/source/target \
-    cargo build --release --locked -p rx-host -p rx-executor -p rx-process-package && mkdir /out && cp target/release/rx-hostd target/release/rx-executor-service target/release/rx-process-package /out/
+    cargo build --release --locked -p rx-host -p rx-executor -p rx-process-package -p rx-device-package && mkdir /out && cp target/release/rx-hostd target/release/rx-executor-service target/release/rx-process-package target/release/rx-device-package /out/
 RUN --mount=type=cache,id=rx-runtime-skill-s-registry,target=/usr/local/cargo/registry \
     --mount=type=cache,id=rx-runtime-skill-s-target,target=/source/target \
     cargo test --locked -p rx-host --features test-harness --test process_crash sigkill_at_both_journal_native_boundaries_never_replays_device_effect -- --exact > /out/host-recovery.log && \
