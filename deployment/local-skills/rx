@@ -168,6 +168,8 @@ def main():
     p = s.add_parser("add"); p.add_argument("directory", type=Path, nargs="?"); p.add_argument("--example", choices=["add"])
     p = s.add_parser("new"); p.add_argument("directory", type=Path)
     s.add_parser("list")
+    p = s.add_parser("prepare-environment"); p.add_argument("directory", type=Path); p.add_argument("--wheel", type=Path, action="append", default=[]); p.add_argument("--output", type=Path, required=True)
+    p = s.add_parser("verify-environment"); p.add_argument("directory", type=Path); p.add_argument("--digest", required=True)
     p = sub.add_parser("run"); p.add_argument("skill"); p.add_argument("--version", default="1.0.0"); p.add_argument("--input", default="{}"); p.add_argument("--request-id"); p.add_argument("--no-wait", action="store_true")
     p = sub.add_parser("result"); p.add_argument("id")
     p = sub.add_parser("process"); processes = p.add_subparsers(dest="action", required=True)
@@ -219,7 +221,11 @@ def main():
         if not 1024 <= args.port <= 65535: raise ValueError("port must be 1024..65535")
         install(args); return
     if args.command == "skill":
-        if args.action == "list": result = api("/v1/skills")
+        if args.action in ("prepare-environment", "verify-environment"):
+            from python_environment import prepare, verify
+            result = prepare(args.directory, args.wheel, args.output) if args.action == "prepare-environment" else verify(args.directory, args.digest)
+            print(json.dumps(result, indent=2)); return
+        elif args.action == "list": result = api("/v1/skills")
         elif args.action == "new":
             args.directory.mkdir(parents=True, exist_ok=False)
             template = json.loads((ROOT / "examples/add/skill.json").read_text())

@@ -137,3 +137,7 @@ The [runtime client](RUNTIME.md) invokes an already approved bound process throu
 the existing P/Host/Executor APIs. Its request journal is separate from this
 LOCAL_SIM profile. Dynamic device-skill registration and a one-command runtime
 distribution remain incomplete. The public rc.2 installer does not include it.
+
+[Python SDK environment preparation](PYTHON_SDK.md) is an unreleased offline
+preparation step for the upcoming Host bridge. It does not register a device skill
+or enable device execution in this LOCAL_SIM service.
