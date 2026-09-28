@@ -37,3 +37,23 @@ and checks tamper/no-overwrite/startup-hook rejection. The test execution is sep
 from preparation and has no device or P/Host execution authority. Next integration
 must bind this environment to registered Host ProgramGoal execution and original
 request recovery; preparation alone must not be presented as that integration.
+
+## Private execution receipt helper (not yet connected to Host)
+
+`host_runner.py` is an internal subprocess boundary under development. Its caller
+must be the release-owned Host bridge after admission; running this script directly
+is not a grant. It verifies the prepared environment, syncs the original operation,
+invocation, intent and input before importing SDK code, and records either RETURNED
+output or UNKNOWN. RETURNED describes Python return, not physical completion.
+
+Lookup never imports SDK code or resubmits. A prior marker without a receipt stays
+UNKNOWN, including after process death. Another execution with the same operation
+but changed invocation/input/environment is refused. A busy owner before the marker
+is also UNKNOWN. The helper does not supply device health, physical protection,
+resource handover, deadline enforcement or process-tree custody; those must be
+connected through the Host bridge before device execution is supported.
+
+`tools/test_python_host_runner.py` exercises actual SDK imports and subprocess
+SIGKILL after an independent file effect, SDK exception after effect, repeat/identity
+rejection and a busy-before-marker case. These helper tests do not establish the
+registered P/Host execution path.
