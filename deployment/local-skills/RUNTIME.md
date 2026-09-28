@@ -102,3 +102,11 @@ verification/review and activation path. Saving a draft does not replace the
 currently installed process. This command does not yet register new native skill
 implementations, set dynamic arguments, activate a process or provide branch/parallel
 authoring. Those remaining integration steps are not implied by successful export.
+
+The extended installed-image acceptance also authors the process before package
+review, reassembles the actual P export and compares its manifest with a predeclared
+simulation target. It then uses the existing public review/activation tooling to
+install that exact package and executes both operation leaves, including StartRun
+receipt-loss recovery without duplicate native effects. This establishes the
+composed-process path in FILE_SIMULATION; the CLI commands above still do not
+automate the separate signing/review/activation stages.
