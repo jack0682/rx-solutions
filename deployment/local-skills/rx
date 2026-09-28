@@ -15,6 +15,7 @@ import urllib.request
 import urllib.error
 import uuid
 import webbrowser
+from image_identity import identities
 
 ROOT = Path(__file__).resolve().parent
 HOME = Path(os.environ.get("RX_SKILLS_HOME", str(Path.home() / ".local/share/rx-skills"))).absolute()
@@ -75,8 +76,11 @@ def install(args):
     if digest != release["image_sha256"]:
         raise ValueError("runtime image checksum mismatch")
     subprocess.run(["docker", "load", "--input", str(image)], check=True, stdout=subprocess.DEVNULL)
-    actual = docker("image", "inspect", release["image"], "--format", "{{.Id}}")
-    if actual != release["image_id"]:
+    allowed = identities(image, architecture)
+    details = json.loads(docker("image", "inspect", release["image"]))[0]
+    actual = details["Id"]
+    if (release["image_id"] not in allowed or actual not in allowed
+            or details["Architecture"] != architecture or details["Os"] != "linux"):
         raise ValueError("runtime image identity mismatch")
     HOME.mkdir(parents=True, mode=0o700, exist_ok=True)
     os.chmod(HOME, 0o700)

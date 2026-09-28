@@ -66,6 +66,7 @@ def main():
             assert r.returncode == 0, (r.stdout, r.stderr)
             c = json.loads((state / "installation.json").read_text())
             assert (root / "prefix/bin/rx").is_symlink()
+            cli = [str(root / "prefix/bin/rx")]
             checks.append("clean-installer-and-cli-link")
             http("/v1/skills", token=False, expected=401)
             http("/internal/claim", str(uuid.uuid4()), expected=401)
