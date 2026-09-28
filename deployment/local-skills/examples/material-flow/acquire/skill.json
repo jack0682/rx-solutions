@@ -1,0 +1,14 @@
+{
+  "name": "acquire",
+  "version": "1.0.0",
+  "environment": "LOCAL_SIM",
+  "inputs": {
+    "part": "string",
+    "present": "boolean"
+  },
+  "outputs": {
+    "part": "string",
+    "holding": "boolean"
+  },
+  "timeout_ms": 2000
+}

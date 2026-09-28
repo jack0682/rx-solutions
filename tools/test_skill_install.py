@@ -13,6 +13,7 @@ import time
 import urllib.request
 import urllib.error
 import uuid
+from skill_process_acceptance import exercise as exercise_processes
 
 
 def main():
@@ -105,8 +106,14 @@ def main():
             register("slow", "import time\ndef main(inputs):\n    time.sleep(10)\n    return {'total': 0, 'receipt': 'late'}\n", timeout=100)
             assert json.loads(call("run", "slow", "--input", '{"values":[]}', code=2))["operation"]["outcome"] == "UNRESOLVED"
             checks.append("real-exception-output-schema-and-timeout")
+            process_evidence = exercise_processes(args.bundle, root, call, http, c)
+            (args.evidence / "processes.json").write_text(json.dumps(process_evidence, indent=2) + "\n")
+            checks.append("four-skill-process-dataflow-identity-failure-unknown-and-versioned-metrics")
             call("down"); call("up")
             assert json.loads(call("result", request_id)) == original
+            for name in ("first", "failed", "unknown", "restarted"):
+                prior = process_evidence[name]
+                assert json.loads(call("process", "result", prior["request"]["request_id"])) == prior
             checks.append("persistent-installation-restart")
             register("interrupted", "import time\ndef main(inputs):\n    time.sleep(10)\n    return {'total': 1, 'receipt': 'late'}\n", timeout=20000)
             interrupted = str(uuid.uuid4())

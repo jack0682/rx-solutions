@@ -20,7 +20,7 @@ def main():
     p.add_argument("--platform", required=True, type=Path)
     p.add_argument("--output", required=True, type=Path)
     p.add_argument("--architecture", choices=("arm64", "amd64"), required=True)
-    p.add_argument("--version", default="0.3.0-rc.2")
+    p.add_argument("--version", default="0.4.0-dev.1")
     args = p.parse_args()
     args.output.mkdir(parents=True, exist_ok=False)
     image = "rx-local-skills:" + args.version + "-" + args.architecture

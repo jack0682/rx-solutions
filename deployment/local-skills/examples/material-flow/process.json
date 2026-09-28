@@ -1,0 +1,138 @@
+{
+  "source": {
+    "schema": "rx.process-source.v1",
+    "process": "material-flow",
+    "entry": "main",
+    "conditions": {},
+    "flows": [
+      {
+        "id": "main",
+        "root": "cycle",
+        "nodes": [
+          {
+            "id": "cycle",
+            "body": {
+              "kind": "SEQUENCE",
+              "children": [
+                "acquire",
+                "load",
+                "release",
+                "unload"
+              ]
+            }
+          },
+          {
+            "id": "acquire",
+            "body": {
+              "kind": "OPERATION",
+              "binding": "acquire"
+            }
+          },
+          {
+            "id": "load",
+            "body": {
+              "kind": "OPERATION",
+              "binding": "load"
+            }
+          },
+          {
+            "id": "release",
+            "body": {
+              "kind": "OPERATION",
+              "binding": "release"
+            }
+          },
+          {
+            "id": "unload",
+            "body": {
+              "kind": "OPERATION",
+              "binding": "unload"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "version": "1.0.0",
+  "environment": "LOCAL_SIM",
+  "inputs": {
+    "part": "string",
+    "present": "boolean"
+  },
+  "bindings": {
+    "acquire": {
+      "skill": "acquire",
+      "version": "1.0.0",
+      "inputs": {
+        "part": {
+          "kind": "INPUT",
+          "field": "part"
+        },
+        "present": {
+          "kind": "INPUT",
+          "field": "present"
+        }
+      }
+    },
+    "load": {
+      "skill": "load",
+      "version": "1.0.0",
+      "inputs": {
+        "part": {
+          "kind": "OUTPUT",
+          "step": "acquire",
+          "field": "part"
+        },
+        "holding": {
+          "kind": "OUTPUT",
+          "step": "acquire",
+          "field": "holding"
+        }
+      }
+    },
+    "release": {
+      "skill": "release",
+      "version": "1.0.0",
+      "inputs": {
+        "part": {
+          "kind": "OUTPUT",
+          "step": "load",
+          "field": "part"
+        },
+        "clamped": {
+          "kind": "OUTPUT",
+          "step": "load",
+          "field": "clamped"
+        }
+      }
+    },
+    "unload": {
+      "skill": "unload",
+      "version": "1.0.0",
+      "inputs": {
+        "part": {
+          "kind": "OUTPUT",
+          "step": "release",
+          "field": "part"
+        },
+        "released": {
+          "kind": "OUTPUT",
+          "step": "release",
+          "field": "released"
+        }
+      }
+    }
+  },
+  "outputs": {
+    "part": {
+      "kind": "OUTPUT",
+      "step": "unload",
+      "field": "part"
+    },
+    "location": {
+      "kind": "OUTPUT",
+      "step": "unload",
+      "field": "location"
+    }
+  }
+}
