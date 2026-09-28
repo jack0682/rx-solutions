@@ -157,6 +157,7 @@ jobs:
       - name: Build and exercise the installed release
         run: |
           echo /platform-src/ >> .git/info/exclude
+          python3 tools/test_skill_image_identity.py
           python3 tools/build_skill_release.py --platform platform-src --architecture '${{ matrix.arch }}' --output "$RUNNER_TEMP/skill-bundle"
           python3 tools/test_skill_install.py --bundle "$RUNNER_TEMP/skill-bundle/bundle" --evidence "$RUNNER_TEMP/skill-acceptance"
           cp "$RUNNER_TEMP/skill-acceptance/result.json" "$RUNNER_TEMP/skill-bundle/acceptance-${{ matrix.arch }}.json"
