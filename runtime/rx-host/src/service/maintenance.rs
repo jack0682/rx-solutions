@@ -15,6 +15,26 @@ mod commit;
 pub use commit::commit_with_boundary;
 pub use commit::{CommitRecord, CommitView, Phase as CommitPhase, commit, lookup_commit};
 
+pub(crate) use commit::binding_observation;
+pub(crate) fn service_identity(
+    tx: &mut dyn Transaction,
+    boot: &Id,
+) -> rx_ports::Result<Option<Digest>> {
+    let Some(row) = tx.get(&name(STATE))? else {
+        return Ok(None);
+    };
+    let value: Lifecycle = decode(&row, LIFECYCLE)?;
+    Ok(match value {
+        Lifecycle::Starting {
+            installation_identity,
+            host_boot: Some(current),
+            ..
+        } if &current == boot => Some(installation_identity),
+        Lifecycle::Starting { .. } => None,
+        Lifecycle::Stopped { .. } => None,
+    })
+}
+
 const LIFECYCLE: &str = "rx.host.service-lifecycle.v1";
 const PREPARATION: &str = "rx.host.binding-preparation.v1";
 const ACTIVE: &str = "host-maintenance/active";
@@ -41,6 +61,8 @@ pub struct StopSeal {
 )]
 enum Lifecycle {
     Starting {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        host_boot: Option<Id>,
         attempt: Id,
         installation_identity: Digest,
         startup_configuration_digest: Digest,
@@ -104,6 +126,7 @@ pub(super) fn begin_startup(
     }
     let old = tx.get(&name(STATE))?;
     let value = Lifecycle::Starting {
+        host_boot: None,
         attempt: attempt.clone(),
         installation_identity: identity,
         startup_configuration_digest,
@@ -146,7 +169,7 @@ pub(crate) fn seal_stop(
     store.transact(|tx| {
         let row=tx.get(&name(STATE))?.ok_or(StoreError::Integrity("startup marker absent".into()))?;
         let state: Lifecycle=decode(&row,LIFECYCLE)?;
-        if !matches!(state,Lifecycle::Starting {attempt:a,installation_identity:i,startup_configuration_digest:c} if &a==attempt && i==identity && c==startup_configuration_digest) {
+        if !matches!(state,Lifecycle::Starting {attempt:a,installation_identity:i,startup_configuration_digest:c,..} if &a==attempt && i==identity && c==startup_configuration_digest) {
             return Err(StoreError::Integrity("Host startup attempt changed".into()));
         }
         let m=meta(tx)?;
@@ -428,5 +451,71 @@ mod binding_requirement_tests {
             .transact(|tx| confirm_configured(tx, &cell, expected, &request))
             .unwrap();
         store.transact(|tx| require_configured(tx, &cell)).unwrap();
+    }
+}
+
+pub(crate) fn bind_service_boot(
+    tx: &mut dyn Transaction,
+    attempt: &Id,
+    boot: &Id,
+) -> rx_ports::Result<()> {
+    let row = tx
+        .get(&name(STATE))?
+        .ok_or(StoreError::Integrity("service startup missing".into()))?;
+    let mut state: Lifecycle = decode(&row, LIFECYCLE)?;
+    let Lifecycle::Starting {
+        attempt: current,
+        host_boot,
+        ..
+    } = &mut state
+    else {
+        return Err(StoreError::Invalid("service is not starting".into()));
+    };
+    if current != attempt || host_boot.as_ref().is_some_and(|old| old != boot) {
+        return Err(StoreError::Integrity("service boot binding changed".into()));
+    }
+    *host_boot = Some(boot.clone());
+    tx.put(&row.key, Some(row.revision), &doc(LIFECYCLE, &state)?)?;
+    Ok(())
+}
+
+#[cfg(test)]
+mod service_boot_tests {
+    use super::*;
+    #[test]
+    fn previous_service_boot_is_not_current_even_with_the_same_installation_identity() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut store = SqliteRepository::open(directory.path().join("host.db")).unwrap();
+        let attempt = crate::journal::id();
+        let first = crate::journal::id();
+        let second = crate::journal::id();
+        let identity = Digest::from_bytes([7; 32]);
+        store
+            .transact(|tx| begin_startup(tx, identity, Digest::from_bytes([8; 32]), &attempt))
+            .unwrap();
+        assert!(
+            store
+                .transact(|tx| service_identity(tx, &first))
+                .unwrap()
+                .is_none()
+        );
+        store
+            .transact(|tx| bind_service_boot(tx, &attempt, &first))
+            .unwrap();
+        assert_eq!(
+            store.transact(|tx| service_identity(tx, &first)).unwrap(),
+            Some(identity)
+        );
+        assert!(
+            store
+                .transact(|tx| service_identity(tx, &second))
+                .unwrap()
+                .is_none()
+        );
+        assert!(
+            store
+                .transact(|tx| bind_service_boot(tx, &attempt, &second))
+                .is_err()
+        );
     }
 }

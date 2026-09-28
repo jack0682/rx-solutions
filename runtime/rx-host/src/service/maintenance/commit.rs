@@ -17,6 +17,10 @@ pub struct CommitRecord {
     pub request: Id,
     pub request_digest: Digest,
     pub plan_digest: Digest,
+    pub cell: Name,
+    pub before_configuration: Digest,
+    pub after_configuration: Digest,
+    pub after_binding_digest: Digest,
     pub before_identity: Digest,
     pub after_identity: Digest,
     pub phase: Phase,
@@ -227,6 +231,18 @@ fn commit_inner(
                 request: request.clone(),
                 request_digest: fingerprint,
                 plan_digest: prepared.plan_digest,
+                cell: plan.cell.clone(),
+                before_configuration: plan.before_configuration.sha256,
+                after_configuration: plan.after_configuration.sha256,
+                after_binding_digest: crate::gate::configuration::binding_digest(
+                    &proposed
+                        .bindings
+                        .iter()
+                        .cloned()
+                        .map(|b| (b.cell.clone(), b))
+                        .collect(),
+                )
+                .map_err(|e| StoreError::Invalid(e.to_string()))?,
                 before_identity: current.identity,
                 after_identity: proposed.identity,
                 phase: Phase::Reserved,
@@ -408,4 +424,49 @@ fn commit_inner(
         Ok(())
     })?;
     Ok(record)
+}
+
+pub(crate) fn binding_observation(
+    tx: &mut dyn Transaction,
+    binding: Digest,
+    boot: &Id,
+) -> rx_ports::Result<Option<rx_domain::host_configuration::BindingCommit>> {
+    let Some(active) = pending(tx)? else {
+        return Ok(None);
+    };
+    if active.state != State::Committed {
+        return Ok(None);
+    }
+    let record = read_commit(tx, &active.request)?.ok_or(StoreError::Integrity(
+        "committed binding record missing".into(),
+    ))?;
+    if record.phase != Phase::Committed {
+        return Err(StoreError::Integrity("binding commit phase differs".into()));
+    }
+    if service_identity(tx, boot)? != Some(record.after_identity)
+        || binding != record.after_binding_digest
+    {
+        return Ok(None);
+    }
+    let journals = meta(tx)?;
+    if journals.delivery_journal != record.delivery_journal
+        || journals.evidence_journal != record.evidence_journal
+    {
+        return Err(StoreError::Integrity(
+            "binding commit journal continuity differs".into(),
+        ));
+    }
+    Ok(Some(rx_domain::host_configuration::BindingCommit {
+        schema: name("rx.host-binding-commit-observation.v1"),
+        request: record.request,
+        plan_digest: record.plan_digest,
+        cell: record.cell,
+        before_configuration: record.before_configuration,
+        after_configuration: record.after_configuration,
+        before_installation_identity: record.before_identity,
+        after_installation_identity: record.after_identity,
+        delivery_journal: record.delivery_journal,
+        evidence_journal: record.evidence_journal,
+        binding_digest: binding,
+    }))
 }

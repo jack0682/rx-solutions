@@ -541,6 +541,7 @@ pub async fn run_with<C: Clock + Clone + Send + Sync + 'static, F: AdapterFactor
         graceful: false,
     };
     let _ = guarded_target.set(host.clone());
+    host.bind_service_boot(&startup_attempt)?;
     // Once Host owns the adapter, reporter failure must retain that ownership until
     // the existing cooperative stop loop obtains the final safe_to_drop proof.
     let mut service_error = guarded

@@ -954,6 +954,22 @@ async fn binding_commit_recovers_each_publication_boundary_and_preserves_journal
         )
         .await;
         assert_eq!(ready["qualification_or_arm_restored"], false);
+        let observed = configuration_over_mtls(
+            &proposed,
+            dir.path(),
+            ready["endpoint"].as_str().unwrap(),
+            &clock,
+        )
+        .await;
+        observed.validate().unwrap();
+        let proof = observed.snapshot.binding_commit.as_ref().unwrap();
+        assert_eq!(proof.request, request);
+        assert_eq!(proof.plan_digest, plan.digest().unwrap());
+        assert_eq!(proof.after_installation_identity, proposed.identity);
+        assert_eq!(proof.delivery_journal, committed.delivery_journal);
+        assert_eq!(proof.evidence_journal, committed.evidence_journal);
+        assert!(!observed.activation_authorized);
+
         stop.send(()).unwrap();
         task.await.unwrap().unwrap();
         let native = FileDevice::open(
@@ -973,6 +989,10 @@ async fn binding_commit_recovers_each_publication_boundary_and_preserves_journal
             session: id(),
         };
         host.bind_platform(caller.clone()).unwrap();
+        let stopped_observation = host.inspect_process_configuration(&caller).unwrap();
+        assert!(stopped_observation.snapshot.binding_commit.is_none());
+        assert!(stopped_observation.snapshot.installation_identity.is_none());
+
         let scopes = proposed.bindings[0]
             .scope_ids
             .iter()
@@ -1020,4 +1040,93 @@ fn binding_commit_crash_child() {
     })
     .unwrap();
     panic!("requested kill boundary not reached");
+}
+
+#[cfg(all(unix, feature = "test-harness"))]
+async fn configuration_over_mtls(
+    loaded: &Loaded,
+    root: &Path,
+    endpoint: &str,
+    clock: &ManualClock,
+) -> rx_domain::host_configuration::Observation {
+    use rx_protocol::{base, host_configuration as wire};
+    use tonic::transport::{Certificate, Channel, ClientTlsConfig, Identity};
+    let tls = ClientTlsConfig::new()
+        .domain_name("localhost")
+        .ca_certificate(Certificate::from_pem(
+            std::fs::read(root.join("ca.pem")).unwrap(),
+        ))
+        .identity(Identity::from_pem(
+            std::fs::read(root.join("client.pem")).unwrap(),
+            std::fs::read(root.join("client.key")).unwrap(),
+        ));
+    let channel = Channel::from_shared(endpoint.to_string())
+        .unwrap()
+        .tls_config(tls)
+        .unwrap()
+        .timeout(Duration::from_secs(3))
+        .connect()
+        .await
+        .unwrap();
+    let session = base::session_service_client::SessionServiceClient::new(channel.clone())
+        .open(base::PeerHello {
+            peer_id: loaded.bindings[0].platform.to_string(),
+            role: base::Role::Platform as i32,
+            boot_id: id().to_string(),
+            installation_id: loaded.config.installation.to_string(),
+            store_generation: id().to_string(),
+            supported_versions: vec![base::Version {
+                major: 1,
+                minor: 0,
+                schema_hash: rpc::base_manifest_hash(),
+            }],
+            release_digest: loaded.config.release_digest.as_bytes().to_vec(),
+            journal_id: None,
+            last_seq: None,
+            shared_clock_id: clock.now().clock_id,
+        })
+        .await
+        .unwrap()
+        .into_inner();
+    let manifest: serde_json::Value = serde_json::from_slice(include_bytes!(
+        "../../../sdk/spec/host-configuration/v1/binding.json"
+    ))
+    .unwrap();
+    let mut client =
+        wire::host_configuration_service_client::HostConfigurationServiceClient::new(channel);
+    let context = || base::CallContext {
+        session_id: session.session_id.clone(),
+        call_id: id().to_string(),
+        request_key: None,
+        expected_revision: None,
+    };
+    assert!(
+        client
+            .inspect(wire::InspectConfiguration {
+                context: Some(context()),
+                binding_hash: vec![0; 32]
+            })
+            .await
+            .is_err()
+    );
+    let reply = client
+        .inspect(wire::InspectConfiguration {
+            context: Some(context()),
+            binding_hash: canonical::digest("RX-HOST-CONFIGURATION-BINDING-v1", &manifest)
+                .unwrap()
+                .as_bytes()
+                .to_vec(),
+        })
+        .await
+        .unwrap()
+        .into_inner();
+    let reference = reply.reference.unwrap();
+    assert_eq!(
+        reference.sha256,
+        rx_package::content_digest(&reply.payload)
+            .as_bytes()
+            .to_vec()
+    );
+    assert_eq!(reference.size_bytes, reply.payload.len() as u64);
+    canonical::decode_json(&reply.payload).unwrap()
 }

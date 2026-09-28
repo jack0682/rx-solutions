@@ -2,7 +2,7 @@ use super::*;
 use rx_domain::host_configuration as config;
 const CONTEXT: &str = "rx.host.applied-process-context.v1";
 const RECEIPT: &str = "rx.host-process-configuration-receipt.v1";
-pub(super) fn binding_digest(bindings: &BTreeMap<Name, Binding>) -> Result<Digest> {
+pub(crate) fn binding_digest(bindings: &BTreeMap<Name, Binding>) -> Result<Digest> {
     let mut values = bindings.values().cloned().collect::<Vec<_>>();
     for b in &mut values {
         for i in &mut b.allowed_intents {
@@ -53,7 +53,11 @@ pub(super) fn observation<N>(
                 applied,
             });
         }
+        let installation_identity = crate::service::maintenance::service_identity(tx, &boot)?;
+        let binding_commit = crate::service::maintenance::binding_observation(tx, binding, &boot)?;
         Ok(config::Snapshot {
+            installation_identity,
+            binding_commit,
             schema: name("rx.host-process-configuration-snapshot.v1"),
             host: bindings[0].host.clone(),
             host_boot: boot,
