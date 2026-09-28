@@ -56,6 +56,7 @@ pub(super) fn observation<N>(
         let installation_identity = crate::service::maintenance::service_identity(tx, &boot)?;
         let binding_commit = crate::service::maintenance::binding_observation(tx, binding, &boot)?;
         Ok(config::Snapshot {
+            evidence_journal: Some(meta.evidence_journal),
             installation_identity,
             binding_commit,
             schema: name("rx.host-process-configuration-snapshot.v1"),
