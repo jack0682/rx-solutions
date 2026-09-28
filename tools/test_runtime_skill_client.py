@@ -35,6 +35,30 @@ class Peer:
             c=body['command'];return {'id':'00000000-0000-4000-8000-000000000001','run':self.run['id'],'cell':'cell/a','actor':'operator','expected_cell_revision':c['expected_cell'],'expected_run_revision':str(int(c['expected_run']) + 1)}
         raise AssertionError(path)
 
+class AuthoringPeer(Peer):
+    def __init__(self):
+        super().__init__();self.source=None;self.bindings=None;self.stale=False
+    def get(self,path,**query):
+        if path=="/api/v1/process-draft/binding-options":
+            return {"cell":"cell/a","catalog_digest":"e"*64,"candidates":[{"step":"pick"},{"step":"place"}]}
+        if path=="/api/v1/process-draft-compile-input":
+            if self.stale:raise ValueError("P rejected stale composition")
+            return {"draft":self.source['id'],"cell":"cell/a","source":self.source['document'],
+                    "source_revision":"1","binding_revision":"1","catalog_digest":"e"*64,
+                    "bindings":{a:{} for a in self.bindings['selections']}}
+        return super().get(path,**query)
+    def request(self,path,body):
+        self.calls.append((path,json.loads(json.dumps(body))))
+        c=body['command']
+        if path=="/api/v1/process-drafts":
+            self.source=c
+            return {"version":{"id":c['id'],"cell":c['cell'],"revision":"1","validation":{"structurally_valid":True}},"document":c['document']}
+        if path=="/api/v1/process-draft-bindings":
+            self.bindings=c
+            if self.lost:self.lost=False;raise OSError("lost binding receipt")
+            return dict(c,revision="1",complete=True)
+        raise AssertionError(path)
+
 class ClientTests(unittest.TestCase):
     def test_lost_start_reply_survives_client_recreation_without_new_request(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -72,5 +96,36 @@ class ClientTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,'not admitted start'):a.invoke(uid(),'skill/test','cell/a',1,0)
             self.assertFalse(p.started)
             self.assertFalse(any(path.endswith('/start') for path,_ in p.calls))
+
+class CompositionTests(unittest.TestCase):
+    def test_lost_binding_reply_recovers_same_draft_and_business_order(self):
+        with tempfile.TemporaryDirectory() as temp:
+            p=AuthoringPeer();key=uid();a=RuntimeClient(p,Path(temp))
+            with self.assertRaises(OSError):a.compose(key,'transfer','cell/a',['pick','place','pick'])
+            original=json.loads(json.dumps(p.calls[-1]))
+            result=RuntimeClient(p,Path(temp)).recover_composition(key)
+            self.assertEqual(result['status'],'DRAFT_READY_FOR_COMPILER')
+            self.assertFalse(result['execution_authorized'])
+            self.assertEqual(json.loads(json.dumps(p.calls[-1])),original)
+            self.assertEqual(list(p.bindings['selections'].values()),['pick','place','pick'])
+            kinds=[n['body']['kind'] for n in result['compile_input']['source']['flows'][0]['nodes']]
+            self.assertEqual(kinds,['SEQUENCE','OPERATION','OPERATION','OPERATION'])
+            count=len(p.calls);a.recover_composition(key);self.assertEqual(len(p.calls),count)
+            p.stale=True
+            with self.assertRaisesRegex(ValueError,'stale composition'):a.recover_composition(key)
+    def test_changed_order_or_store_cannot_retarget_saved_request(self):
+        with tempfile.TemporaryDirectory() as temp:
+            p=AuthoringPeer();p.lost=False;key=uid();a=RuntimeClient(p,Path(temp))
+            a.compose(key,'transfer','cell/a',['pick','place']);count=len(p.calls)
+            with self.assertRaises(ValueError):a.compose(key,'transfer','cell/a',['place','pick'])
+            p.installation['store_generation']=uid()
+            with self.assertRaisesRegex(ValueError,'installation/store'):a.recover_composition(key)
+            self.assertEqual(len(p.calls),count)
+    def test_missing_step_does_not_save_server_draft(self):
+        with tempfile.TemporaryDirectory() as temp:
+            p=AuthoringPeer()
+            with self.assertRaisesRegex(ValueError,'steps not found'):
+                RuntimeClient(p,Path(temp)).compose(uid(),'transfer','cell/a',['missing'])
+            self.assertFalse(p.calls)
 
 if __name__=='__main__':unittest.main()

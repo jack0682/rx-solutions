@@ -181,6 +181,9 @@ def main():
     p.add_argument("--state-dir", type=Path, default=Path.home() / ".local/share/rx-runtime-client")
     runtime = p.add_subparsers(dest="action", required=True)
     runtime.add_parser("skills")
+    p = runtime.add_parser("steps"); p.add_argument("--cell", required=True)
+    p = runtime.add_parser("compose"); p.add_argument("name"); p.add_argument("--cell", required=True); p.add_argument("--step", action="append", required=True); p.add_argument("--request-id")
+    p = runtime.add_parser("compose-recover"); p.add_argument("id")
     p = runtime.add_parser("run"); p.add_argument("name"); p.add_argument("--cell", required=True); p.add_argument("--count", type=int, default=1); p.add_argument("--request-id"); p.add_argument("--wait-seconds", type=int, default=60)
     p = runtime.add_parser("recover"); p.add_argument("id"); p.add_argument("--wait-seconds", type=int, default=60)
     for command in ("result", "inspect"):
@@ -193,6 +196,12 @@ def main():
         try:
             client = RuntimeClient(Terminal(args.connection.absolute()), args.state_dir.absolute())
             if args.action == "skills": result = client.catalog()
+            elif args.action == "steps": result = client.steps(args.cell)
+            elif args.action == "compose":
+                request_id = str(uuid.UUID(args.request_id)) if args.request_id else str(uuid.uuid4())
+                print("Composition request: " + request_id, file=sys.stderr, flush=True)
+                result = client.compose(request_id, args.name, args.cell, args.step)
+            elif args.action == "compose-recover": result = client.recover_composition(args.id)
             elif args.action == "run":
                 request_id = str(uuid.UUID(args.request_id)) if args.request_id else str(uuid.uuid4())
                 print("Runtime request: " + request_id, file=sys.stderr, flush=True)
