@@ -15,3 +15,6 @@ pub use model::*;
 pub mod service;
 pub mod service_clock;
 pub use native::NativeAdapter;
+
+#[cfg(unix)]
+pub mod python_skill;

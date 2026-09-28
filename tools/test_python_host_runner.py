@@ -28,7 +28,7 @@ class RunnerTests(unittest.TestCase):
         built=prepare(source,[wheel(root,{'rx_fixture_sdk/__init__.py':sdk})],root/'env')
         state=root/'journal';state.mkdir()
         request={'schema':'rx.python-host-request.v1','operation':str(uuid.uuid4()),'invocation':str(uuid.uuid4()),
-            'intent_digest':'a'*64,'environment':built['path'],'environment_digest':built['environment_digest'],
+            'device_session':str(uuid.uuid4()),'dispatch_clock':'MONOTONIC','dispatch_deadline_ns':str(2**63-1),'intent_digest':'a'*64,'environment':built['path'],'environment_digest':built['environment_digest'],
             'input':{'path':str(root/'effects')}}
         return state,request
     def call(self, action, state, request, expected=0):
@@ -75,6 +75,14 @@ class RunnerTests(unittest.TestCase):
                 fcntl.flock(lock,fcntl.LOCK_EX)
                 self.assertEqual(self.call('execute',state,r)['status'],'UNKNOWN')
                 self.assertFalse((journal/'request.json').exists())
+
+    def test_expired_dispatch_does_not_import_or_execute_sdk(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root=Path(temp);state,r=self.setup_skill(root,'from rx_fixture_sdk import record\ndef main(inputs): return {"value":record(inputs["path"])}\n')
+            r['dispatch_deadline_ns']='0'
+            self.assertIn('dispatch deadline elapsed',self.call('execute',state,r,1))
+            self.assertFalse((root/'effects').exists())
+            self.assertFalse((state/r['operation']/'request.json').exists())
 
     def test_sdk_exception_after_effect_is_unknown(self):
         with tempfile.TemporaryDirectory() as temp:

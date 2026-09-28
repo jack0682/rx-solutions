@@ -10,6 +10,7 @@ import json
 import os
 from pathlib import Path
 import sys
+import time
 import uuid
 
 # This directory and both helper files must come from the verified Host release.
@@ -38,10 +39,14 @@ def identifier(value):
 
 
 def validate(request):
-    fields = {"schema", "operation", "invocation", "intent_digest", "environment", "environment_digest", "input"}
+    fields = {"schema", "operation", "invocation", "intent_digest", "environment", "environment_digest", "input", "device_session", "dispatch_deadline_ns", "dispatch_clock"}
     if set(request) != fields or request["schema"] != "rx.python-host-request.v1":
         raise ValueError("Python Host request schema differs")
-    identifier(request["operation"]); identifier(request["invocation"])
+    identifier(request["operation"]); identifier(request["invocation"]); identifier(request["device_session"])
+    if request["dispatch_clock"] not in ("BOOTTIME", "MONOTONIC"):
+        raise ValueError("supported dispatch clock required")
+    if not isinstance(request["dispatch_deadline_ns"], str) or not request["dispatch_deadline_ns"].isdigit():
+        raise ValueError("monotonic dispatch deadline required")
     for name in ("intent_digest", "environment_digest"):
         value = request[name]
         if not isinstance(value, str) or len(value) != 64 or any(c not in "0123456789abcdef" for c in value):
@@ -53,7 +58,7 @@ def validate(request):
 def receipt(request, status, **values):
     return {"schema": "rx.python-host-receipt.v1", "operation": request["operation"],
             "invocation": request["invocation"], "intent_digest": request["intent_digest"],
-            "environment_digest": request["environment_digest"], "status": status, **values}
+            "environment_digest": request["environment_digest"], "device_session": request["device_session"], "status": status, **values}
 
 
 def stored(root, request):
@@ -66,10 +71,16 @@ def stored(root, request):
     if not result.exists():
         return receipt(request, "UNKNOWN")
     value = json.loads(read_regular(result, 131072))
-    for key in ("operation", "invocation", "intent_digest", "environment_digest"):
+    for key in ("operation", "invocation", "intent_digest", "environment_digest", "device_session"):
         if value[key] != request[key]:
             raise ValueError("Python receipt identity differs")
     return value
+
+
+def dispatch_now(request):
+    if request["dispatch_clock"] == "BOOTTIME":
+        return time.clock_gettime_ns(time.CLOCK_BOOTTIME)
+    return time.monotonic_ns()
 
 
 def handle(action, state, request):
@@ -104,9 +115,13 @@ def handle(action, state, request):
         code = read_regular(environment / "skill.py", 1048576)
         if hashlib.sha256(code).hexdigest() != record["files"]["skill.py"]["sha256"]:
             raise ValueError("skill source changed")
+        if dispatch_now(request) >= int(request["dispatch_deadline_ns"]):
+            raise ValueError("Host dispatch deadline elapsed before SDK import")
         # The fully synced marker precedes module import, which itself may call an SDK.
         publish(root / "request.json", request)
         try:
+            if dispatch_now(request) >= int(request["dispatch_deadline_ns"]):
+                raise TimeoutError("Host dispatch deadline elapsed")
             sys.path.append(str(paths[0]))  # No .pth or site customization processing.
             with contextlib.redirect_stdout(sys.stderr):
                 namespace = {"__name__": "rx_skill", "__file__": str(environment / "skill.py")}

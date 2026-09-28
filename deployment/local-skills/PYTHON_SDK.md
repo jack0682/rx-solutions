@@ -38,22 +38,40 @@ from preparation and has no device or P/Host execution authority. Next integrati
 must bind this environment to registered Host ProgramGoal execution and original
 request recovery; preparation alone must not be presented as that integration.
 
-## Private execution receipt helper (not yet connected to Host)
+## Private execution receipt helper and Host gate adapter
 
-`host_runner.py` is an internal subprocess boundary under development. Its caller
-must be the release-owned Host bridge after admission; running this script directly
-is not a grant. It verifies the prepared environment, syncs the original operation,
+`host_runner.py` is an internal subprocess boundary. The new Rust
+`rx_host::python_skill::PythonSkill` adapter calls it behind the existing Host
+gate. Running this script directly is not a grant. It verifies the prepared environment, syncs the original operation,
 invocation, intent and input before importing SDK code, and records either RETURNED
 output or UNKNOWN. RETURNED describes Python return, not physical completion.
 
 Lookup never imports SDK code or resubmits. A prior marker without a receipt stays
 UNKNOWN, including after process death. Another execution with the same operation
 but changed invocation/input/environment is refused. A busy owner before the marker
-is also UNKNOWN. The helper does not supply device health, physical protection,
-resource handover, deadline enforcement or process-tree custody; those must be
-connected through the Host bridge before device execution is supported.
+is also UNKNOWN. The helper does not supply device health or physical protection. The Rust adapter
+uses independently supplied support observations, bounds private-pipe reads and
+process exit, pins the interpreter/helpers, and rejects handover while execution
+or process custody remains unresolved. Linux dispatch expiry uses BOOTTIME to
+include suspend time. Only the freshly owned, unreaped process group may be
+signaled; process death is not a physical stop observation. Detached SDK processes
+and hostile code are outside this trust boundary.
 
 `tools/test_python_host_runner.py` exercises actual SDK imports and subprocess
 SIGKILL after an independent file effect, SDK exception after effect, repeat/identity
 rejection and a busy-before-marker case. These helper tests do not establish the
 registered P/Host execution path.
+
+
+`runtime/rx-host/tests/python_skill.rs` runs the actual Host gate with an installed
+fixture SDK: prepare and a foreign caller produce no effect; valid authorization
+produces one effect; duplicate authorization/reconciliation do not repeat it.
+Timeout retains SendEntered and denies handover; altered environment code is
+refused before an SDK effect. The Python helper also rejects expired dispatch.
+
+This adapter currently accepts SIMULATION support only. RETURNED/`rx.python.returned.v1`
+records Python return, not device completion. Restarted adapter custody remains
+blocked even when lookup recovers an output. Service Backend/AdapterFactory wiring,
+server registration, typed output/observation delivery and operator reconciliation
+are still incomplete. These Host gate tests must not be described as installed,
+registered P/Host/Executor Python-skill execution or physical qualification.
