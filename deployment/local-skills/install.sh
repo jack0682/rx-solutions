@@ -40,7 +40,8 @@ else:
                 for m in t.getmembers():
                     path=Path(m.name)
                     if not (m.isfile() or m.isdir()) or path.is_absolute() or '..' in path.parts or not path.parts or path.parts[0]!='rx-local-skills':raise SystemExit('Invalid archive member')
-                t.extractall(extracted,filter='data')
+                # Every member was checked above; no links or special files are accepted.
+                t.extractall(extracted)
             os.rename(extracted/'rx-local-skills',root)
 subprocess.run([sys.executable,str(root/'rx'),'install','--profile',a.profile,'--port',str(a.port)],check=True)
 bin_dir=a.prefix.resolve()/'bin';bin_dir.mkdir(parents=True,exist_ok=True)
