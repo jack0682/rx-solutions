@@ -103,6 +103,8 @@ pub enum NativeInstallation {
 #[serde(deny_unknown_fields)]
 struct Installation {
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    native_directory: Option<rx_package::PackagePath>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     maintenance_protocol: Option<Name>,
     schema: Name,
     identity: Digest,
@@ -264,6 +266,7 @@ pub fn initialize_with<C: Clock + Clone + 'static, F: AdapterFactory<C>>(
         private_write(
             &stage.join("installation.json"),
             &canonical::bytes(&Installation {
+                native_directory: None,
                 maintenance_protocol: Some(name("rx.host-maintenance.v1")),
                 schema: name("rx.host-installation.v2"),
                 identity: loaded.identity,
@@ -318,6 +321,38 @@ fn validate_installation_material(loaded: &Loaded) -> Result<()> {
     }
     Ok(())
 }
+/// Internal storage generation, never an executable path or operating permission.
+fn native_storage_root(data: &Path, descriptor: &Installation) -> Result<std::path::PathBuf> {
+    let Some(relative) = &descriptor.native_directory else {
+        return Ok(data.to_path_buf());
+    };
+    if descriptor.schema.as_str() != "rx.host-installation.v2"
+        || descriptor.maintenance_protocol.as_ref().map(Name::as_str)
+            != Some("rx.host-maintenance.v1")
+    {
+        return Err("native generations require the explicit maintenance descriptor".into());
+    }
+    let parts = relative.as_str().split('/').collect::<Vec<_>>();
+    if parts.len() != 2 || parts[0] != "native-generations" || Id::new(parts[1]).is_err() {
+        return Err("native generation identity/path differs".into());
+    }
+    let mut path = data.to_path_buf();
+    for part in parts {
+        path.push(part);
+        real_directory(&path)?;
+    }
+    Ok(path)
+}
+fn read_installation(data: &Path) -> Result<Installation> {
+    Ok(canonical::decode_json(
+        &rx_package::directory::read_relative_file(
+            data,
+            &rx_package::PackagePath::new("installation.json")?,
+            1_048_576,
+        )?,
+    )?)
+}
+
 fn publish_installation(parent: &Path, stage: &Path, target: &Path) -> Result<()> {
     #[cfg(any(target_os = "linux", target_os = "macos"))]
     {
@@ -374,7 +409,8 @@ pub async fn run_with<C: Clock + Clone + Send + Sync + 'static, F: AdapterFactor
     if fs::symlink_metadata(&descriptor_path)?.len() > 1_048_576 {
         return Err("installation descriptor too large".into());
     }
-    let descriptor: Installation = canonical::decode_json(&fs::read(descriptor_path)?)?;
+    let descriptor_bytes = fs::read(&descriptor_path)?;
+    let descriptor: Installation = canonical::decode_json(&descriptor_bytes)?;
     if !matches!(
         (
             descriptor.schema.as_str(),
@@ -392,6 +428,16 @@ pub async fn run_with<C: Clock + Clone + Send + Sync + 'static, F: AdapterFactor
         return Err("Host journal missing; explicit restore required".into());
     }
     let _owner = runtime_owner(&loaded.config.runtime_directory)?;
+    let owned_descriptor = rx_package::directory::read_relative_file(
+        &loaded.config.data_directory,
+        &rx_package::PackagePath::new("installation.json")?,
+        1_048_576,
+    )?;
+    if owned_descriptor != descriptor_bytes {
+        return Err("Host descriptor changed while acquiring runtime ownership".into());
+    }
+    native_storage_root(&loaded.config.data_directory, &descriptor)?;
+
     // Validate and write the optional supervisor protocol before native opening or RPC admission.
     let reporter = Reporter::from_environment(GuardedScope::Host {
         installation: loaded.config.installation.clone(),
@@ -769,3 +815,54 @@ fn guarded_final_state(view: &Status, service_error: bool) -> GuardedState {
 
 #[cfg(test)]
 mod guarded_tests;
+
+#[cfg(test)]
+mod native_generation_tests {
+    use super::*;
+    fn descriptor() -> Installation {
+        Installation {
+            native_directory: None,
+            maintenance_protocol: Some(name("rx.host-maintenance.v1")),
+            schema: name("rx.host-installation.v2"),
+            identity: Digest::from_bytes([1; 32]),
+            installation: crate::journal::id(),
+            host: name("host/test"),
+            delivery_journal: crate::journal::id(),
+            evidence_journal: crate::journal::id(),
+            native: None,
+        }
+    }
+    #[test]
+    fn generations_preserve_legacy_root_and_refuse_missing_or_linked_storage() {
+        let root = tempfile::tempdir().unwrap();
+        let mut d = descriptor();
+        assert_eq!(native_storage_root(root.path(), &d).unwrap(), root.path());
+        let request = crate::journal::id();
+        let relative = format!("native-generations/{request}");
+        d.native_directory = Some(rx_package::PackagePath::new(&relative).unwrap());
+        assert!(native_storage_root(root.path(), &d).is_err());
+        assert!(!root.path().join("native-generations").exists());
+        std::fs::create_dir(root.path().join("native-generations")).unwrap();
+        std::fs::create_dir(root.path().join(&relative)).unwrap();
+        let old = root.path().join("device");
+        std::fs::create_dir(&old).unwrap();
+        std::fs::write(old.join("receipt"), b"original").unwrap();
+        assert_eq!(
+            native_storage_root(root.path(), &d).unwrap(),
+            root.path().join(&relative)
+        );
+        assert_eq!(std::fs::read(old.join("receipt")).unwrap(), b"original");
+        d.maintenance_protocol = None;
+        assert!(native_storage_root(root.path(), &d).is_err());
+        d.maintenance_protocol = Some(name("rx.host-maintenance.v1"));
+        d.native_directory = Some(rx_package::PackagePath::new("device").unwrap());
+        assert!(native_storage_root(root.path(), &d).is_err());
+        #[cfg(unix)]
+        {
+            let alias = format!("native-generations/{}", crate::journal::id());
+            std::os::unix::fs::symlink(&old, root.path().join(&alias)).unwrap();
+            d.native_directory = Some(rx_package::PackagePath::new(alias).unwrap());
+            assert!(native_storage_root(root.path(), &d).is_err());
+        }
+    }
+}

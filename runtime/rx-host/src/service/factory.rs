@@ -139,35 +139,35 @@ impl<C: Clock + Clone + 'static> AdapterFactory<C> for Builtin {
         }
     }
     fn open_passive(&self, backend: &Backend, data: &Path, clock: C) -> Result<Self::Adapter> {
+        let descriptor = read_installation(data)?;
+        let native_root = native_storage_root(data, &descriptor)?;
         match backend {
             #[cfg(unix)]
             Backend::PythonSkillSimulation { .. } | Backend::PythonSkillPackage { .. } => {
                 let (digest, registration) = python_skill::load(backend)?;
-                let installation: Installation = canonical::decode_json(&std::fs::read(data.join("installation.json"))?)?;
+                let installation = descriptor;
                 let Some(NativeInstallation::PythonSkill { registration_digest, environment_digest }) = installation.native else {
                     return Err("Python native installation identity missing".into());
                 };
                 if digest != registration_digest || registration.environment_digest != environment_digest || registration.installation != installation.installation {
                     return Err("Python registration changed after Host initialization".into());
                 }
-                let support=crate::simulation::FileDevice::open(data.join("python-support"),clock.clone())?;
+                let support=crate::simulation::FileDevice::open(native_root.join("python-support"),clock.clone())?;
                 Ok(BuiltinAdapter::Python(Box::new(crate::python_skill::PythonSkill::open(
-                    python_skill::release()?,registration.program(),data.join("native-python"),support,clock)?)))
+                    python_skill::release()?,registration.program(),native_root.join("native-python"),support,clock)?)))
             }
             Backend::JtcPackage { .. } => Err("JTC_CONTROL_PROVIDER_NOT_CONFIGURED: validated package cannot supply controller authority; no ROS process started".into()),
             Backend::ValidatedDriver { .. } => {
-                let installation: Installation = canonical::decode_json(&std::fs::read(data.join("installation.json"))?)?;
+                let installation = descriptor;
                 let Some(NativeInstallation::Dynamixel { identity })=installation.native else { return Err("DXL_NATIVE_IDENTITY_MISSING".into()); };
                 let pin=crate::dynamixel::profile::executable_pin(Path::new("/opt/rx"))?;
-                Ok(BuiltinAdapter::Dynamixel(Box::new(crate::dynamixel::Dynamixel::open(&data.join("native-dynamixel"),identity,pin,clock)?)))
+                Ok(BuiltinAdapter::Dynamixel(Box::new(crate::dynamixel::Dynamixel::open(&native_root.join("native-dynamixel"),identity,pin,clock)?)))
             }
             Backend::FileSimulation => Ok(BuiltinAdapter::File(
-                crate::simulation::FileDevice::open(data.join("device"), clock)?,
+                crate::simulation::FileDevice::open(native_root.join("device"), clock)?,
             )),
             Backend::MelsecPackage { .. } => {
                 let p = device_package::load(backend)?;
-                let descriptor: Installation =
-                    canonical::decode_json(&fs::read(data.join("installation.json"))?)?;
                 let Some(NativeInstallation::Melsec {
                     identity,
                     manifest_digest,
@@ -182,7 +182,7 @@ impl<C: Clock + Clone + 'static> AdapterFactory<C> for Builtin {
                 }
                 Ok(BuiltinAdapter::Melsec(Box::new(
                     crate::melsec::Melsec::open(
-                        &data.join("native-melsec"),
+                        &native_root.join("native-melsec"),
                         &identity,
                         p.profile,
                         clock,
