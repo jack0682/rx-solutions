@@ -1,0 +1,14 @@
+{
+  "name": "unload",
+  "version": "1.0.0",
+  "environment": "LOCAL_SIM",
+  "inputs": {
+    "part": "string",
+    "released": "boolean"
+  },
+  "outputs": {
+    "part": "string",
+    "location": "string"
+  },
+  "timeout_ms": 2000
+}

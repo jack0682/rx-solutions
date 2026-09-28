@@ -1,0 +1,14 @@
+{
+  "name": "load",
+  "version": "1.0.0",
+  "environment": "LOCAL_SIM",
+  "inputs": {
+    "part": "string",
+    "holding": "boolean"
+  },
+  "outputs": {
+    "part": "string",
+    "clamped": "boolean"
+  },
+  "timeout_ms": 2000
+}

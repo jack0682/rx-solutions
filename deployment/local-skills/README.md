@@ -1,4 +1,8 @@
-# RX local skills — 0.3.0-rc.2 developer preview
+# RX skill process draft — 0.4.0-dev.1 (unreleased)
+
+The published installer remains rc.2. The process and versioned-metrics commands
+in this branch are an unreleased continuation, available through a locally built
+bundle. They do not complete the overall skill framework or device integration.
 
 Install a local RX service, register a Python skill and execute it without building
 Rust or ROS. The server records immutable skill versions, execution identities,
@@ -118,3 +122,11 @@ Bundle creation uses `tools/build_skill_release.py`; acceptance uses
 installation, independently authored Python code, idempotency, discarded admission
 responses, schema failures, timeouts, process death, persistence and physical-scope
 refusal. Acceptance is specific to these local software computations.
+
+## Serial skill processes in the current draft
+
+The [material-flow example](examples/material-flow/README.md) registers four
+independent skills and a ProcessSource sequence. `rx process add DIRECTORY`,
+`rx process run NAME --input JSON`, `rx process result UUID`, and `rx metrics`
+use the server-owned execution/data-lineage and versioned metric projections.
+The current public rc.2 installer does not contain these new commands.

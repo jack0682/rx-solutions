@@ -1,0 +1,14 @@
+{
+  "name": "release",
+  "version": "1.0.0",
+  "environment": "LOCAL_SIM",
+  "inputs": {
+    "part": "string",
+    "clamped": "boolean"
+  },
+  "outputs": {
+    "part": "string",
+    "released": "boolean"
+  },
+  "timeout_ms": 2000
+}
