@@ -81,3 +81,22 @@ The tool has no default operating key, automatic signing, automatic trust update
 Tests cover reuse of one Template for two Sites, exact role/slot scope, order normalization, candidate reacquisition, current keys/assets/permissions, signed original/profile mismatch, actual CLI assembly→signing request→external test signer→seal→inspection and no-overwrite. Image tests run actual `/opt/rx/bin/rx-device-package` with network-none, non-root and a read-only root. Keys exist only in the test harness; the product CLI receives only signatures.
 
 Execution results and source/image hashes are retained in the [phase59 verification record](https://github.com/jack0682/rx_docs/blob/6111a7d1dcf33052f38c3e67c6585aec2b44df3c/references/implementation/phase59_checks.json). Editing UI, generic manufacturer template registry, actual device/mode-specific authoring, P device review/deployment/change/recovery flows and site acceptance remain outstanding. The first physical cell is NOT_COMMISSIONED.
+
+## Python SDK declarations (unreleased)
+
+`python-assemble REGISTRATION ENVIRONMENT RECIPE OUT` creates an unsigned Python
+SDK DEVICE_REFERENCE candidate from a prepared environment manifest and an exact
+Host registration. The target must be the environment's Linux architecture and
+the recipe version must equal the skill version. Use the existing request, seal,
+verify, inspect and review commands afterward. The generated common operation
+catalog can be consumed by the existing P package-intake format; live P intake
+of this new package family has not yet been demonstrated.
+
+The signed originals are reassembled by the verifier: changing operations, profile,
+environment, permissions or referenced assets cannot be hidden behind a fresh valid
+signature. The profile digest is derived during assembly and is the one in the
+catalog/returned profile; use that exact profile for Host bindings.
+
+This package describes a SIMULATION Python program and its input/environment pins.
+SDK wheel transport, server-side environment installation, dynamic data and physical
+qualification are not supplied by package assembly. See the [Host loader](../rx-host/PYTHON_SKILL.md).

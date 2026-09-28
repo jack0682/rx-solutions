@@ -18,7 +18,7 @@ def digest(raw):
 
 
 def encoded(value):
-    return json.dumps(value, sort_keys=True, separators=(",", ":"), allow_nan=False).encode()
+    return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False).encode()
 
 
 def read_regular(path, limit):

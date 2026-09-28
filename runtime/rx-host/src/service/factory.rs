@@ -72,7 +72,7 @@ impl<C: Clock + Clone + 'static> AdapterFactory<C> for Builtin {
     fn validate(&self, backend: &Backend, bindings: &[Binding]) -> Result<()> {
         match backend {
             #[cfg(unix)]
-            Backend::PythonSkillSimulation { .. } => {
+            Backend::PythonSkillSimulation { .. } | Backend::PythonSkillPackage { .. } => {
                 let (_, registration) = python_skill::load(backend)?;
                 registration.validate_bindings(bindings)?;
                 python_skill::release()?;
@@ -104,7 +104,7 @@ impl<C: Clock + Clone + 'static> AdapterFactory<C> for Builtin {
     ) -> Result<Option<NativeInstallation>> {
         match backend {
             #[cfg(unix)]
-            Backend::PythonSkillSimulation { .. } => {
+            Backend::PythonSkillSimulation { .. } | Backend::PythonSkillPackage { .. } => {
                 let (registration_digest, registration) = python_skill::load(backend)?;
                 std::fs::create_dir(data.join("native-python"))?;
                 Ok(Some(NativeInstallation::PythonSkill {
@@ -141,7 +141,7 @@ impl<C: Clock + Clone + 'static> AdapterFactory<C> for Builtin {
     fn open_passive(&self, backend: &Backend, data: &Path, clock: C) -> Result<Self::Adapter> {
         match backend {
             #[cfg(unix)]
-            Backend::PythonSkillSimulation { .. } => {
+            Backend::PythonSkillSimulation { .. } | Backend::PythonSkillPackage { .. } => {
                 let (digest, registration) = python_skill::load(backend)?;
                 let installation: Installation = canonical::decode_json(&std::fs::read(data.join("installation.json"))?)?;
                 let Some(NativeInstallation::PythonSkill { registration_digest, environment_digest }) = installation.native else {

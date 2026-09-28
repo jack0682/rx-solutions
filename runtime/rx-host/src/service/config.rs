@@ -53,6 +53,12 @@ pub enum Backend {
     PythonSkillSimulation {
         registration: PinnedFile,
     },
+    #[cfg(unix)]
+    PythonSkillPackage {
+        directory: PathBuf,
+        manifest_digest: Digest,
+        policy: PinnedFile,
+    },
     JtcPackage {
         directory: PathBuf,
         manifest_digest: Digest,

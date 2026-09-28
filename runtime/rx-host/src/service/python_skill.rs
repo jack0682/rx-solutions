@@ -31,6 +31,9 @@ struct PythonRelease {
     interpreter_sha256: Digest,
 }
 pub fn load(backend: &Backend) -> Result<(Digest, Registration)> {
+    if matches!(backend, Backend::PythonSkillPackage { .. }) {
+        return super::python_package::load(backend);
+    }
     let Backend::PythonSkillSimulation { registration } = backend else {
         return Err("Python skill registration backend required".into());
     };

@@ -7,6 +7,8 @@ mod guarded_status;
 pub mod jtc_package;
 pub mod maintenance;
 #[cfg(unix)]
+pub mod python_package;
+#[cfg(unix)]
 pub mod python_skill;
 use crate::{Binding, Clock, Environment, Host, NativeAdapter};
 use config::{Backend, Loaded};
@@ -293,7 +295,9 @@ pub fn initialize_with<C: Clock + Clone + 'static, F: AdapterFactory<C>>(
 }
 fn validate_installation_material(loaded: &Loaded) -> Result<()> {
     #[cfg(unix)]
-    if let Backend::PythonSkillSimulation { .. } = &loaded.config.backend {
+    if let Backend::PythonSkillSimulation { .. } | Backend::PythonSkillPackage { .. } =
+        &loaded.config.backend
+    {
         let (_, registration) = python_skill::load(&loaded.config.backend)?;
         if registration.installation != loaded.config.installation {
             return Err("Python skill installation differs from Host".into());

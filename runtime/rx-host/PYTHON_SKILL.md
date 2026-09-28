@@ -40,3 +40,25 @@ scene, multiple programs per Host, dynamic output propagation and operator custo
 reconciliation remain incomplete. The full Solutions Docker recipe includes the
 helper inputs/runtime folder, but the current recorded container proof uses the
 focused RuntimeSkillValidation image. Neither establishes physical qualification.
+
+## Signed device packages
+
+`PYTHON_SKILL_PACKAGE` accepts `directory`, `manifest_digest` and a pinned `policy`
+file. It verifies the existing DEVICE_REFERENCE package format against current
+contracts, target architecture, asset bytes and trusted keys, then reconstructs
+Python profile/catalog documents from signed originals. The selected package digest
+is retained as the native registration identity. Simulation binding restrictions
+remain unchanged.
+
+The device package CLI adds `python-assemble REGISTRATION ENVIRONMENT RECIPE OUT`;
+its ordinary request/seal/verify/inspect/review commands then use the same signing
+and review path as other device packages. No SDK is imported by package assembly
+or decoding. Environment metadata must target the Linux architecture and skill
+version named by the recipe. `rx.python.returned.v1` means software function return.
+
+The package retains the environment manifest and references program/input assets;
+it does not transport/install the full SDK environment. That environment must be
+placed at its declared path and match its digest before Host use. Package tests
+use metadata-only fixtures and establish signing, reassembly, target/input rejection
+and current-trust loading, not installed P/Host Python execution. P intake and
+end-to-end deployment of these signed Python packages remain to be exercised.
