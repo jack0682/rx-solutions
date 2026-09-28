@@ -99,7 +99,7 @@ pub enum NativeInstallation {
         manifest_digest: Digest,
     },
 }
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Installation {
     #[serde(default, skip_serializing_if = "Option::is_none")]

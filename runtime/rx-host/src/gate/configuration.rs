@@ -306,6 +306,12 @@ impl<N: NativeAdapter, C: Clock, H: BoundaryHook> Host<N, C, H> {
             let mut changed = false;
             if status == config::Status::AppliedUnqualified {
                 for target in &request.cells {
+                    crate::service::maintenance::confirm_configured(
+                        tx,
+                        &target.cell,
+                        target.after_configuration,
+                        &request.id,
+                    )?;
                     let k = key("process-context", &target.cell);
                     let old = tx.get(&k)?;
                     let previous = old

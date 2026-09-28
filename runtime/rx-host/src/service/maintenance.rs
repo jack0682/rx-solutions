@@ -10,6 +10,11 @@ use rx_ports::{Repository, StoreError, Transaction};
 use rx_storage::SqliteRepository;
 use serde::{Deserialize, Serialize};
 
+mod commit;
+#[cfg(feature = "test-harness")]
+pub use commit::commit_with_boundary;
+pub use commit::{CommitRecord, CommitView, Phase as CommitPhase, commit, lookup_commit};
+
 const LIFECYCLE: &str = "rx.host.service-lifecycle.v1";
 const PREPARATION: &str = "rx.host.binding-preparation.v1";
 const ACTIVE: &str = "host-maintenance/active";
@@ -48,6 +53,8 @@ enum Lifecycle {
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum State {
     Prepared,
+    Committing,
+    Committed,
     Cancelled,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -90,7 +97,7 @@ pub(super) fn begin_startup(
     startup_configuration_digest: Digest,
     attempt: &Id,
 ) -> rx_ports::Result<()> {
-    if pending(tx)?.is_some_and(|v| v.state == State::Prepared) {
+    if pending(tx)?.is_some_and(|v| matches!(v.state, State::Prepared | State::Committing)) {
         return Err(StoreError::Unavailable(
             "Host binding preparation must be resolved before startup".into(),
         ));
@@ -237,7 +244,7 @@ fn prepare_inner(
             }
             return Ok(old);
         }
-        if pending(tx)?.is_some_and(|v| v.state == State::Prepared) {
+        if pending(tx)?.is_some_and(|v| matches!(v.state, State::Prepared | State::Committing)) {
             return Err(StoreError::Unavailable(
                 "another Host binding preparation is pending".into(),
             ));
@@ -307,6 +314,11 @@ pub fn cancel(current: &Loaded, request: &Id) -> Result<Preparation> {
         if p.state == State::Cancelled {
             return Ok(p);
         }
+        if p.state != State::Prepared {
+            return Err(StoreError::Invalid(
+                "binding commit cannot be cancelled; recover its original request".into(),
+            ));
+        }
         let active = tx
             .get(&name(ACTIVE))?
             .ok_or(StoreError::Integrity("active preparation missing".into()))?;
@@ -336,4 +348,85 @@ pub fn lookup(current: &Loaded, request: &Id) -> Result<Option<Preparation>> {
             .map(|row| decode(&row, PREPARATION))
             .transpose()
     })?)
+}
+
+#[derive(Serialize, Deserialize)]
+struct BindingRequirement {
+    configuration: Digest,
+    pending: bool,
+    acknowledged_by: Option<Id>,
+}
+const REQUIRED: &str = "rx.host.binding-configuration-required.v1";
+pub(crate) fn require_configured(tx: &mut dyn Transaction, cell: &Name) -> rx_ports::Result<()> {
+    if let Some(row) = tx.get(&key("host-binding-required", cell))? {
+        let value: BindingRequirement = decode(&row, REQUIRED)?;
+        if value.pending {
+            return Err(StoreError::Invalid(
+                "binding replacement awaits P process configuration".into(),
+            ));
+        }
+    }
+    Ok(())
+}
+pub(crate) fn confirm_configured(
+    tx: &mut dyn Transaction,
+    cell: &Name,
+    configuration: Digest,
+    request: &Id,
+) -> rx_ports::Result<()> {
+    if let Some(row) = tx.get(&key("host-binding-required", cell))? {
+        let mut value: BindingRequirement = decode(&row, REQUIRED)?;
+        if value.pending {
+            if value.configuration != configuration {
+                return Err(StoreError::Invalid(
+                    "P configuration differs from committed binding target".into(),
+                ));
+            }
+            value.pending = false;
+            value.acknowledged_by = Some(request.clone());
+            tx.put(&row.key, Some(row.revision), &doc(REQUIRED, &value)?)?;
+        }
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod binding_requirement_tests {
+    use super::*;
+    #[test]
+    fn only_the_committed_configuration_can_acknowledge_the_arm_barrier() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut store = SqliteRepository::open(directory.path().join("host.db")).unwrap();
+        let cell = name("cell/test");
+        let expected = Digest::from_bytes([9; 32]);
+        let request = crate::journal::id();
+        store
+            .transact(|tx| {
+                tx.put(
+                    &key("host-binding-required", &cell),
+                    None,
+                    &doc(
+                        REQUIRED,
+                        &BindingRequirement {
+                            configuration: expected,
+                            pending: true,
+                            acknowledged_by: None,
+                        },
+                    )?,
+                )?;
+                Ok(())
+            })
+            .unwrap();
+        assert!(store.transact(|tx| require_configured(tx, &cell)).is_err());
+        assert!(
+            store
+                .transact(|tx| confirm_configured(tx, &cell, Digest::from_bytes([8; 32]), &request))
+                .is_err()
+        );
+        assert!(store.transact(|tx| require_configured(tx, &cell)).is_err());
+        store
+            .transact(|tx| confirm_configured(tx, &cell, expected, &request))
+            .unwrap();
+        store.transact(|tx| require_configured(tx, &cell)).unwrap();
+    }
 }

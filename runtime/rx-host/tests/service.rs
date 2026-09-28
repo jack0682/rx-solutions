@@ -797,3 +797,227 @@ fn existing_native_installation_wire_records_roundtrip_without_new_fields() {
         assert_eq!(canonical::bytes(&record).unwrap(), bytes);
     }
 }
+
+#[cfg(all(unix, feature = "test-harness"))]
+#[tokio::test]
+async fn binding_commit_recovers_each_publication_boundary_and_preserves_journals() {
+    use service::maintenance as m;
+    for boundary in ["INTENT_RECORDED", "NATIVE_READY", "DESCRIPTOR_PUBLISHED"] {
+        let (dir, file, clock) = fixture();
+        let current = Loaded::read(&file).unwrap();
+        service::initialize_with(&current, clock.clone(), &service::Builtin).unwrap();
+        let (stop, signal) = tokio::sync::oneshot::channel();
+        let task = tokio::spawn(service::run_with(
+            Loaded::read(&file).unwrap(),
+            clock.clone(),
+            service::Builtin,
+            async {
+                let _ = signal.await;
+            },
+        ));
+        status(
+            &current.config.runtime_directory.join("host-status.json"),
+            "SOFTWARE_READY_UNARMED",
+        )
+        .await;
+        stop.send(()).unwrap();
+        task.await.unwrap().unwrap();
+        let original: serde_json::Value = serde_json::from_slice(
+            &std::fs::read(current.config.data_directory.join("installation.json")).unwrap(),
+        )
+        .unwrap();
+        let old_device =
+            std::fs::read(current.config.data_directory.join("device/device-session")).unwrap();
+        let mut bindings = current.bindings.clone();
+        if let Body::Predicate(goal) = &mut bindings[0].allowed_intents[0].body {
+            goal.target = TypedValue::Boolean(false);
+        } else {
+            panic!("fixture predicate")
+        }
+        let mut config = current.config.clone();
+        config.bindings = pinned(
+            dir.path(),
+            "commit-bindings.json",
+            &canonical::bytes(&bindings).unwrap(),
+            false,
+        );
+        let next_file = dir.path().join("commit-startup.json");
+        std::fs::write(&next_file, canonical::bytes(&config).unwrap()).unwrap();
+        let proposed = Loaded::read(&next_file).unwrap();
+        let mut plan = maintenance_plan(&proposed);
+        plan.after_configuration.sha256 = Digest::from_bytes([91; 32]);
+        let request = id();
+        m::prepare(&plan, &current, &proposed, &request).unwrap();
+        let plan_file = dir.path().join("commit-plan.json");
+        std::fs::write(&plan_file, canonical::bytes(&plan).unwrap()).unwrap();
+        let child = std::process::Command::new(std::env::current_exe().unwrap())
+            .args([
+                "--ignored",
+                "--exact",
+                "binding_commit_crash_child",
+                "--nocapture",
+            ])
+            .env("RX_BINDING_COMMIT_PLAN", &plan_file)
+            .env("RX_BINDING_COMMIT_CURRENT", &file)
+            .env("RX_BINDING_COMMIT_PROPOSED", &next_file)
+            .env("RX_BINDING_COMMIT_REQUEST", request.as_str())
+            .env("RX_BINDING_COMMIT_POINT", boundary)
+            .output()
+            .unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::process::ExitStatusExt;
+            assert_eq!(
+                child.status.signal(),
+                Some(9),
+                "{boundary}: {}",
+                String::from_utf8_lossy(&child.stderr)
+            );
+        }
+        let pending = m::lookup_commit(&current, &request).unwrap().unwrap();
+        assert!(!pending.record.activation_authorized);
+        assert!(m::cancel(&current, &request).is_err());
+        assert!(
+            service::run_with(
+                Loaded::read(&next_file).unwrap(),
+                clock.clone(),
+                service::Builtin,
+                async {}
+            )
+            .await
+            .is_err()
+        );
+        if boundary == "NATIVE_READY" {
+            let marker = current
+                .config
+                .data_directory
+                .join(pending.record.native_generation.as_str())
+                .join("generation.json");
+            let original = std::fs::read(&marker).unwrap();
+            let mut changed = original.clone();
+            changed.push(b'\n');
+            std::fs::write(&marker, &changed).unwrap();
+            assert!(m::commit(&plan, &current, &proposed, &request).is_err());
+            std::fs::write(&marker, original).unwrap(); // Restore this deliberately corrupted private test artifact.
+        }
+        let committed = m::commit(&plan, &current, &proposed, &request).unwrap();
+        assert_eq!(
+            serde_json::to_value(&committed).unwrap()["phase"],
+            "COMMITTED"
+        );
+        assert_eq!(
+            canonical::bytes(&committed).unwrap(),
+            canonical::bytes(&m::commit(&plan, &current, &proposed, &request).unwrap()).unwrap()
+        );
+        let mut wrong = plan.clone();
+        wrong.process_review_digest = Digest::from_bytes([77; 32]);
+        assert!(m::commit(&wrong, &current, &proposed, &request).is_err());
+        assert!(m::cancel(&proposed, &request).is_err());
+        let new: serde_json::Value = serde_json::from_slice(
+            &std::fs::read(current.config.data_directory.join("installation.json")).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(original["delivery_journal"], new["delivery_journal"]);
+        assert_eq!(original["evidence_journal"], new["evidence_journal"]);
+        assert_eq!(
+            std::fs::read(current.config.data_directory.join("device/device-session")).unwrap(),
+            old_device
+        );
+        assert!(
+            m::lookup_commit(&proposed, &request)
+                .unwrap()
+                .unwrap()
+                .currently_installed
+        );
+        assert!(
+            service::run_with(
+                Loaded::read(&file).unwrap(),
+                clock.clone(),
+                service::Builtin,
+                async {}
+            )
+            .await
+            .is_err()
+        );
+        let (stop, signal) = tokio::sync::oneshot::channel();
+        let task = tokio::spawn(service::run_with(
+            Loaded::read(&next_file).unwrap(),
+            clock.clone(),
+            service::Builtin,
+            async {
+                let _ = signal.await;
+            },
+        ));
+        let ready = status(
+            &current.config.runtime_directory.join("host-status.json"),
+            "SOFTWARE_READY_UNARMED",
+        )
+        .await;
+        assert_eq!(ready["qualification_or_arm_restored"], false);
+        stop.send(()).unwrap();
+        task.await.unwrap().unwrap();
+        let native = FileDevice::open(
+            current.config.data_directory.join("test-passive-support"),
+            clock.clone(),
+        )
+        .unwrap();
+        let host = Host::open(
+            current.config.data_directory.join("host.db"),
+            native,
+            clock.clone(),
+            proposed.bindings.clone(),
+        )
+        .unwrap();
+        let caller = Caller {
+            peer: proposed.bindings[0].platform.clone(),
+            session: id(),
+        };
+        host.bind_platform(caller.clone()).unwrap();
+        let scopes = proposed.bindings[0]
+            .scope_ids
+            .iter()
+            .cloned()
+            .map(|s| (s, Counter(2)))
+            .collect();
+        assert!(
+            host.arm(
+                &caller,
+                id(),
+                &proposed.bindings[0].cell,
+                Counter(2),
+                &scopes,
+                &Default::default()
+            )
+            .is_err()
+        );
+    }
+}
+
+#[cfg(all(unix, feature = "test-harness"))]
+#[test]
+#[ignore = "owned child killed by the binding commit recovery test"]
+fn binding_commit_crash_child() {
+    let plan = rx_package::policy::read(std::path::Path::new(
+        &std::env::var("RX_BINDING_COMMIT_PLAN").unwrap(),
+    ))
+    .unwrap();
+    let current = Loaded::read(std::path::Path::new(
+        &std::env::var("RX_BINDING_COMMIT_CURRENT").unwrap(),
+    ))
+    .unwrap();
+    let proposed = Loaded::read(std::path::Path::new(
+        &std::env::var("RX_BINDING_COMMIT_PROPOSED").unwrap(),
+    ))
+    .unwrap();
+    let request = Id::new(std::env::var("RX_BINDING_COMMIT_REQUEST").unwrap()).unwrap();
+    let point = std::env::var("RX_BINDING_COMMIT_POINT").unwrap();
+    service::maintenance::commit_with_boundary(&plan, &current, &proposed, &request, |boundary| {
+        if boundary == point {
+            rustix::process::kill_process(rustix::process::getpid(), rustix::process::Signal::KILL)
+                .unwrap();
+        }
+        Ok(())
+    })
+    .unwrap();
+    panic!("requested kill boundary not reached");
+}
