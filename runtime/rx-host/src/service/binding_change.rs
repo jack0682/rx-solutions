@@ -23,6 +23,28 @@ pub struct Inspection {
     pub activation_authorized: bool,
     pub native_processes_started: Counter,
 }
+fn signed_package(backend: &Backend) -> Option<(&std::path::Path, Digest)> {
+    match backend {
+        Backend::JtcPackage {
+            directory,
+            manifest_digest,
+            ..
+        }
+        | Backend::MelsecPackage {
+            directory,
+            manifest_digest,
+            ..
+        } => Some((directory, *manifest_digest)),
+        #[cfg(unix)]
+        Backend::PythonSkillPackage {
+            directory,
+            manifest_digest,
+            ..
+        } => Some((directory, *manifest_digest)),
+        _ => None,
+    }
+}
+
 pub fn inspect(plan: &Plan, current: &Loaded, proposed: &Loaded) -> Result<Inspection> {
     plan.validate()?;
     let host = &current.config.host;
@@ -116,46 +138,35 @@ pub fn inspect(plan: &Plan, current: &Loaded, proposed: &Loaded) -> Result<Inspe
         if target.device_packages.len() != 1 {
             issues.push("Current release supports one device package per native Host".into());
         }
-        match &proposed.config.backend {
-            Backend::JtcPackage {
+        if let Some((directory, manifest_digest)) = signed_package(&proposed.config.backend) {
+            let signature = rx_package::directory::read_relative_file(
                 directory,
-                manifest_digest,
-                ..
-            }
-            | Backend::MelsecPackage {
+                &rx_package::PackagePath::new("manifest.sig.json")?,
+                4096,
+            )?;
+            let raw = rx_package::directory::read_relative_file(
                 directory,
-                manifest_digest,
-                ..
-            } => {
-                let signature = rx_package::directory::read_relative_file(
-                    directory,
-                    &rx_package::PackagePath::new("manifest.sig.json")?,
-                    4096,
-                )?;
-                let raw = rx_package::directory::read_relative_file(
-                    directory,
-                    &rx_package::PackagePath::new("device-catalog.json")?,
-                    131_072,
-                )?;
-                let declaration: rx_process_contract::device_catalog::Catalog =
-                    canonical::decode_json(&raw)?;
-                declaration.validate()?;
-                let catalog = canonical::bytes(&declaration)?;
-                if target.device_packages.iter().all(|p| {
-                    p.manifest != *manifest_digest
-                        || p.signature != rx_package::content_digest(&signature)
-                        || p.catalog.sha256 != rx_package::content_digest(&catalog)
-                        || p.catalog.size_bytes.0 != catalog.len() as u64
-                        || p.catalog.schema_id != declaration.schema
-                }) {
-                    issues.push(
-                        "Selected signed device package/catalog differs from the process proposal"
-                            .into(),
-                    );
-                }
+                &rx_package::PackagePath::new("device-catalog.json")?,
+                131_072,
+            )?;
+            let declaration: rx_process_contract::device_catalog::Catalog =
+                canonical::decode_json(&raw)?;
+            declaration.validate()?;
+            let catalog = canonical::bytes(&declaration)?;
+            if target.device_packages.iter().all(|p| {
+                p.manifest != manifest_digest
+                    || p.signature != rx_package::content_digest(&signature)
+                    || p.catalog.sha256 != rx_package::content_digest(&catalog)
+                    || p.catalog.size_bytes.0 != catalog.len() as u64
+                    || p.catalog.schema_id != declaration.schema
+            }) {
+                issues.push(
+                    "Selected signed device package/catalog differs from the process proposal"
+                        .into(),
+                );
             }
-            _ => issues
-                .push("Approved device source requires a signed native package backend".into()),
+        } else {
+            issues.push("Approved device source requires a signed native package backend".into());
         }
     } else if canonical::bytes(&current.config.backend)?
         != canonical::bytes(&proposed.config.backend)?
