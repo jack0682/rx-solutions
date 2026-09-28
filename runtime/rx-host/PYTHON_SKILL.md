@@ -60,5 +60,6 @@ The package retains the environment manifest and references program/input assets
 it does not transport/install the full SDK environment. That environment must be
 placed at its declared path and match its digest before Host use. Package tests
 use metadata-only fixtures and establish signing, reassembly, target/input rejection
-and current-trust loading, not installed P/Host Python execution. P intake and
-end-to-end deployment of these signed Python packages remain to be exercised.
+and current-trust loading, not installed P/Host Python execution. Actual P intake and software-report acceptance are now recorded separately.
+Independent approval and end-to-end deployment/dispatch of these signed Python
+packages remain incomplete.

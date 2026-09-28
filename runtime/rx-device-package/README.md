@@ -90,7 +90,8 @@ Host registration. The target must be the environment's Linux architecture and
 the recipe version must equal the skill version. Use the existing request, seal,
 verify, inspect and review commands afterward. The generated common operation
 catalog can be consumed by the existing P package-intake format; live P intake
-of this new package family has not yet been demonstrated.
+and software-report acceptance have been exercised with a freshly installed test
+authority. Independent approval, activation and Python dispatch remain separate.
 
 The signed originals are reassembled by the verifier: changing operations, profile,
 environment, permissions or referenced assets cannot be hidden behind a fresh valid
