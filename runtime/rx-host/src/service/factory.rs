@@ -6,13 +6,15 @@ use std::path::Path;
 
 pub struct Builtin;
 pub enum BuiltinAdapter<C: Clock> {
+    #[cfg(unix)]
+    Python(Box<crate::python_skill::PythonSkill<crate::simulation::FileDevice<C>, C>>),
     File(crate::simulation::FileDevice<C>),
     Dynamixel(Box<crate::dynamixel::Dynamixel<C>>),
     Melsec(Box<crate::melsec::Melsec<C>>),
 }
 macro_rules! delegate {
     ($self:ident,$method:ident($($arg:expr),*)) => {
-        match $self {Self::File(v)=>v.$method($($arg),*),Self::Melsec(v)=>v.$method($($arg),*),Self::Dynamixel(v)=>v.$method($($arg),*)}
+        match $self {#[cfg(unix)] Self::Python(v)=>v.$method($($arg),*), Self::File(v)=>v.$method($($arg),*),Self::Melsec(v)=>v.$method($($arg),*),Self::Dynamixel(v)=>v.$method($($arg),*)}
     };
 }
 impl<C: Clock> NativeAdapter for BuiltinAdapter<C> {
@@ -65,10 +67,17 @@ impl<C: Clock> NativeAdapter for BuiltinAdapter<C> {
         delegate!(self, lookup(op, invocation))
     }
 }
-impl<C: Clock + 'static> AdapterFactory<C> for Builtin {
+impl<C: Clock + Clone + 'static> AdapterFactory<C> for Builtin {
     type Adapter = BuiltinAdapter<C>;
     fn validate(&self, backend: &Backend, bindings: &[Binding]) -> Result<()> {
         match backend {
+            #[cfg(unix)]
+            Backend::PythonSkillSimulation { .. } => {
+                let (_, registration) = python_skill::load(backend)?;
+                registration.validate_bindings(bindings)?;
+                python_skill::release()?;
+                Ok(())
+            }
             Backend::FileSimulation
                 if bindings
                     .iter()
@@ -94,6 +103,15 @@ impl<C: Clock + 'static> AdapterFactory<C> for Builtin {
         data: &Path,
     ) -> Result<Option<NativeInstallation>> {
         match backend {
+            #[cfg(unix)]
+            Backend::PythonSkillSimulation { .. } => {
+                let (registration_digest, registration) = python_skill::load(backend)?;
+                std::fs::create_dir(data.join("native-python"))?;
+                Ok(Some(NativeInstallation::PythonSkill {
+                    registration_digest,
+                    environment_digest: registration.environment_digest,
+                }))
+            }
             Backend::FileSimulation => Ok(None),
             Backend::ValidatedDriver { .. } => Ok(Some(NativeInstallation::Dynamixel {
                 identity: crate::dynamixel::initialize(&data.join("native-dynamixel"))?,
@@ -122,6 +140,20 @@ impl<C: Clock + 'static> AdapterFactory<C> for Builtin {
     }
     fn open_passive(&self, backend: &Backend, data: &Path, clock: C) -> Result<Self::Adapter> {
         match backend {
+            #[cfg(unix)]
+            Backend::PythonSkillSimulation { .. } => {
+                let (digest, registration) = python_skill::load(backend)?;
+                let installation: Installation = canonical::decode_json(&std::fs::read(data.join("installation.json"))?)?;
+                let Some(NativeInstallation::PythonSkill { registration_digest, environment_digest }) = installation.native else {
+                    return Err("Python native installation identity missing".into());
+                };
+                if digest != registration_digest || registration.environment_digest != environment_digest || registration.installation != installation.installation {
+                    return Err("Python registration changed after Host initialization".into());
+                }
+                let support=crate::simulation::FileDevice::open(data.join("python-support"),clock.clone())?;
+                Ok(BuiltinAdapter::Python(Box::new(crate::python_skill::PythonSkill::open(
+                    python_skill::release()?,registration.program(),data.join("native-python"),support,clock)?)))
+            }
             Backend::JtcPackage { .. } => Err("JTC_CONTROL_PROVIDER_NOT_CONFIGURED: validated package cannot supply controller authority; no ROS process started".into()),
             Backend::ValidatedDriver { .. } => {
                 let installation: Installation = canonical::decode_json(&std::fs::read(data.join("installation.json"))?)?;

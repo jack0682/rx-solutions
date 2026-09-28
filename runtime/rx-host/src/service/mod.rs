@@ -6,6 +6,8 @@ mod factory;
 mod guarded_status;
 pub mod jtc_package;
 pub mod maintenance;
+#[cfg(unix)]
+pub mod python_skill;
 use crate::{Binding, Clock, Environment, Host, NativeAdapter};
 use config::{Backend, Loaded};
 pub use factory::{Builtin, BuiltinAdapter};
@@ -78,6 +80,11 @@ impl<N: NativeAdapter, C: Clock> Drop for AdmissionOwner<N, C> {
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "SCREAMING_SNAKE_CASE", deny_unknown_fields)]
 pub enum NativeInstallation {
+    #[cfg(unix)]
+    PythonSkill {
+        registration_digest: Digest,
+        environment_digest: Digest,
+    },
     Dynamixel {
         identity: crate::dynamixel::Identity,
     },
@@ -265,7 +272,12 @@ pub fn initialize_with<C: Clock + Clone + 'static, F: AdapterFactory<C>>(
                 native,
             })?,
         )?;
-        for dir in ["native-melsec", "native-jtc", "native-dynamixel"] {
+        for dir in [
+            "native-melsec",
+            "native-jtc",
+            "native-dynamixel",
+            "native-python",
+        ] {
             if stage.join(dir).exists() {
                 fs::File::open(stage.join(dir))?.sync_all()?;
             }
@@ -280,6 +292,14 @@ pub fn initialize_with<C: Clock + Clone + 'static, F: AdapterFactory<C>>(
     result
 }
 fn validate_installation_material(loaded: &Loaded) -> Result<()> {
+    #[cfg(unix)]
+    if let Backend::PythonSkillSimulation { .. } = &loaded.config.backend {
+        let (_, registration) = python_skill::load(&loaded.config.backend)?;
+        if registration.installation != loaded.config.installation {
+            return Err("Python skill installation differs from Host".into());
+        }
+        registration.validate_bindings(&loaded.bindings)?;
+    }
     if let Backend::JtcPackage { .. } = &loaded.config.backend {
         let device = jtc_package::load(&loaded.config.backend)?;
         if device.profile.installation != loaded.config.installation {

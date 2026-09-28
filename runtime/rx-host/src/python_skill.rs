@@ -77,6 +77,32 @@ fn journal_bytes(root: &Path, relative: &str) -> Result<Vec<u8>> {
     )
     .map_err(unknown)
 }
+pub fn validate_program(program: &Program) -> Result<()> {
+    program.intent.normalized().map_err(unknown)?;
+    if program.intent.execution_timeout_ms.0 > 60000 {
+        return Err(HostError::Guard);
+    }
+    let Body::Program(goal) = &program.intent.body else {
+        return Err(HostError::Guard);
+    };
+    let manifest = pinned(
+        &program.environment.join("environment.json"),
+        goal.program.sha256,
+    )?;
+    let value: Value = canonical::decode_json(&manifest).map_err(unknown)?;
+    if value["environment_digest"] != program.environment_digest.to_string()
+        || goal.program.size_bytes.0 != manifest.len() as u64
+    {
+        return Err(HostError::Guard);
+    }
+    let input = canonical::bytes(&program.input).map_err(unknown)?;
+    if rx_package::content_digest(&input) != goal.parameter_set.sha256
+        || input.len() as u64 != goal.parameter_set.size_bytes.0
+    {
+        return Err(HostError::Guard);
+    }
+    Ok(())
+}
 impl<N: NativeAdapter, C: Clock> PythonSkill<N, C> {
     pub fn open(
         release: ReleasePython,
@@ -96,25 +122,7 @@ impl<N: NativeAdapter, C: Clock> PythonSkill<N, C> {
                     .into(),
             ));
         }
-        let Body::Program(goal) = &program.intent.body else {
-            return Err(HostError::Guard);
-        };
-        let manifest = pinned(
-            &program.environment.join("environment.json"),
-            goal.program.sha256,
-        )?;
-        let value: Value = canonical::decode_json(&manifest).map_err(unknown)?;
-        if value["environment_digest"] != program.environment_digest.to_string()
-            || goal.program.size_bytes.0 != manifest.len() as u64
-        {
-            return Err(HostError::Guard);
-        }
-        let input = canonical::bytes(&program.input).map_err(unknown)?;
-        if rx_package::content_digest(&input) != goal.parameter_set.sha256
-            || input.len() as u64 != goal.parameter_set.size_bytes.0
-        {
-            return Err(HostError::Guard);
-        }
+        validate_program(&program)?;
         pinned(&release.executable, release.executable_digest)?;
         pinned(&release.runner, release.runner_digest)?;
         pinned(
@@ -269,6 +277,18 @@ impl<N: NativeAdapter, C: Clock> PythonSkill<N, C> {
     }
 }
 impl<N: NativeAdapter, C: Clock> NativeAdapter for PythonSkill<N, C> {
+    fn prepare_shutdown(&mut self, resources: &[Name]) -> Result<()> {
+        if !self.uncertain.is_empty() {
+            return Err(HostError::Guard);
+        }
+        self.support.prepare_shutdown(resources)
+    }
+    fn shutdown_snapshot(&self, resources: &[Name]) -> Result<NativeShutdown> {
+        if !self.uncertain.is_empty() {
+            return Err(HostError::Guard);
+        }
+        self.support.shutdown_snapshot(resources)
+    }
     fn environment(&self) -> Environment {
         self.support.environment()
     }

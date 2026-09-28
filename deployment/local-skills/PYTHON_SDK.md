@@ -71,7 +71,7 @@ refused before an SDK effect. The Python helper also rejects expired dispatch.
 
 This adapter currently accepts SIMULATION support only. RETURNED/`rx.python.returned.v1`
 records Python return, not device completion. Restarted adapter custody remains
-blocked even when lookup recovers an output. Service Backend/AdapterFactory wiring,
-server registration, typed output/observation delivery and operator reconciliation
-are still incomplete. These Host gate tests must not be described as installed,
+blocked even when lookup recovers an output. The [product service backend](../../runtime/rx-host/PYTHON_SKILL.md) now loads a
+pinned registration passively. Server registration commands, typed output/observation
+delivery and operator reconciliation are still incomplete. These Host gate tests must not be described as installed,
 registered P/Host/Executor Python-skill execution or physical qualification.
