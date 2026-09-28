@@ -110,3 +110,26 @@ install that exact package and executes both operation leaves, including StartRu
 receipt-loss recovery without duplicate native effects. This establishes the
 composed-process path in FILE_SIMULATION; the CLI commands above still do not
 automate the separate signing/review/activation stages.
+
+## Compose a reviewed device package binding
+
+For a newly imported device/Python package, the existing P review and binding
+impact-review flow produces a plan. Save that returned plan JSON and select it:
+
+```sh
+rx runtime --connection /absolute/path/engineer.json steps --cell CELL_ID --device-plan reviewed-plan.json
+rx runtime --connection /absolute/path/engineer.json compose transfer --cell CELL_ID \
+  --step skill/python --device-plan reviewed-plan.json --request-id CANONICAL_UUID
+```
+
+The CLI retains the plan ID, revision and digest with the original composition
+request. Recovery does not need to reread the plan file and cannot silently adopt
+a different revision. P verifies current approval, affected cell scope and plan
+freshness, then exports device provenance in `rx.process-compile-input.v2`.
+Existing compositions without device plans retain their original request format.
+
+The selected binding may be reviewed but not yet installed on a Host. DRAFT_READY_FOR_COMPILER
+still does not authorize activation or execution. Separate test-account approval,
+impact-reviewed Python binding selection and installed CLI composition have been
+exercised through live P APIs; Host deployment and complete Python dispatch remain
+separate acceptance work.

@@ -21,10 +21,10 @@ def enc(v):return json.dumps(v,sort_keys=True,separators=(',',':')).encode()
 def ref(raw,s):return {'sha256':hashlib.sha256(raw).hexdigest(),'size_bytes':str(len(raw)),'schema_id':s}
 env=(p/'environment/environment.json').read_bytes();record=json.loads(env);inputs={'value':5};raw=enc(inputs)
 assets=p/'assets';assets.mkdir();(assets/hashlib.sha256(env).hexdigest()).write_bytes(env);(assets/hashlib.sha256(raw).hexdigest()).write_bytes(raw)
-intent={'kind':'FINITE_ACTION','target':'device/python-sdk','profile_digest':'00'*32,'site_config_digest':'11'*32,'calibration_digests':[],
- 'resource_set':['resource/python-sdk'],'execution_timeout_ms':'2000','prepare_validity_ms':'1000','completion_rule':'rx.python.returned.v1','cancel_rule':'python/unknown',
+intent={'kind':'FINITE_ACTION','target':'device/python-sdk','profile_digest':'00'*32,'site_config_digest':'04'*32,'calibration_digests':[],
+ 'resource_set':['controller/sim'],'execution_timeout_ms':'2000','prepare_validity_ms':'1000','completion_rule':'rx.python.returned.v1','cancel_rule':'python/unknown',
  'body':{'program':{'program':ref(env,'rx.python-environment.v1'),'parameter_set':ref(raw,'rx.python-input.v1')}}}
-registration={'schema':'rx.python-skill-registration.v1','installation':sys.argv[1],'host':'host/python','cell':'cell/a',
+registration={'schema':'rx.python-skill-registration.v1','installation':sys.argv[1],'host':'host/sim','cell':'cell/a',
  'environment':'/fixture/environment','environment_digest':record['environment_digest'],'input':inputs,'intent':intent}
 (p/'registration.json').write_bytes(enc(registration))
 recipe={'schema':'rx.device-package-recipe.v1','package':'test/python-sdk','version':'1.0.0','publisher':'test',
