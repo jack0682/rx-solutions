@@ -130,3 +130,10 @@ independent skills and a ProcessSource sequence. `rx process add DIRECTORY`,
 `rx process run NAME --input JSON`, `rx process result UUID`, and `rx metrics`
 use the server-owned execution/data-lineage and versioned metric projections.
 The current public rc.2 installer does not contain these new commands.
+
+## Existing runtime integration (unreleased)
+
+The [runtime client](RUNTIME.md) invokes an already approved bound process through
+the existing P/Host/Executor APIs. Its request journal is separate from this
+LOCAL_SIM profile. Dynamic device-skill registration and a one-command runtime
+distribution remain incomplete. The public rc.2 installer does not include it.
