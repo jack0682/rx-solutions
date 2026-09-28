@@ -71,3 +71,34 @@ skill authoring and registration, runtime skill composition/KPIs, P/Host restart
 reconciliation and a supported one-command runtime distribution remain incomplete.
 The public LOCAL_SIM installer and its process/KPI tests do not establish those
 runtime capabilities. No physical equipment qualification is claimed.
+
+## Compose installed steps on the server
+
+Use an Engineer connection for authoring. `steps` reads the existing P binding
+catalog; `compose` stores an ordinary process draft and its selected bindings in
+P, then exports the matched compile input. The process contains one sequence and
+one operation leaf per selected step. Execution contracts remain in the server's
+Step definitions, rather than additional author-written BT nodes.
+
+```sh
+python3 deployment/local-skills/rx runtime --connection /absolute/path/engineer.json \
+  steps --cell CELL_ID
+python3 deployment/local-skills/rx runtime --connection /absolute/path/engineer.json \
+  compose material-transfer --cell CELL_ID \
+  --step REGISTERED_PICK_STEP --step REGISTERED_PLACE_STEP --request-id CANONICAL_UUID
+python3 deployment/local-skills/rx runtime --connection /absolute/path/engineer.json \
+  compose-recover CANONICAL_UUID
+```
+
+The order of `--step` arguments is the execution order. Repeating a step creates
+another distinct operation leaf. Select 1–64 steps already present in the catalog.
+The original request, catalog and generated draft ID remain pinned through reply
+loss; recovering cannot silently change the order or retarget another installation.
+P rechecks the current source/catalog when exporting, even if local receipts exist.
+
+The result is `DRAFT_READY_FOR_COMPILER`, with `execution_authorized: false` and
+`compile_input`. Supply that input to the existing process-package assembly,
+verification/review and activation path. Saving a draft does not replace the
+currently installed process. This command does not yet register new native skill
+implementations, set dynamic arguments, activate a process or provide branch/parallel
+authoring. Those remaining integration steps are not implied by successful export.

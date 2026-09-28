@@ -242,3 +242,67 @@ class RuntimeClient:
         if scope(value["installation"]) != scope(basis["installation"]) or value["binding"]["binding_digest"] != basis["selected"]["binding"]["binding_digest"]:
             raise ValueError("runtime result scope differs")
         return value
+
+    def steps(self, cell):
+        result = self.terminal.get("/api/v1/process-draft/binding-options", cell=cell)
+        if result["cell"] != cell:
+            raise ValueError("P binding catalog cell differs")
+        return result
+
+    def compose(self, request_id, name, cell, steps):
+        if not isinstance(name, str) or not name.strip() or len(name) > 120:
+            raise ValueError("process name must have 1-120 characters")
+        if not isinstance(steps, list) or not 1 <= len(steps) <= 64 or any(not isinstance(s, str) or not s for s in steps):
+            raise ValueError("select 1-64 installed steps in execution order")
+        with self.journal(request_id) as root:
+            intent = {"kind": "COMPOSE", "request_id": request_id, "name": name,
+                      "cell": cell, "steps": steps, "connection": self.terminal.fingerprint}
+            save_new(root / "intent.json", intent)
+            installation = self.catalog()["installation"]
+            basis_file = root / "composition-basis.json"
+            if basis_file.exists():
+                basis = json.loads(basis_file.read_bytes())
+                if scope(installation) != scope(basis["installation"]):
+                    raise ValueError("installation/store changed; composition requests retained")
+            else:
+                catalog = self.steps(cell)
+                available = {v["step"] for v in catalog["candidates"]}
+                missing = sorted(set(steps) - available)
+                if missing:
+                    raise ValueError("installed steps not found: " + ", ".join(missing))
+                basis = {"installation": installation, "catalog": catalog}
+                save_new(basis_file, basis)
+            aliases = ["skill/" + str(i + 1) for i in range(len(steps))]
+            nodes = [{"id": "sequence", "body": {"kind": "SEQUENCE", "children": aliases}}]
+            nodes.extend({"id": alias, "body": {"kind": "OPERATION", "binding": alias}} for alias in aliases)
+            source = {"schema": "rx.process-source.v1", "process": name, "entry": "main",
+                      "flows": [{"id": "main", "root": "sequence", "nodes": nodes}], "conditions": {}}
+            draft_id = str(uuid.uuid5(uuid.UUID(request_id), "rx.runtime-skill.draft"))
+            detail = self.mutation(root, "compose-source", request_id, "/api/v1/process-drafts",
+                {"id": draft_id, "cell": cell, "expected": None, "title": name, "document": source})
+            version = detail["version"]
+            if version["id"] != draft_id or version["cell"] != cell or detail["document"] != source:
+                raise ValueError("P composition receipt differs")
+            if version["validation"]["structurally_valid"] is not True:
+                raise ValueError("P rejected process structure: " + json.dumps(version["validation"]))
+            selections = dict(zip(aliases, steps))
+            bindings = self.mutation(root, "compose-bindings", request_id, "/api/v1/process-draft-bindings",
+                {"draft": draft_id, "cell": cell, "source_revision": version["revision"], "expected": None,
+                 "catalog_digest": basis["catalog"]["catalog_digest"], "selections": selections})
+            if bindings["draft"] != draft_id or bindings["cell"] != cell or bindings["source_revision"] != version["revision"] or bindings["selections"] != selections or bindings["complete"] is not True:
+                raise ValueError("P composition bindings are incomplete or differ")
+            # Export rechecks the current source, catalog and binding revisions in P.
+            # A saved local receipt must never hide a stale server-side composition.
+            compiled = self.terminal.get("/api/v1/process-draft-compile-input", cell=cell, id=draft_id,
+                source_revision=version["revision"], binding_revision=bindings["revision"])
+            if compiled["draft"] != draft_id or compiled["cell"] != cell or compiled["source"] != source or compiled["source_revision"] != version["revision"] or compiled["binding_revision"] != bindings["revision"] or compiled["catalog_digest"] != basis["catalog"]["catalog_digest"] or set(compiled["bindings"]) != set(aliases):
+                raise ValueError("P composition export differs")
+            return {"status": "DRAFT_READY_FOR_COMPILER", "request_id": request_id, "draft_id": draft_id,
+                    "execution_authorized": False, "compile_input": compiled}
+
+    def recover_composition(self, request_id):
+        request_id = str(uuid.UUID(request_id))
+        intent = json.loads((self.state / request_id / "intent.json").read_bytes())
+        if intent.get("kind") != "COMPOSE":
+            raise ValueError("request is not a composition")
+        return self.compose(request_id, intent["name"], intent["cell"], intent["steps"])
