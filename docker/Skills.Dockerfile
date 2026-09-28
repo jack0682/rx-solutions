@@ -10,7 +10,7 @@ RUN --mount=type=cache,id=rx-skills-registry,target=/usr/local/cargo/registry \
 
 FROM python:3.12-slim-bookworm@sha256:392307d22300de8b5986851a12d9176dfc0fc073e65bf6523ebd7dcbeb23564e
 LABEL org.opencontainers.image.title="RX local simulation skills" \
-      org.opencontainers.image.version="0.3.0-rc.1"
+      org.opencontainers.image.version="0.3.0-rc.2"
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 RUN mkdir -p /data /opt/rx /config && chown 10001:10001 /data
 COPY --from=build /rx-skill-server /usr/local/bin/rx-skill-server

@@ -1,4 +1,4 @@
-# RX local skills — 0.3.0-rc.1 developer preview
+# RX local skills — 0.3.0-rc.2 developer preview
 
 Install a local RX service, register a Python skill and execute it without building
 Rust or ROS. The server records immutable skill versions, execution identities,
@@ -19,7 +19,7 @@ macOS can use the same Linux containers. No administrator access or global Pytho
 package installation is performed by this installer.
 
 ```sh
-curl -fsSL https://github.com/jack0682/rx-solutions/releases/download/v0.3.0-rc.1/install.sh | sh
+curl -fsSL https://github.com/jack0682/rx-solutions/releases/download/v0.3.0-rc.2/install.sh | sh
 ~/.local/bin/rx skill add --example add
 ~/.local/bin/rx run add --input '{"a":2,"b":3}'
 ~/.local/bin/rx ui
@@ -93,6 +93,16 @@ Local credentials, installation identity and saved client requests are stored in
 journal are in distinct installation-labelled Docker volumes. Runtime files are
 under `~/.local/lib/rx-skills/VERSION/ARCH`. Keep these together when backing up an
 installation. `RX_SKILLS_HOME` selects a separate installation directory.
+
+## Docker engine portability
+
+Distribution rc.2 fixes rc.1 installation across Docker storage engines. Classic
+Docker can report the config digest while containerd reports an OCI manifest or
+index digest for the same image. Both the build-reported and loaded IDs must be
+verified objects in the checksum-bound archive, linked to the same Linux image
+config and architecture. Unknown IDs and changed descriptor bytes are refused.
+The underlying RX server component remains 0.3.0-rc.1; this is an installer fix.
+The unusable rc.1 installer was withdrawn without rewriting its source tag.
 
 ## Release and validation
 
