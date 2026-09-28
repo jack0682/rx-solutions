@@ -176,9 +176,36 @@ def main():
     p = processes.add_parser("result"); p.add_argument("id")
     p = processes.add_parser("run"); p.add_argument("name"); p.add_argument("--version", default="1.0.0"); p.add_argument("--input", default="{}"); p.add_argument("--request-id"); p.add_argument("--no-wait", action="store_true")
     p = sub.add_parser("metrics"); p.add_argument("--since-ms", type=int); p.add_argument("--until-ms", type=int)
+    p = sub.add_parser("runtime", help="Use an existing registered-terminal P/Host/Executor installation")
+    p.add_argument("--connection", type=Path, required=True)
+    p.add_argument("--state-dir", type=Path, default=Path.home() / ".local/share/rx-runtime-client")
+    runtime = p.add_subparsers(dest="action", required=True)
+    runtime.add_parser("skills")
+    p = runtime.add_parser("run"); p.add_argument("name"); p.add_argument("--cell", required=True); p.add_argument("--count", type=int, default=1); p.add_argument("--request-id"); p.add_argument("--wait-seconds", type=int, default=60)
+    p = runtime.add_parser("recover"); p.add_argument("id"); p.add_argument("--wait-seconds", type=int, default=60)
+    for command in ("result", "inspect"):
+        p = runtime.add_parser(command); p.add_argument("id")
     for name in ("runs", "status", "up", "down", "logs", "token", "ui"):
         sub.add_parser(name)
     args = parser.parse_args()
+    if args.command == "runtime":
+        from runtime_client import RuntimeClient, Terminal
+        try:
+            client = RuntimeClient(Terminal(args.connection.absolute()), args.state_dir.absolute())
+            if args.action == "skills": result = client.catalog()
+            elif args.action == "run":
+                request_id = str(uuid.UUID(args.request_id)) if args.request_id else str(uuid.uuid4())
+                print("Runtime request: " + request_id, file=sys.stderr, flush=True)
+                result = client.invoke(request_id, args.name, args.cell, args.count, args.wait_seconds)
+            elif args.action == "recover": result = client.recover(args.id, args.wait_seconds)
+            elif args.action == "inspect": result = client.inspect(args.id)
+            else: result = client.result(args.id)
+            print(json.dumps(result, indent=2))
+            if args.action in ("run", "recover") and result["result"]["run"]["value"]["state"] != "COMPLETED": sys.exit(2)
+        except (ValueError, OSError) as exc:
+            print("RX: " + str(exc) + ". Runtime requests remain under " + str(args.state_dir.absolute()), file=sys.stderr)
+            sys.exit(1)
+        return
     if args.command == "install":
         if not 1024 <= args.port <= 65535: raise ValueError("port must be 1024..65535")
         install(args); return
