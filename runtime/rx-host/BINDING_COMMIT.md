@@ -45,6 +45,7 @@ FILE_SIMULATION, not an installed signed-Python-package swap or a P deployment p
 
 Compatibility: this extends internal maintenance records with COMMITTING/COMMITTED
 states and a native-generation descriptor field. Use this build for recovery;
-older binaries are not supported after these records are written. The Host/P wire
-SDK is unchanged here. P still blocks Host replacement until its fresh-result
+older binaries are not supported after these records are written. The local commit uses internal records. The optional Host configuration binding
+now uses source revision 2 to report current-boot commit metadata; callers must
+negotiate that exact binding hash. P still blocks Host replacement until its fresh-result
 confirmation contract is implemented; do not remove that guard as a shortcut.
