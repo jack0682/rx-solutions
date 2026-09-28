@@ -85,6 +85,8 @@ assert physical resource release. History is bounded to 128 skill versions and
 same version reuses the same installation. Other versions require an explicit
 migration; no automatic database adoption or reset occurs. This preview does not
 provide an automated uninstaller or a destructive reset command.
+Missing installation volumes, a missing/truncated database, or absent database
+installation metadata stop startup. They are never treated as a fresh installation.
 
 Local credentials, installation identity and saved client requests are stored in
 `~/.local/share/rx-skills`; the authoritative server records and worker receipt

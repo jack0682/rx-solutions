@@ -85,7 +85,7 @@ def install(args):
     save(HOME / "worker-token", secrets.token_hex(32))
     c = {"schema": "rx.local-sim.installation.v1", "version": release["version"],
          "image": actual, "name": name, "port": args.port,
-         "url": "http://127.0.0.1:" + str(args.port), "profile": "LOCAL_SIM"}
+         "url": "http://127.0.0.1:" + str(args.port), "profile": "LOCAL_SIM", "initialized": False}
     save(HOME / "installation.json", c)
     up()
     print("Installed RX " + release["version"] + " (LOCAL_SIM).")
@@ -102,6 +102,11 @@ def exists(kind, name):
 def up():
     c = config()
     n = c["name"]
+    if c.get("initialized", True):
+        missing = [n + "-" + role + "-" + kind for role in ("server", "worker")
+                   for kind in ("data", "config") if not exists("volume", n + "-" + role + "-" + kind)]
+        if missing:
+            raise ValueError("existing installation volume missing; automatic recreation refused: " + ", ".join(missing))
     if not exists("network", n):
         docker("network", "create", "--internal", "--label", "rx.installation=" + n, n)
     if not exists("network", n + "-web"):
@@ -145,6 +150,9 @@ def up():
                "-v", n + "-worker-config:/config:ro", c["image"],
                "python3", "/opt/rx/worker.py", "http://rx-server:8080", "/config/worker-token", "/data")
     docker("start", worker)
+    if not c.get("initialized", True):
+        c["initialized"] = True
+        save(HOME / "installation.json", c)
 
 
 def main():

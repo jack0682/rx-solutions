@@ -125,6 +125,25 @@ def main():
                 assert item["HostConfig"]["ReadonlyRootfs"] and not item["HostConfig"]["Devices"]
                 assert all(m["Destination"] != "/var/run/docker.sock" for m in item["Mounts"])
             checks.append("non-root-readonly-no-devices-no-docker-socket")
+            call("down")
+            def data_command(code):
+                return subprocess.run(["docker", "run", "--rm", "--network", "none", "--read-only",
+                                       "-v", c["name"] + "-server-data:/data", c["image"], "python3", "-c", code],
+                                      check=True, capture_output=True, text=True)
+            data_command("from pathlib import Path; Path('/data/skills.db').rename('/data/preserved.db')")
+            refused = subprocess.run(["docker", "start", "--attach", c["name"] + "-server"], capture_output=True, text=True, timeout=20)
+            assert refused.returncode != 0 and "database missing" in refused.stderr, refused
+            data_command("from pathlib import Path; assert not Path('/data/skills.db').exists(); Path('/data/preserved.db').rename('/data/skills.db')")
+            call("up")
+            assert json.loads(call("result", request_id)) == original
+            checks.append("lost-database-refused-and-preserved-original-restored")
+            call("down")
+            subprocess.run(["docker", "rm", c["name"] + "-server"], check=True, capture_output=True)
+            subprocess.run(["docker", "volume", "rm", c["name"] + "-server-data"], check=True, capture_output=True)
+            missing = subprocess.run([*cli, "up"], env=env, capture_output=True, text=True, timeout=20)
+            assert missing.returncode == 1 and "volume missing" in missing.stderr, missing
+            assert subprocess.run(["docker", "volume", "inspect", c["name"] + "-server-data"], capture_output=True).returncode != 0
+            checks.append("lost-volume-refused-without-recreating-ledger")
             result = {"status": "PASS", "checks": checks, "release": json.loads((args.bundle / "release.json").read_text()),
                       "normal_result": original, "physical_execution": "NOT_PERFORMED"}
             (args.evidence / "result.json").write_text(json.dumps(result, indent=2) + "\n")
