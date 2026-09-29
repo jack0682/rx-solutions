@@ -31,6 +31,22 @@ pub struct Process<C: Clock> {
 fn invalid(e: impl std::fmt::Display) -> HostError {
     HostError::NativeUnknown(e.to_string())
 }
+/// Spawn a program this process has just written. Another thread's fork can hold the written
+/// copy open for writing until that child execs, and exec then fails with ETXTBSY. Nothing has
+/// run when that happens, so a bounded retry is safe; any other error returns at once.
+#[cfg(unix)]
+fn spawn_written(command: &mut Command) -> std::io::Result<Child> {
+    let mut attempt = 0;
+    loop {
+        match command.spawn() {
+            Err(e) if e.kind() == std::io::ErrorKind::ExecutableFileBusy && attempt < 20 => {
+                attempt += 1;
+                std::thread::sleep(Duration::from_millis(5 * attempt));
+            }
+            result => return result,
+        }
+    }
+}
 #[cfg(unix)]
 fn nonblocking(fd: &impl std::os::fd::AsFd) -> Result<()> {
     let flags = rustix::fs::fcntl_getfl(fd).map_err(invalid)?;
@@ -128,15 +144,16 @@ impl<C: Clock> Process<C> {
             .map_err(invalid)?;
         let cfg = directory.path().join("configuration.json");
         std::fs::write(&cfg, canonical::bytes(config).map_err(invalid)?).map_err(invalid)?;
-        let mut child = Command::new(&binary)
-            .arg(&cfg)
-            .env_clear()
-            .envs(&executable.environment)
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::null())
-            .spawn()
-            .map_err(invalid)?;
+        let mut child = spawn_written(
+            Command::new(&binary)
+                .arg(&cfg)
+                .env_clear()
+                .envs(&executable.environment)
+                .stdin(Stdio::piped())
+                .stdout(Stdio::piped())
+                .stderr(Stdio::null()),
+        )
+        .map_err(invalid)?;
         let input = child.stdin.take().ok_or_else(|| invalid("bridge stdin"))?;
         let output = child
             .stdout
@@ -312,5 +329,34 @@ impl<C: Clock> Drop for Process<C> {
                 drop(directory);
             });
         }
+    }
+}
+#[cfg(all(test, target_os = "linux"))]
+mod tests {
+    use super::*;
+    use std::os::unix::fs::PermissionsExt;
+    #[test]
+    fn a_written_program_held_open_by_another_writer_is_spawned_once_the_writer_closes() {
+        let dir = tempfile::tempdir().expect("temporary directory");
+        let path = dir.path().join("program");
+        std::fs::write(&path, b"#!/bin/sh\nexit 0\n").expect("program written");
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o700))
+            .expect("program mode");
+        // A concurrent fork leaves exactly this behind: a writer on the file exec refuses.
+        let writer = std::fs::OpenOptions::new()
+            .write(true)
+            .open(&path)
+            .expect("writer");
+        assert_eq!(
+            Command::new(&path).spawn().map(|_| ()).unwrap_err().kind(),
+            std::io::ErrorKind::ExecutableFileBusy
+        );
+        let closer = std::thread::spawn(move || {
+            std::thread::sleep(Duration::from_millis(30));
+            drop(writer);
+        });
+        let mut child = spawn_written(&mut Command::new(&path)).expect("spawned after retry");
+        assert!(child.wait().expect("waited").success());
+        closer.join().expect("closer");
     }
 }
