@@ -21,9 +21,10 @@ COPY catalogs ./catalogs
 COPY native ./native
 COPY dependencies ./dependencies
 COPY interfaces ./interfaces
+COPY deployment/local-skills/host_runner.py deployment/local-skills/python_environment.py ./deployment/local-skills/
 RUN --mount=type=cache,id=rx-runtime-skill-s-registry,target=/usr/local/cargo/registry \
     --mount=type=cache,id=rx-runtime-skill-s-target,target=/source/target \
-    cargo build --release --locked -p rx-host -p rx-executor -p rx-process-package && mkdir /out && cp target/release/rx-hostd target/release/rx-executor-service target/release/rx-process-package /out/
+    cargo build --release --locked -p rx-host -p rx-executor -p rx-process-package -p rx-device-package && mkdir /out && cp target/release/rx-hostd target/release/rx-executor-service target/release/rx-process-package target/release/rx-device-package /out/
 RUN --mount=type=cache,id=rx-runtime-skill-s-registry,target=/usr/local/cargo/registry \
     --mount=type=cache,id=rx-runtime-skill-s-target,target=/source/target \
     cargo test --locked -p rx-host --features test-harness --test process_crash sigkill_at_both_journal_native_boundaries_never_replays_device_effect -- --exact > /out/host-recovery.log && \
@@ -49,6 +50,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends libstdc++6 libz
 COPY --from=s-build /out/ /opt/rx/bin/
 COPY --from=bt-build /build/rx-bt-engine /opt/rx/bin/
 COPY LICENSE NOTICE /opt/rx/
-COPY deployment/local-skills/rx deployment/local-skills/runtime_client.py deployment/local-skills/image_identity.py /opt/rx/client/
+COPY deployment/local-skills/rx deployment/local-skills/runtime_client.py deployment/local-skills/image_identity.py deployment/local-skills/python_environment.py /opt/rx/client/
+COPY deployment/local-skills/host_runner.py deployment/local-skills/python_environment.py /opt/rx/python/
+RUN cp /usr/local/bin/python3.12 /opt/rx/python/python && python3 -c 'import hashlib,json,pathlib; p=pathlib.Path("/opt/rx/python"); (p/"release.json").write_text(json.dumps({"schema":"rx.python-host-release.v1","interpreter_sha256":hashlib.sha256((p/"python").read_bytes()).hexdigest()}))'
 USER 10001:10001
 ENTRYPOINT ["/opt/rx/bin/rx-hostd"]

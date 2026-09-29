@@ -7,6 +7,8 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 pub mod directory;
 pub mod jtc;
+#[cfg(unix)]
+pub mod python;
 pub mod review;
 
 #[derive(Debug, thiserror::Error)]
@@ -189,6 +191,19 @@ pub fn from_files(mut files: BTreeMap<PackagePath, Vec<u8>>) -> Result<Candidate
                 canonical::decode_json(assembly).map_err(|e| Error::Invalid(e.to_string()))?;
             jtc::assemble(&a.template, &a.site, &recipe)?
         }
+        #[cfg(unix)]
+        Some("rx.python-skill-assembly.v1") => {
+            let registration: rx_host::service::python_skill::Registration =
+                serde_json::from_value(source["registration"].clone())
+                    .map_err(|e| Error::Invalid(e.to_string()))?;
+            python::assemble(
+                &registration,
+                files
+                    .get(&path("environment.json"))
+                    .ok_or_else(|| Error::Invalid("Python environment manifest absent".into()))?,
+                &recipe,
+            )?
+        }
         _ => return Err(Error::Invalid("unsupported device assembly schema".into())),
     };
     if manifest != manifest_bytes(rebuilt.manifest())? || files != *rebuilt.files() {
@@ -205,6 +220,8 @@ pub fn decode_verified(
     device_package::decode_verified(package).map_err(|e| Error::Invalid(e.to_string()))
 }
 pub enum Device {
+    #[cfg(unix)]
+    Python(rx_host::service::python_skill::Registration),
     Melsec(rx_host::service::device_package::LoadedDevice),
     Jtc(rx_host::service::jtc_package::LoadedDevice),
 }
@@ -222,6 +239,11 @@ pub fn decode_verified_any(package: &VerifiedPackage) -> Result<Device> {
         "rx.melsec.ensure-state.v1" => Ok(Device::Melsec(decode_verified(package)?)),
         "rx.ros.position-jtc.v1" => Ok(Device::Jtc(
             rx_host::service::jtc_package::decode_verified(package)
+                .map_err(|e| Error::Invalid(e.to_string()))?,
+        )),
+        #[cfg(unix)]
+        "rx.python.sdk.v1" => Ok(Device::Python(
+            rx_host::service::python_package::decode(package)
                 .map_err(|e| Error::Invalid(e.to_string()))?,
         )),
         _ => Err(Error::Invalid("unsupported device implementation".into())),

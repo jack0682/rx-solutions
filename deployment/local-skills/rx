@@ -168,6 +168,8 @@ def main():
     p = s.add_parser("add"); p.add_argument("directory", type=Path, nargs="?"); p.add_argument("--example", choices=["add"])
     p = s.add_parser("new"); p.add_argument("directory", type=Path)
     s.add_parser("list")
+    p = s.add_parser("prepare-environment"); p.add_argument("directory", type=Path); p.add_argument("--wheel", type=Path, action="append", default=[]); p.add_argument("--output", type=Path, required=True)
+    p = s.add_parser("verify-environment"); p.add_argument("directory", type=Path); p.add_argument("--digest", required=True)
     p = sub.add_parser("run"); p.add_argument("skill"); p.add_argument("--version", default="1.0.0"); p.add_argument("--input", default="{}"); p.add_argument("--request-id"); p.add_argument("--no-wait", action="store_true")
     p = sub.add_parser("result"); p.add_argument("id")
     p = sub.add_parser("process"); processes = p.add_subparsers(dest="action", required=True)
@@ -181,8 +183,8 @@ def main():
     p.add_argument("--state-dir", type=Path, default=Path.home() / ".local/share/rx-runtime-client")
     runtime = p.add_subparsers(dest="action", required=True)
     runtime.add_parser("skills")
-    p = runtime.add_parser("steps"); p.add_argument("--cell", required=True)
-    p = runtime.add_parser("compose"); p.add_argument("name"); p.add_argument("--cell", required=True); p.add_argument("--step", action="append", required=True); p.add_argument("--request-id")
+    p = runtime.add_parser("steps"); p.add_argument("--cell", required=True); p.add_argument("--device-plan", type=Path, action="append", default=[])
+    p = runtime.add_parser("compose"); p.add_argument("name"); p.add_argument("--cell", required=True); p.add_argument("--step", action="append", required=True); p.add_argument("--request-id"); p.add_argument("--device-plan", type=Path, action="append", default=[])
     p = runtime.add_parser("compose-recover"); p.add_argument("id")
     p = runtime.add_parser("run"); p.add_argument("name"); p.add_argument("--cell", required=True); p.add_argument("--count", type=int, default=1); p.add_argument("--request-id"); p.add_argument("--wait-seconds", type=int, default=60)
     p = runtime.add_parser("recover"); p.add_argument("id"); p.add_argument("--wait-seconds", type=int, default=60)
@@ -192,15 +194,20 @@ def main():
         sub.add_parser(name)
     args = parser.parse_args()
     if args.command == "runtime":
-        from runtime_client import RuntimeClient, Terminal
+        from runtime_client import RuntimeClient, Terminal, read_file
         try:
             client = RuntimeClient(Terminal(args.connection.absolute()), args.state_dir.absolute())
+            plans = []
+            for file in getattr(args, "device_plan", []):
+                value = json.loads(read_file(file.absolute()))
+                if not isinstance(value, dict) or not {"id","revision","plan_digest"}.issubset(value): raise ValueError("reviewed device plan fields missing")
+                plans.append({key:value[key] for key in ("id","revision","plan_digest")})
             if args.action == "skills": result = client.catalog()
-            elif args.action == "steps": result = client.steps(args.cell)
+            elif args.action == "steps": result = client.steps(args.cell, plans)
             elif args.action == "compose":
                 request_id = str(uuid.UUID(args.request_id)) if args.request_id else str(uuid.uuid4())
                 print("Composition request: " + request_id, file=sys.stderr, flush=True)
-                result = client.compose(request_id, args.name, args.cell, args.step)
+                result = client.compose(request_id, args.name, args.cell, args.step, plans)
             elif args.action == "compose-recover": result = client.recover_composition(args.id)
             elif args.action == "run":
                 request_id = str(uuid.UUID(args.request_id)) if args.request_id else str(uuid.uuid4())
@@ -219,7 +226,11 @@ def main():
         if not 1024 <= args.port <= 65535: raise ValueError("port must be 1024..65535")
         install(args); return
     if args.command == "skill":
-        if args.action == "list": result = api("/v1/skills")
+        if args.action in ("prepare-environment", "verify-environment"):
+            from python_environment import prepare, verify
+            result = prepare(args.directory, args.wheel, args.output) if args.action == "prepare-environment" else verify(args.directory, args.digest)
+            print(json.dumps(result, indent=2)); return
+        elif args.action == "list": result = api("/v1/skills")
         elif args.action == "new":
             args.directory.mkdir(parents=True, exist_ok=False)
             template = json.loads((ROOT / "examples/add/skill.json").read_text())

@@ -243,13 +243,31 @@ class RuntimeClient:
             raise ValueError("runtime result scope differs")
         return value
 
-    def steps(self, cell):
-        result = self.terminal.get("/api/v1/process-draft/binding-options", cell=cell)
-        if result["cell"] != cell:
-            raise ValueError("P binding catalog cell differs")
+    def plans(self, values):
+        values = values or []
+        if not isinstance(values, list) or len(values) > 16:
+            raise ValueError("at most 16 reviewed device plans are supported")
+        result = []
+        for value in values:
+            if not isinstance(value, dict) or set(value) != {"id", "revision", "plan_digest"} or not isinstance(value["id"], str) or str(uuid.UUID(value["id"])) != value["id"] or counter(value["revision"]) == 0:
+                raise ValueError("invalid reviewed device plan reference")
+            digest = value["plan_digest"]
+            if not isinstance(digest, str) or len(digest) != 64 or any(c not in "0123456789abcdef" for c in digest):
+                raise ValueError("invalid device plan digest")
+            result.append(dict(value))
+        if len({v["id"] for v in result}) != len(result):
+            raise ValueError("duplicate device plan identity")
+        return sorted(result, key=lambda v: v["id"])
+
+    def steps(self, cell, device_plans=None):
+        plans = self.plans(device_plans)
+        result = self.terminal.request("/api/v1/process-draft/binding-options", {"cell":cell,"device_plans":plans}) if plans else self.terminal.get("/api/v1/process-draft/binding-options", cell=cell)
+        if result["cell"] != cell or result.get("device_plans", []) != plans:
+            raise ValueError("P binding catalog scope differs")
         return result
 
-    def compose(self, request_id, name, cell, steps):
+    def compose(self, request_id, name, cell, steps, device_plans=None):
+        plans = self.plans(device_plans)
         if not isinstance(name, str) or not name.strip() or len(name) > 120:
             raise ValueError("process name must have 1-120 characters")
         if not isinstance(steps, list) or not 1 <= len(steps) <= 64 or any(not isinstance(s, str) or not s for s in steps):
@@ -257,6 +275,7 @@ class RuntimeClient:
         with self.journal(request_id) as root:
             intent = {"kind": "COMPOSE", "request_id": request_id, "name": name,
                       "cell": cell, "steps": steps, "connection": self.terminal.fingerprint}
+            if plans: intent["device_plans"] = plans
             save_new(root / "intent.json", intent)
             installation = self.catalog()["installation"]
             basis_file = root / "composition-basis.json"
@@ -265,7 +284,7 @@ class RuntimeClient:
                 if scope(installation) != scope(basis["installation"]):
                     raise ValueError("installation/store changed; composition requests retained")
             else:
-                catalog = self.steps(cell)
+                catalog = self.steps(cell, plans)
                 available = {v["step"] for v in catalog["candidates"]}
                 missing = sorted(set(steps) - available)
                 if missing:
@@ -286,9 +305,10 @@ class RuntimeClient:
             if version["validation"]["structurally_valid"] is not True:
                 raise ValueError("P rejected process structure: " + json.dumps(version["validation"]))
             selections = dict(zip(aliases, steps))
-            bindings = self.mutation(root, "compose-bindings", request_id, "/api/v1/process-draft-bindings",
-                {"draft": draft_id, "cell": cell, "source_revision": version["revision"], "expected": None,
-                 "catalog_digest": basis["catalog"]["catalog_digest"], "selections": selections})
+            command = {"draft": draft_id, "cell": cell, "source_revision": version["revision"], "expected": None,
+                       "catalog_digest": basis["catalog"]["catalog_digest"], "selections": selections}
+            if plans: command["device_plans"] = plans
+            bindings = self.mutation(root, "compose-bindings", request_id, "/api/v1/process-draft-bindings", command)
             if bindings["draft"] != draft_id or bindings["cell"] != cell or bindings["source_revision"] != version["revision"] or bindings["selections"] != selections or bindings["complete"] is not True:
                 raise ValueError("P composition bindings are incomplete or differ")
             # Export rechecks the current source, catalog and binding revisions in P.
@@ -305,4 +325,4 @@ class RuntimeClient:
         intent = json.loads((self.state / request_id / "intent.json").read_bytes())
         if intent.get("kind") != "COMPOSE":
             raise ValueError("request is not a composition")
-        return self.compose(request_id, intent["name"], intent["cell"], intent["steps"])
+        return self.compose(request_id, intent["name"], intent["cell"], intent["steps"], intent.get("device_plans"))

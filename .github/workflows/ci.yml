@@ -35,6 +35,10 @@ jobs:
           python3 .github/test_commit_policy.py
       - name: Test runtime client request recovery
         run: python3 tools/test_runtime_skill_client.py
+      - name: Test offline Python SDK environment
+        run: python3 tools/test_python_environment.py
+      - name: Test Python SDK execution receipt boundaries
+        run: python3 tools/test_python_host_runner.py
       - name: Test browser server lifecycle helper
         run: python3 apps/operator/tests/test_with_servers.py
       - name: Check DCO and verified OpenPGP signatures

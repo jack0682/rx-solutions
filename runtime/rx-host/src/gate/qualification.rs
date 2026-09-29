@@ -80,6 +80,7 @@ pub(super) fn current_target<N>(
         .clone();
     core.store
         .transact(|tx| {
+            crate::service::maintenance::require_configured(tx, cell)?;
             let context = tx.get(&key("process-context", cell))?;
             let accepted = tx.get(&key("accepted-qualification", cell))?;
             let Some(context) = context else {

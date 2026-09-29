@@ -49,6 +49,16 @@ impl PinnedFile {
 #[serde(tag = "kind", rename_all = "SCREAMING_SNAKE_CASE", deny_unknown_fields)]
 pub enum Backend {
     FileSimulation,
+    #[cfg(unix)]
+    PythonSkillSimulation {
+        registration: PinnedFile,
+    },
+    #[cfg(unix)]
+    PythonSkillPackage {
+        directory: PathBuf,
+        manifest_digest: Digest,
+        policy: PinnedFile,
+    },
     JtcPackage {
         directory: PathBuf,
         manifest_digest: Digest,

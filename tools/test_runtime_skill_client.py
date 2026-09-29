@@ -49,6 +49,8 @@ class AuthoringPeer(Peer):
         return super().get(path,**query)
     def request(self,path,body):
         self.calls.append((path,json.loads(json.dumps(body))))
+        if path=="/api/v1/process-draft/binding-options":
+            return dict(self.get(path),device_plans=body['device_plans'])
         c=body['command']
         if path=="/api/v1/process-drafts":
             self.source=c
@@ -121,6 +123,16 @@ class CompositionTests(unittest.TestCase):
             p.installation['store_generation']=uid()
             with self.assertRaisesRegex(ValueError,'installation/store'):a.recover_composition(key)
             self.assertEqual(len(p.calls),count)
+    def test_reviewed_plan_is_retained_across_receipt_loss_and_cannot_be_retargeted(self):
+        with tempfile.TemporaryDirectory() as temp:
+            p=AuthoringPeer();key=uid();a=RuntimeClient(p,Path(temp));plan={"id":uid(),"revision":"2","plan_digest":"f"*64}
+            with self.assertRaises(OSError):a.compose(key,'transfer','cell/a',['pick'],[plan])
+            a.recover_composition(key)
+            self.assertEqual(p.bindings['device_plans'],[plan])
+            count=len(p.calls);changed=dict(plan,revision="3")
+            with self.assertRaises(ValueError):a.compose(key,'transfer','cell/a',['pick'],[changed])
+            self.assertEqual(len(p.calls),count)
+
     def test_missing_step_does_not_save_server_draft(self):
         with tempfile.TemporaryDirectory() as temp:
             p=AuthoringPeer()

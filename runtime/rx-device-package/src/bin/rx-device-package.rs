@@ -25,6 +25,14 @@ fn run() -> AnyResult<()> {
             let request=serde_json::json!({"schema":"rx.device-report-signing-request.v1","key":key,"report_digest":report.digest()?,"message_digest":rx_package::content_digest(&message),"message_hex":message.iter().map(|b|format!("{b:02x}")).collect::<String>()});
             let mut f=OpenOptions::new().write(true).create_new(true).open(&a[3])?;f.write_all(&canonical::bytes(&request)?)?;f.sync_all()?;output(serde_json::json!({"status":"DEVICE_REPORT_SIGNATURE_REQUIRED","report_digest":report.digest()?}))
         },
+        #[cfg(unix)]
+        Some("python-assemble") if a.len()==5=>{
+            let registration:rx_host::service::python_skill::Registration=policy::read(Path::new(&a[1]))?;
+            let environment=std::fs::read(&a[2])?;let recipe:Recipe=policy::read(Path::new(&a[3]))?;
+            let candidate=python::assemble(&registration,&environment,&recipe)?;
+            directory::publish(&candidate,None,Path::new(&a[4]))?;
+            output(serde_json::json!({"status":"UNSIGNED_CANDIDATE","manifest_digest":candidate.digest()?,"activation_authorized":false}))
+        },
         Some("template-digest") if a.len()==2=>{
             let value:serde_json::Value=policy::read(Path::new(&a[1]))?;
             let (digest,id,revision)=if value["schema"]=="rx.ros-jtc-template.v1" {
@@ -57,6 +65,9 @@ fn run() -> AnyResult<()> {
         Some("verify")|Some("inspect") if a.len()==3=>{
             let input:policy::Policy=policy::read(Path::new(&a[2]))?;let package=rx_package::directory::verify_directory(Path::new(&a[1]),&load_policy(&input)?)?;
             let mut value=match decode_verified_any(&package)? {
+                #[cfg(unix)]
+                Device::Python(profile)=>serde_json::json!({"profile_digest":profile.intent.profile_digest,"installation":profile.installation,"cell":profile.cell,"environment":"SIMULATION","profile":profile,"physical_qualification":false}),
+
                 Device::Melsec(device)=>{
                     let mut v=serde_json::json!({"profile_digest":device.profile.digest()?,"installation":device.profile.installation,"cell":device.profile.cell,"environment":device.profile.environment()});
                     if a[0]=="inspect"{v["profile"]=serde_json::to_value(device.profile)?;}v
@@ -69,7 +80,7 @@ fn run() -> AnyResult<()> {
             value["status"]=serde_json::json!("CONTENT_VERIFIED_NOT_QUALIFIED");value["manifest_digest"]=serde_json::to_value(package.digest())?;value["activation_authorized"]=serde_json::json!(false);
             output(value)
         },
-        _=>Err("usage: rx-device-package validator-identity | review PACKAGE POLICY REQUEST OUT | review-signing-request REPORT KEY_ID OUT_FILE | driver-identity [jtc] | template-digest TEMPLATE | assemble TEMPLATE SITE RECIPE OUT | request CANDIDATE KEY_ID OUT_FILE | seal CANDIDATE SIGNATURE POLICY OUT | verify PACKAGE POLICY | inspect PACKAGE POLICY".into()),
+        _=>Err("usage: rx-device-package python-assemble REGISTRATION ENVIRONMENT RECIPE OUT | validator-identity | review PACKAGE POLICY REQUEST OUT | review-signing-request REPORT KEY_ID OUT_FILE | driver-identity [jtc] | template-digest TEMPLATE | assemble TEMPLATE SITE RECIPE OUT | request CANDIDATE KEY_ID OUT_FILE | seal CANDIDATE SIGNATURE POLICY OUT | verify PACKAGE POLICY | inspect PACKAGE POLICY".into()),
     }
 }
 fn main() {

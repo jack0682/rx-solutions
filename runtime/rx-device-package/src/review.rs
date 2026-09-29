@@ -12,6 +12,7 @@ pub fn validator_digest() -> Digest {
             include_str!("review.rs"),
             include_str!("lib.rs"),
             include_str!("jtc.rs"),
+            include_str!("python.rs"),
             include_str!("../../../Cargo.lock"),
             include_str!("../../../sdk/source-lock.json")
         )
@@ -23,6 +24,8 @@ pub fn validator_digest() -> Digest {
             source,
             rx_host::service::device_package::driver(),
             rx_host::service::jtc_package::driver(),
+            #[cfg(unix)]
+            rx_host::service::python_package::driver(),
         ),
     )
     .expect("fixed validator identity")

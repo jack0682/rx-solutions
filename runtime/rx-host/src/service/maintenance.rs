@@ -10,6 +10,31 @@ use rx_ports::{Repository, StoreError, Transaction};
 use rx_storage::SqliteRepository;
 use serde::{Deserialize, Serialize};
 
+mod commit;
+#[cfg(feature = "test-harness")]
+pub use commit::commit_with_boundary;
+pub use commit::{CommitRecord, CommitView, Phase as CommitPhase, commit, lookup_commit};
+
+pub(crate) use commit::binding_observation;
+pub(crate) fn service_identity(
+    tx: &mut dyn Transaction,
+    boot: &Id,
+) -> rx_ports::Result<Option<Digest>> {
+    let Some(row) = tx.get(&name(STATE))? else {
+        return Ok(None);
+    };
+    let value: Lifecycle = decode(&row, LIFECYCLE)?;
+    Ok(match value {
+        Lifecycle::Starting {
+            installation_identity,
+            host_boot: Some(current),
+            ..
+        } if &current == boot => Some(installation_identity),
+        Lifecycle::Starting { .. } => None,
+        Lifecycle::Stopped { .. } => None,
+    })
+}
+
 const LIFECYCLE: &str = "rx.host.service-lifecycle.v1";
 const PREPARATION: &str = "rx.host.binding-preparation.v1";
 const ACTIVE: &str = "host-maintenance/active";
@@ -36,6 +61,8 @@ pub struct StopSeal {
 )]
 enum Lifecycle {
     Starting {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        host_boot: Option<Id>,
         attempt: Id,
         installation_identity: Digest,
         startup_configuration_digest: Digest,
@@ -48,6 +75,8 @@ enum Lifecycle {
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum State {
     Prepared,
+    Committing,
+    Committed,
     Cancelled,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -90,13 +119,14 @@ pub(super) fn begin_startup(
     startup_configuration_digest: Digest,
     attempt: &Id,
 ) -> rx_ports::Result<()> {
-    if pending(tx)?.is_some_and(|v| v.state == State::Prepared) {
+    if pending(tx)?.is_some_and(|v| matches!(v.state, State::Prepared | State::Committing)) {
         return Err(StoreError::Unavailable(
             "Host binding preparation must be resolved before startup".into(),
         ));
     }
     let old = tx.get(&name(STATE))?;
     let value = Lifecycle::Starting {
+        host_boot: None,
         attempt: attempt.clone(),
         installation_identity: identity,
         startup_configuration_digest,
@@ -139,7 +169,7 @@ pub(crate) fn seal_stop(
     store.transact(|tx| {
         let row=tx.get(&name(STATE))?.ok_or(StoreError::Integrity("startup marker absent".into()))?;
         let state: Lifecycle=decode(&row,LIFECYCLE)?;
-        if !matches!(state,Lifecycle::Starting {attempt:a,installation_identity:i,startup_configuration_digest:c} if &a==attempt && i==identity && c==startup_configuration_digest) {
+        if !matches!(state,Lifecycle::Starting {attempt:a,installation_identity:i,startup_configuration_digest:c,..} if &a==attempt && i==identity && c==startup_configuration_digest) {
             return Err(StoreError::Integrity("Host startup attempt changed".into()));
         }
         let m=meta(tx)?;
@@ -237,7 +267,7 @@ fn prepare_inner(
             }
             return Ok(old);
         }
-        if pending(tx)?.is_some_and(|v| v.state == State::Prepared) {
+        if pending(tx)?.is_some_and(|v| matches!(v.state, State::Prepared | State::Committing)) {
             return Err(StoreError::Unavailable(
                 "another Host binding preparation is pending".into(),
             ));
@@ -307,6 +337,11 @@ pub fn cancel(current: &Loaded, request: &Id) -> Result<Preparation> {
         if p.state == State::Cancelled {
             return Ok(p);
         }
+        if p.state != State::Prepared {
+            return Err(StoreError::Invalid(
+                "binding commit cannot be cancelled; recover its original request".into(),
+            ));
+        }
         let active = tx
             .get(&name(ACTIVE))?
             .ok_or(StoreError::Integrity("active preparation missing".into()))?;
@@ -336,4 +371,151 @@ pub fn lookup(current: &Loaded, request: &Id) -> Result<Option<Preparation>> {
             .map(|row| decode(&row, PREPARATION))
             .transpose()
     })?)
+}
+
+#[derive(Serialize, Deserialize)]
+struct BindingRequirement {
+    configuration: Digest,
+    pending: bool,
+    acknowledged_by: Option<Id>,
+}
+const REQUIRED: &str = "rx.host.binding-configuration-required.v1";
+pub(crate) fn require_configured(tx: &mut dyn Transaction, cell: &Name) -> rx_ports::Result<()> {
+    if let Some(row) = tx.get(&key("host-binding-required", cell))? {
+        let value: BindingRequirement = decode(&row, REQUIRED)?;
+        if value.pending {
+            return Err(StoreError::Invalid(
+                "binding replacement awaits P process configuration".into(),
+            ));
+        }
+    }
+    Ok(())
+}
+pub(crate) fn confirm_configured(
+    tx: &mut dyn Transaction,
+    cell: &Name,
+    configuration: Digest,
+    request: &Id,
+) -> rx_ports::Result<()> {
+    if let Some(row) = tx.get(&key("host-binding-required", cell))? {
+        let mut value: BindingRequirement = decode(&row, REQUIRED)?;
+        if value.pending {
+            if value.configuration != configuration {
+                return Err(StoreError::Invalid(
+                    "P configuration differs from committed binding target".into(),
+                ));
+            }
+            value.pending = false;
+            value.acknowledged_by = Some(request.clone());
+            tx.put(&row.key, Some(row.revision), &doc(REQUIRED, &value)?)?;
+        }
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod binding_requirement_tests {
+    use super::*;
+    #[test]
+    fn only_the_committed_configuration_can_acknowledge_the_arm_barrier() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut store = SqliteRepository::open(directory.path().join("host.db")).unwrap();
+        let cell = name("cell/test");
+        let expected = Digest::from_bytes([9; 32]);
+        let request = crate::journal::id();
+        store
+            .transact(|tx| {
+                tx.put(
+                    &key("host-binding-required", &cell),
+                    None,
+                    &doc(
+                        REQUIRED,
+                        &BindingRequirement {
+                            configuration: expected,
+                            pending: true,
+                            acknowledged_by: None,
+                        },
+                    )?,
+                )?;
+                Ok(())
+            })
+            .unwrap();
+        assert!(store.transact(|tx| require_configured(tx, &cell)).is_err());
+        assert!(
+            store
+                .transact(|tx| confirm_configured(tx, &cell, Digest::from_bytes([8; 32]), &request))
+                .is_err()
+        );
+        assert!(store.transact(|tx| require_configured(tx, &cell)).is_err());
+        store
+            .transact(|tx| confirm_configured(tx, &cell, expected, &request))
+            .unwrap();
+        store.transact(|tx| require_configured(tx, &cell)).unwrap();
+    }
+}
+
+pub(crate) fn bind_service_boot(
+    tx: &mut dyn Transaction,
+    attempt: &Id,
+    boot: &Id,
+) -> rx_ports::Result<()> {
+    let row = tx
+        .get(&name(STATE))?
+        .ok_or(StoreError::Integrity("service startup missing".into()))?;
+    let mut state: Lifecycle = decode(&row, LIFECYCLE)?;
+    let Lifecycle::Starting {
+        attempt: current,
+        host_boot,
+        ..
+    } = &mut state
+    else {
+        return Err(StoreError::Invalid("service is not starting".into()));
+    };
+    if current != attempt || host_boot.as_ref().is_some_and(|old| old != boot) {
+        return Err(StoreError::Integrity("service boot binding changed".into()));
+    }
+    *host_boot = Some(boot.clone());
+    tx.put(&row.key, Some(row.revision), &doc(LIFECYCLE, &state)?)?;
+    Ok(())
+}
+
+#[cfg(test)]
+mod service_boot_tests {
+    use super::*;
+    #[test]
+    fn previous_service_boot_is_not_current_even_with_the_same_installation_identity() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut store = SqliteRepository::open(directory.path().join("host.db")).unwrap();
+        let attempt = crate::journal::id();
+        let first = crate::journal::id();
+        let second = crate::journal::id();
+        let identity = Digest::from_bytes([7; 32]);
+        store
+            .transact(|tx| begin_startup(tx, identity, Digest::from_bytes([8; 32]), &attempt))
+            .unwrap();
+        assert!(
+            store
+                .transact(|tx| service_identity(tx, &first))
+                .unwrap()
+                .is_none()
+        );
+        store
+            .transact(|tx| bind_service_boot(tx, &attempt, &first))
+            .unwrap();
+        assert_eq!(
+            store.transact(|tx| service_identity(tx, &first)).unwrap(),
+            Some(identity)
+        );
+        assert!(
+            store
+                .transact(|tx| service_identity(tx, &second))
+                .unwrap()
+                .is_none()
+        );
+        assert!(
+            store
+                .transact(|tx| bind_service_boot(tx, &attempt, &second))
+                .is_err()
+        );
+    }
 }
