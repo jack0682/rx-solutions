@@ -29,6 +29,7 @@ fn artifact(value: u8) -> ArtifactRef {
 }
 fn binding(resource: &str) -> ActionBinding {
     ActionBinding {
+        program_inputs: None,
         host: name("host/test"),
         intent: Intent {
             kind: Kind::FiniteAction,
@@ -514,4 +515,57 @@ fn source_link_checks_repeat_count_and_call_instantiation() {
     ));
     rx_process_contract::validation::validate(&process).unwrap();
     assert!(rx_process_contract::source_link::verify(&called, &process).is_err());
+}
+
+#[test]
+fn input_policy_compiles_as_v2_and_frontier_correlates_the_selected_variant() {
+    let src: ProcessSource=serde_json::from_value(serde_json::json!({"schema":"rx.process-source.v1","process":"input-selection","entry":"main","conditions":{},"flows":[{"id":"main","root":"work","nodes":[{"id":"work","body":{"kind":"OPERATION","binding":"action"}}]}]})).unwrap();
+    let mut action = binding("resource");
+    action.program_inputs = Some(rx_process_contract::program_inputs::Policy {
+        schema: name(rx_process_contract::program_inputs::SCHEMA),
+        template_digest: action.intent.digest().unwrap(),
+        parameter_sets: vec![artifact(4), artifact(5)],
+    });
+    let process =
+        rx_process::compile(&src, BTreeMap::from([(name("action"), action.clone())])).unwrap();
+    assert_eq!(process.schema.as_str(), "rx.resolved-process.v2");
+    rx_process_contract::validation::validate(&process).unwrap();
+    let mut legacy = process.clone();
+    legacy.schema = name("rx.resolved-process.v1");
+    assert!(rx_process_contract::validation::validate(&legacy).is_err());
+    let mut concrete = action.intent.clone();
+    let Body::Program(goal) = &mut concrete.body else {
+        unreachable!()
+    };
+    goal.parameter_set = artifact(5);
+    let digest = concrete.digest().unwrap();
+    let operation = Operation::admitted(id(), digest);
+    let mut view = ProgressView {
+        run: id(),
+        resolved_digest: resolved_digest(&process).unwrap(),
+        complete: true,
+        operations: BTreeMap::from([(
+            process.root.id.clone(),
+            OperationProgress {
+                operation,
+                intent_digest: digest,
+            },
+        )]),
+        branches: BTreeMap::new(),
+        waits: BTreeMap::new(),
+        cleared_interventions: BTreeMap::new(),
+    };
+    assert!(plan(&process, &view).is_ok());
+    let mut mismatched = view.clone();
+    mismatched
+        .operations
+        .get_mut(&process.root.id)
+        .unwrap()
+        .operation = Operation::admitted(id(), action.intent.digest().unwrap());
+    assert!(plan(&process, &mismatched).is_err());
+    view.operations
+        .get_mut(&process.root.id)
+        .unwrap()
+        .intent_digest = Digest::from_bytes([99; 32]);
+    assert!(plan(&process, &view).is_err());
 }

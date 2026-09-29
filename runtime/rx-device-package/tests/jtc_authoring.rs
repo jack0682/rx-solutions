@@ -324,12 +324,13 @@ fn host_package_checks_assets_and_exact_intents_but_cannot_create_control_author
     let device = service::jtc_package::load(&backend).unwrap();
     let p = &device.profile;
     let mut bindings = vec![rx_host::Binding {
+        observation_only: None,
         host: n("host/jtc"),
         platform: n("platform"),
         cell: p.cell.clone(),
         definition: asset(b"cell", "rx.cell-definition.v1"),
         envelope: asset(b"envelope", "rx.operating-envelope.v1"),
-        qualification: id(4),
+        qualification: Some(id(4)),
         qualification_revision: Counter(1),
         allowed_intents: device.operations.values().cloned().collect(),
         scope_ids: vec![n("scope/jtc")],

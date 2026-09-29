@@ -40,6 +40,7 @@ fn destination() -> Destination {
 }
 fn binding() -> Binding {
     Binding {
+        observation_only: None,
         host: name("host/sim"),
         platform: name("platform"),
         cell: name("cell/sim"),
@@ -53,7 +54,7 @@ fn binding() -> Binding {
             schema_id: name("rx.operating-envelope.v1"),
             size_bytes: Counter(1),
         },
-        qualification: id(3),
+        qualification: Some(id(3)),
         qualification_revision: Counter(1),
         allowed_intents: vec![Intent {
             kind: Kind::EnsureState,

@@ -93,6 +93,7 @@ impl<N: NativeAdapter, C: Clock, H: BoundaryHook> Host<N, C, H> {
     ) -> Result<VoidRecord> {
         let mut core = self.lock()?;
         authorized(&core, caller)?;
+        require_control(&core)?;
         let result = core.store.transact(|tx| {
             let void_key = key("void", &operation);
             if let Some(old) = tx.get(&void_key)? {

@@ -460,6 +460,7 @@ pub async fn run_with<C: Clock + Clone + Send + Sync + 'static, F: AdapterFactor
         &loaded.config.data_directory,
         clock.clone(),
     )?;
+    let observation_only = loaded.bindings.iter().all(|b| b.observation_only.is_some());
     let host = Arc::new(Host::open(
         loaded.config.data_directory.join("host.db"),
         native,
@@ -498,6 +499,8 @@ pub async fn run_with<C: Clock + Clone + Send + Sync + 'static, F: AdapterFactor
         schema: name("rx.host-service-status.v1"),
         phase: name(if service_error.is_some() {
             "STATUS_WRITE_FAILED"
+        } else if observation_only {
+            "OBSERVATION_READY"
         } else {
             "SOFTWARE_READY_UNARMED"
         }),

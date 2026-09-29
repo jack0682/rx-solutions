@@ -35,6 +35,11 @@ pub fn compile(
     }
     let mut normalized_bindings = bindings;
     for (id, binding) in &mut normalized_bindings {
+        rx_process_contract::program_inputs::variants(
+            &binding.intent,
+            binding.program_inputs.as_ref(),
+        )
+        .map_err(|e| error(id.as_str(), e))?;
         binding.intent = binding
             .intent
             .normalized()
@@ -63,7 +68,17 @@ pub fn compile(
         flow.nodes.sort_by(|a, b| a.id.cmp(&b.id));
     }
     Ok(ResolvedProcess {
-        schema: Name::new("rx.resolved-process.v1").expect("schema"),
+        schema: Name::new(
+            if normalized_bindings
+                .values()
+                .any(|b| b.program_inputs.is_some())
+            {
+                "rx.resolved-process.v2"
+            } else {
+                "rx.resolved-process.v1"
+            },
+        )
+        .expect("schema"),
         package_digest: None,
         source_digest: rx_package::content_digest(
             &canonical::bytes(&canonical_source).map_err(|e| error("source", e.to_string()))?,

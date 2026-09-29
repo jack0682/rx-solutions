@@ -61,7 +61,7 @@ pub fn verify_process(
             } else {
                 let reference = ArtifactRef {
                     sha256: content_digest(&bytes),
-                    schema_id: Name::new("rx.resolved-process.v1").expect("literal"),
+                    schema_id: process.schema.clone(),
                     size_bytes: Counter(bytes.len() as u64),
                 };
                 files.insert(PackagePath::new("resolved.json").expect("literal"), bytes);

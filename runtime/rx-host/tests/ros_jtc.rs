@@ -722,6 +722,7 @@ fn actual_rust_host_to_cpp_bridge_to_ros_action_preserves_original_goal() {
         std::thread::sleep(std::time::Duration::from_millis(50));
     }
     let b = Binding {
+        observation_only: None,
         host: n("host/jtc"),
         platform: n("platform"),
         cell: p.cell.clone(),
@@ -735,7 +736,7 @@ fn actual_rust_host_to_cpp_bridge_to_ros_action_preserves_original_goal() {
             schema_id: n("rx.operating-envelope.v1"),
             size_bytes: Counter(1),
         },
-        qualification: id(),
+        qualification: Some(id()),
         qualification_revision: Counter(1),
         allowed_intents: vec![intent(&p)],
         scope_ids: vec![n("scope/jtc")],
@@ -783,7 +784,7 @@ fn actual_rust_host_to_cpp_bridge_to_ros_action_preserves_original_goal() {
             epoch: Counter(1),
             scopes,
             envelope: b.envelope.sha256,
-            qualification: b.qualification,
+            qualification: b.qualification.expect("control fixture"),
             qualification_revision: Counter(1),
             grant: grant.id,
             host_boot: host.boot_id().unwrap(),

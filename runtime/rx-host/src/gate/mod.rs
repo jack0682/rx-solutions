@@ -70,12 +70,34 @@ impl<N: NativeAdapter, C: Clock, H: BoundaryHook> Host<N, C, H> {
                 || &binding.platform != platform
                 || binding.environment != native.environment()
                 || binding.scope_ids.is_empty()
-                || binding.condition_ids.is_empty()
-                || binding.allowed_intents.is_empty()
-                || binding.qualification_revision.0 == 0
-                || binding.purposes.is_empty()
+                || binding.observation_only.is_some() != bindings[0].observation_only.is_some()
             {
                 return Err(HostError::Invalid("invalid binding".into()));
+            }
+            match &binding.observation_only {
+                Some(declaration) => {
+                    declaration.validate()?;
+                    if !binding.allowed_intents.is_empty()
+                        || !binding.condition_ids.is_empty()
+                        || binding.qualification.is_some()
+                        || binding.qualification_revision.0 != 0
+                        || !binding.purposes.is_empty()
+                    {
+                        return Err(HostError::Invalid(
+                            "observation-only binding carries control authority".into(),
+                        ));
+                    }
+                }
+                None => {
+                    if binding.condition_ids.is_empty()
+                        || binding.allowed_intents.is_empty()
+                        || binding.qualification.is_none()
+                        || binding.qualification_revision.0 == 0
+                        || binding.purposes.is_empty()
+                    {
+                        return Err(HostError::Invalid("invalid binding".into()));
+                    }
+                }
             }
             if binding.scope_ids.iter().collect::<BTreeSet<_>>().len() != binding.scope_ids.len()
                 || binding.condition_ids.iter().collect::<BTreeSet<_>>().len()
@@ -302,7 +324,14 @@ fn before(now: &TimePoint, until: &TimePoint) -> bool {
     now.clock_id == until.clock_id && now.ticks_ns < until.ticks_ns
 }
 
+fn require_control<N>(core: &Core<N>) -> Result<()> {
+    if core.bindings.values().any(|b| b.observation_only.is_some()) {
+        return Err(HostError::Forbidden);
+    }
+    Ok(())
+}
 fn require_admission<N>(core: &Core<N>) -> Result<()> {
+    require_control(core)?;
     if !core.accepting.load(std::sync::atomic::Ordering::SeqCst) {
         return Err(HostError::Guard);
     }

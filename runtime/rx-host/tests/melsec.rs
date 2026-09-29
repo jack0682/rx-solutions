@@ -259,6 +259,7 @@ fn profile_and_intent_scope_fail_before_native_writes() {
 
 fn binding(p: &Profile) -> Binding {
     Binding {
+        observation_only: None,
         host: name("host/laser"),
         platform: name("platform"),
         cell: p.cell.clone(),
@@ -272,7 +273,7 @@ fn binding(p: &Profile) -> Binding {
             schema_id: name("rx.operating-envelope.v1"),
             size_bytes: Counter(1),
         },
-        qualification: Id::new("55555555-5555-4555-8555-555555555555").unwrap(),
+        qualification: Some(Id::new("55555555-5555-4555-8555-555555555555").unwrap()),
         qualification_revision: Counter(1),
         allowed_intents: vec![intent(p)],
         scope_ids: vec![name("scope/laser")],
@@ -304,7 +305,7 @@ fn host_request(
             epoch: Counter(1),
             scopes: [(name("scope/laser"), Counter(1))].into(),
             envelope: b.envelope.sha256,
-            qualification: b.qualification,
+            qualification: b.qualification.expect("control fixture"),
             qualification_revision: Counter(1),
             grant: grant.id.clone(),
             host_boot: host.boot_id().unwrap(),

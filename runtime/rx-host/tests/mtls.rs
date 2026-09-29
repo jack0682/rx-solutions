@@ -40,6 +40,7 @@ fn intent() -> Intent {
 }
 fn binding() -> Binding {
     Binding {
+        observation_only: None,
         host: name("host/sim"),
         platform: name("platform"),
         cell: name("cell/sim"),
@@ -53,7 +54,7 @@ fn binding() -> Binding {
             schema_id: name("rx.operating-envelope.v1"),
             size_bytes: Counter(1),
         },
-        qualification: Id::new("55555555-5555-4555-8555-555555555555").unwrap(),
+        qualification: Some(Id::new("55555555-5555-4555-8555-555555555555").unwrap()),
         qualification_revision: Counter(1),
         allowed_intents: vec![intent()],
         scope_ids: vec![name("scope/main")],
@@ -281,7 +282,10 @@ async fn prepare(
         intent_digest: digest.as_bytes().to_vec(),
         cell: inspect.cell.clone(),
         envelope_digest: binding().envelope.sha256.as_bytes().to_vec(),
-        qualification_id: binding().qualification.to_string(),
+        qualification_id: binding()
+            .qualification
+            .expect("control fixture")
+            .to_string(),
         qualification_revision: 1,
         purpose: cell::Purpose::Production as i32,
         parent: Some(cell::PermitParent {

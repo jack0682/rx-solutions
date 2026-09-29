@@ -77,7 +77,9 @@ impl<N: NativeAdapter, C: Clock, H: BoundaryHook> Host<N, C, H> {
             retained_evidence: core.store.journal_head()?,
             native,
             safe_to_drop: safe,
-            physical_shutdown_assessed: safe && core.native.environment() == Environment::Physical,
+            physical_shutdown_assessed: safe
+                && core.bindings.values().all(|b| b.observation_only.is_none())
+                && core.native.environment() == Environment::Physical,
         })
     }
 }

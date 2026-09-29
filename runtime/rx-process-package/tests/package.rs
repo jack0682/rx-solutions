@@ -10,6 +10,7 @@ fn name(s: &str) -> Name {
 fn fixture() -> (CompileInput, Recipe, SigningKey, trust::Policy) {
     let source = serde_json::json!({"schema":"rx.process-source.v1","process":"test/package","entry":"main","conditions":{},"flows":[{"id":"main","root":"work","nodes":[{"id":"work","body":{"kind":"OPERATION","binding":"load"}}]}]});
     let action = ActionBinding {
+        program_inputs: None,
         host: name("host/sim"),
         intent: Intent {
             kind: Kind::EnsureState,
@@ -584,4 +585,38 @@ fn sign_device_process_review() {
         .unwrap()
         .write_all(&canonical::bytes(&signature).unwrap())
         .unwrap();
+}
+
+#[test]
+fn all_input_choices_must_be_declared_package_assets() {
+    let (mut input, mut recipe, _, _) = fixture();
+    let reference = |n| ArtifactRef {
+        sha256: Digest::from_bytes([n; 32]),
+        schema_id: name("parameters.v1"),
+        size_bytes: Counter(10),
+    };
+    let program = ArtifactRef {
+        schema_id: name("program.v1"),
+        ..reference(70)
+    };
+    let action = input.bindings.get_mut(&name("load")).unwrap();
+    action.intent.kind = Kind::FiniteAction;
+    action.intent.body = Body::Program(ProgramGoal {
+        program: program.clone(),
+        parameter_set: reference(71),
+    });
+    action.program_inputs = Some(rx_process_contract::program_inputs::Policy {
+        schema: name(rx_process_contract::program_inputs::SCHEMA),
+        template_digest: action.intent.digest().unwrap(),
+        parameter_sets: vec![reference(71), reference(72)],
+    });
+    input.schema = name("rx.process-compile-input.v3");
+    input.bindings_digest =
+        rx_process_contract::compile_input::bindings_digest(&input.bindings, &BTreeMap::new())
+            .unwrap();
+    recipe.assets = vec![program, reference(71)];
+    assert!(assemble(&input, &recipe).is_err());
+    recipe.assets.push(reference(72));
+    let candidate = assemble(&input, &recipe).unwrap();
+    assert_eq!(candidate.manifest().assets.len(), 3);
 }

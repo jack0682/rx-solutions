@@ -67,6 +67,7 @@ pub fn fixture() -> (tempfile::TempDir, PathBuf, ManualClock) {
     );
 
     let bindings = vec![Binding {
+        observation_only: None,
         host: name("host/sim"),
         platform: name("platform"),
         cell: name("cell/sim"),
@@ -80,7 +81,7 @@ pub fn fixture() -> (tempfile::TempDir, PathBuf, ManualClock) {
             schema_id: name("rx.operating-envelope.v1"),
             size_bytes: Counter(1),
         },
-        qualification: id(),
+        qualification: Some(id()),
         qualification_revision: Counter(1),
         allowed_intents: vec![Intent {
             kind: Kind::EnsureState,

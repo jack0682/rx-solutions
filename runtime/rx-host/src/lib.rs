@@ -5,6 +5,7 @@ pub mod journal;
 pub mod melsec;
 pub mod model;
 pub mod native;
+pub mod observation;
 pub mod publication;
 pub mod ros_jtc;
 pub mod rpc;

@@ -156,6 +156,11 @@ pub fn assemble(input: &CompileInput, recipe: &Recipe) -> Result<Candidate> {
         BTreeSet::new(),
     );
     for (binding, action) in &resolved.bindings {
+        if let Some(policy) = &action.program_inputs {
+            for reference in &policy.parameter_sets {
+                insert_asset(&mut assets, reference.clone())?;
+            }
+        }
         permissions.insert(Permission::OperationSubmit {
             operation: binding.clone(),
         });

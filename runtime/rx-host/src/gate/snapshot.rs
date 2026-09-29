@@ -17,6 +17,18 @@ impl<N: NativeAdapter, C: Clock, H: BoundaryHook> Host<N, C, H> {
             .get(cell)
             .cloned()
             .ok_or(HostError::Forbidden)?;
+        if let Some(contract) = &binding.observation_only
+            && sources
+                .iter()
+                .any(|s| !contract.sources.iter().any(|v| &v.id == s))
+        {
+            return Err(HostError::Forbidden);
+        }
+        if binding.observation_only.is_some()
+            && !core.accepting.load(std::sync::atomic::Ordering::SeqCst)
+        {
+            return Err(HostError::Guard);
+        }
         let (sources_available, observations) = match core.native.observe_sources(cell, sources) {
             Ok(v) => (true, v),
             Err(HostError::Guard) => (false, vec![]),
@@ -30,6 +42,28 @@ impl<N: NativeAdapter, C: Clock, H: BoundaryHook> Host<N, C, H> {
                 != sources.iter().collect()
         {
             return Err(HostError::Invalid("native source reply differs".into()));
+        }
+        if binding.observation_only.is_some()
+            && !core.accepting.load(std::sync::atomic::Ordering::SeqCst)
+        {
+            return Err(HostError::Guard);
+        }
+        if let Some(contract) = &binding.observation_only {
+            for observed in &observations {
+                let declared = contract
+                    .sources
+                    .iter()
+                    .find(|s| s.id == observed.source)
+                    .ok_or(HostError::Forbidden)?;
+                if declared.schema != observed.schema
+                    || declared.unit != observed.unit
+                    || !declared.value_type.matches(&observed.value)
+                {
+                    return Err(HostError::Invalid(
+                        "observation declaration differs from sample".into(),
+                    ));
+                }
+            }
         }
         let captured_at = self.clock.now();
         let boot = core.boot.clone();

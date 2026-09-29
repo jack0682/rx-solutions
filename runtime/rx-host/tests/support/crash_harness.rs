@@ -35,6 +35,7 @@ fn intent() -> Intent {
 }
 fn binding() -> Binding {
     Binding {
+        observation_only: None,
         host: name("host/sim"),
         platform: name("platform"),
         cell: name("cell/sim"),
@@ -50,7 +51,7 @@ fn binding() -> Binding {
             schema_id: name("rx.operating-envelope.v1"),
             size_bytes: Counter(1),
         },
-        qualification: Id::new("55555555-5555-4555-8555-555555555555").unwrap(),
+        qualification: Some(Id::new("55555555-5555-4555-8555-555555555555").unwrap()),
         qualification_revision: Counter(1),
         allowed_intents: vec![intent()],
         scope_ids: vec![name("scope/main")],
@@ -334,7 +335,7 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
             epoch: Counter(1),
             scopes,
             envelope: binding().envelope.sha256,
-            qualification: binding().qualification,
+            qualification: binding().qualification.expect("control fixture"),
             qualification_revision: Counter(1),
             grant: grant.id,
             host_boot: host.boot_id()?,

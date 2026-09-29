@@ -17,17 +17,24 @@ pub struct Caller {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Binding {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub observation_only: Option<crate::observation::Declaration>,
     pub host: Name,
     pub platform: Name,
     pub cell: Name,
     pub definition: ArtifactRef,
     pub envelope: ArtifactRef,
-    pub qualification: Id,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub qualification: Option<Id>,
+    #[serde(default, skip_serializing_if = "zero")]
     pub qualification_revision: Counter,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub allowed_intents: Vec<Intent>,
     pub scope_ids: Vec<Name>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub condition_ids: Vec<Name>,
     pub environment: Environment,
+    #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
     pub purposes: BTreeSet<Purpose>,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -231,3 +238,18 @@ pub enum HostError {
     NativeUnknown(String),
 }
 pub type Result<T> = std::result::Result<T, HostError>;
+
+fn zero(v: &Counter) -> bool {
+    v.0 == 0
+}
+impl Binding {
+    pub fn control_qualification(&self) -> Result<(&Id, Counter)> {
+        if self.observation_only.is_some() {
+            return Err(HostError::Forbidden);
+        }
+        Ok((
+            self.qualification.as_ref().ok_or(HostError::Forbidden)?,
+            self.qualification_revision,
+        ))
+    }
+}

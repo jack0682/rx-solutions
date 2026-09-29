@@ -15,6 +15,7 @@ pub(super) fn validate_identity<N>(core: &mut Core<N>, r: &Request) -> Result<()
         .bindings
         .get(&r.permit.cell)
         .ok_or(HostError::Forbidden)?;
+    let (qualification, revision) = b.control_qualification()?;
     if !b.purposes.contains(&r.permit.purpose)
         || r.intent.digest().map_err(invalid)? != r.digest
         || r.permit.operation != r.operation
@@ -24,12 +25,12 @@ pub(super) fn validate_identity<N>(core: &mut Core<N>, r: &Request) -> Result<()
         || r.permit.qualification
             != qualified
                 .as_ref()
-                .map_or(&b.qualification, |q| &q.qualification)
+                .map_or(qualification, |q| &q.qualification)
                 .clone()
         || r.permit.qualification_revision
             != qualified
                 .as_ref()
-                .map_or(b.qualification_revision, |q| q.qualification_revision)
+                .map_or(revision, |q| q.qualification_revision)
         || qualified.as_ref().is_some_and(|q| {
             !q.allowed_intents.contains(&r.digest)
                 || !q.purposes.iter().any(|p| {
