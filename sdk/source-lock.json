@@ -62,7 +62,7 @@
     "crates/rx-storage/migrations/0004.sql": "cea0875a03a0ee52c67dcf2ed304ab4af9c60e4752f2c2a30347ced9c0db99a3",
     "crates/rx-storage/migrations/0005.sql": "8ada9c7c9926862b424997a6933406ce854ca3608f5b9be52c43912c5a8bfcaf",
     "crates/rx-storage/migrations/0006.sql": "eae96ec82df0287af7eea038c77df767623bcb0a765b11f5d5428833e90cd1ce",
-    "crates/rx-storage/src/lib.rs": "69a8b83cf2389a7e51676b4475256883f0bbef0f664cb7b9b9cf4ed938d2fc11",
+    "crates/rx-storage/src/lib.rs": "4084cb2fb5f5c081e8ec0b0f4ba6f0de43b3913dfbd87fbd615ea1c69f031e46",
     "crates/rx-storage/src/mailbox.rs": "b9e1f240d0f6efbe0f2e0efaf6a5eaf9a63455b1a3a3cc47515dccb39a42562b",
     "crates/rx-storage/src/mailbox/tests.rs": "e1af1811afc7ee4ddda77132b400b3e28a1f59c62adc77a60cdbca826b546de9",
     "crates/rx-storage/src/ownership.rs": "675130602cfba1e94ea95c61235b51447f3511dd2fb71cf9f226358fc5885fcd",
