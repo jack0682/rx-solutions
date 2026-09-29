@@ -274,7 +274,7 @@ fn sign_python_fixture_message() {
         serde_json::from_slice(&std::fs::read(input).unwrap()).unwrap();
     assert_eq!(request["key"], "test/key");
     let hex = request["message_hex"].as_str().unwrap();
-    assert!(hex.len() % 2 == 0 && hex.len() < 4 * 1024 * 1024);
+    assert!(hex.len().is_multiple_of(2) && hex.len() < 4 * 1024 * 1024);
     let bytes = (0..hex.len())
         .step_by(2)
         .map(|i| u8::from_str_radix(&hex[i..i + 2], 16).unwrap())

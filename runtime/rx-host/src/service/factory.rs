@@ -4,6 +4,8 @@ use crate::{model::*, native::*};
 use rx_domain::{host_snapshot::SourceObservation, intent::Intent};
 use std::path::Path;
 
+const JTC_NOT_CONFIGURED: &str = "JTC_CONTROL_PROVIDER_NOT_CONFIGURED: validated package cannot supply controller authority; no ROS process started";
+
 pub struct Builtin;
 pub enum BuiltinAdapter<C: Clock> {
     #[cfg(unix)]
@@ -139,6 +141,10 @@ impl<C: Clock + Clone + 'static> AdapterFactory<C> for Builtin {
         }
     }
     fn open_passive(&self, backend: &Backend, data: &Path, clock: C) -> Result<Self::Adapter> {
+        // An unconfigured controller provider is refused regardless of installation state.
+        if let Backend::JtcPackage { .. } = backend {
+            return Err(JTC_NOT_CONFIGURED.into());
+        }
         let descriptor = read_installation(data)?;
         let native_root = native_storage_root(data, &descriptor)?;
         match backend {
@@ -146,22 +152,48 @@ impl<C: Clock + Clone + 'static> AdapterFactory<C> for Builtin {
             Backend::PythonSkillSimulation { .. } | Backend::PythonSkillPackage { .. } => {
                 let (digest, registration) = python_skill::load(backend)?;
                 let installation = descriptor;
-                let Some(NativeInstallation::PythonSkill { registration_digest, environment_digest }) = installation.native else {
+                let Some(NativeInstallation::PythonSkill {
+                    registration_digest,
+                    environment_digest,
+                }) = installation.native
+                else {
                     return Err("Python native installation identity missing".into());
                 };
-                if digest != registration_digest || registration.environment_digest != environment_digest || registration.installation != installation.installation {
+                if digest != registration_digest
+                    || registration.environment_digest != environment_digest
+                    || registration.installation != installation.installation
+                {
                     return Err("Python registration changed after Host initialization".into());
                 }
-                let support=crate::simulation::FileDevice::open(native_root.join("python-support"),clock.clone())?;
-                Ok(BuiltinAdapter::Python(Box::new(crate::python_skill::PythonSkill::open(
-                    python_skill::release()?,registration.program(),native_root.join("native-python"),support,clock)?)))
+                let support = crate::simulation::FileDevice::open(
+                    native_root.join("python-support"),
+                    clock.clone(),
+                )?;
+                Ok(BuiltinAdapter::Python(Box::new(
+                    crate::python_skill::PythonSkill::open(
+                        python_skill::release()?,
+                        registration.program(),
+                        native_root.join("native-python"),
+                        support,
+                        clock,
+                    )?,
+                )))
             }
-            Backend::JtcPackage { .. } => Err("JTC_CONTROL_PROVIDER_NOT_CONFIGURED: validated package cannot supply controller authority; no ROS process started".into()),
+            Backend::JtcPackage { .. } => Err(JTC_NOT_CONFIGURED.into()),
             Backend::ValidatedDriver { .. } => {
                 let installation = descriptor;
-                let Some(NativeInstallation::Dynamixel { identity })=installation.native else { return Err("DXL_NATIVE_IDENTITY_MISSING".into()); };
-                let pin=crate::dynamixel::profile::executable_pin(Path::new("/opt/rx"))?;
-                Ok(BuiltinAdapter::Dynamixel(Box::new(crate::dynamixel::Dynamixel::open(&native_root.join("native-dynamixel"),identity,pin,clock)?)))
+                let Some(NativeInstallation::Dynamixel { identity }) = installation.native else {
+                    return Err("DXL_NATIVE_IDENTITY_MISSING".into());
+                };
+                let pin = crate::dynamixel::profile::executable_pin(Path::new("/opt/rx"))?;
+                Ok(BuiltinAdapter::Dynamixel(Box::new(
+                    crate::dynamixel::Dynamixel::open(
+                        &native_root.join("native-dynamixel"),
+                        identity,
+                        pin,
+                        clock,
+                    )?,
+                )))
             }
             Backend::FileSimulation => Ok(BuiltinAdapter::File(
                 crate::simulation::FileDevice::open(native_root.join("device"), clock)?,
