@@ -1,0 +1,33 @@
+
+# Development-only additions. Appended to RuntimeSkillValidation.Dockerfile.
+# The fixture exporter is a test executable, never an operating authority.
+FROM p-build AS dev-fixture
+RUN --mount=type=cache,id=rx-runtime-skill-p-registry,target=/usr/local/cargo/registry \
+    --mount=type=cache,id=rx-runtime-skill-p-target,target=/source/target \
+    CARGO_BUILD_JOBS=2 cargo test --release --locked -p rx-platformd --test delivery_fixture --no-run && \
+    find /source/target/release/deps -maxdepth 1 -type f -name 'delivery_fixture-*' -executable -exec cp '{}' /out/delivery-fixture ';'
+
+FROM s-build AS dev-supervisor
+RUN --mount=type=cache,id=rx-runtime-skill-s-registry,target=/usr/local/cargo/registry \
+    --mount=type=cache,id=rx-runtime-skill-s-target,target=/source/target \
+    CARGO_BUILD_JOBS=2 cargo build --release --locked -p rx-supervisor && cp /source/target/release/rx-solutionsd /out/
+
+FROM node:26.5.0-bookworm-slim@sha256:2d49d876e96237d76de412761cf05dbfe5aee325cc4406a4d41d5824c5bb8beb AS dev-ui
+WORKDIR /ui
+COPY apps/operator/package.json apps/operator/package-lock.json ./
+RUN npm ci
+COPY apps/operator/ ./
+RUN npm run build
+
+FROM platform AS dev-platform
+COPY --from=dev-fixture /out/delivery-fixture /opt/rx/dev/delivery-fixture
+
+FROM solutions AS dev-solutions
+COPY --from=dev-supervisor /out/rx-solutionsd /opt/rx/bin/rx-solutionsd
+COPY --from=dev-ui /ui/dist/ /opt/rx/operator/
+COPY --from=btcpp /LICENSE /opt/rx/licenses/BehaviorTree.CPP/LICENSE
+COPY --from=btcpp /3rdparty/tinyxml2/LICENSE.txt /opt/rx/licenses/tinyxml2/LICENSE.txt
+COPY --from=btcpp /3rdparty/minitrace/LICENSE /opt/rx/licenses/minitrace/LICENSE
+COPY --from=btcpp /3rdparty/lexy/LICENSE /opt/rx/licenses/lexy/LICENSE
+COPY --from=btcpp /3rdparty/minicoro/LICENSE /opt/rx/licenses/minicoro/LICENSE
+COPY --from=btcpp /3rdparty/cppzmq/LICENSE /opt/rx/licenses/cppzmq/LICENSE
