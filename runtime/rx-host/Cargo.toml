@@ -32,7 +32,7 @@ rx-service-status = {path="../rx-service-status"}
 rx-process-contract = {path="../../sdk/crates/rx-process-contract"}
 rx-melsec-mc = { path = "../../drivers/rx-melsec-mc" }
 rx-package = {path="../../sdk/crates/rx-package"}
-rustix = {version="1",features=["time","fs","event"]}
+rustix = {version="1",features=["time","fs","event","process"]}
 rx-domain = { path = "../../sdk/crates/rx-domain" }
 rx-ports = { path = "../../sdk/crates/rx-ports" }
 rx-storage = { path = "../../sdk/crates/rx-storage" }

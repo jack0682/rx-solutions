@@ -1,5 +1,10 @@
 # RX Solutions
 
+The [Linux development installer](deployment/linux-dev/README.md) packages pinned
+source snapshots and builds a device-free Platform/Host/Executor environment with
+the operator UI. It provides isolated verification sessions and retains their
+records; it is separate from physical commissioning and the LOCAL_SIM installer.
+
 The [local skill developer preview](deployment/local-skills/README.md) provides
 an installer, Python skill registration, execution and a local dashboard. It is
 an explicit simulation profile, separate from physical device commissioning.

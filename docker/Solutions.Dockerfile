@@ -29,6 +29,7 @@ COPY native/ai-sapiens ./native/ai-sapiens
 COPY native/open-manipulator ./native/open-manipulator
 COPY dependencies ./dependencies
 COPY interfaces ./interfaces
+COPY deployment/local-skills/host_runner.py deployment/local-skills/python_environment.py ./deployment/local-skills/
 RUN --mount=type=cache,id=rx-solutions-registry,target=/usr/local/cargo/registry \
     --mount=type=cache,id=rx-solutions-release,target=/src/target \
     cargo build --release --locked --workspace && mkdir -p /out && cp target/release/rx-hostd target/release/rx-executor-service target/release/rx-process-compile target/release/rx-solutionsd target/release/rx-process-package target/release/rx-device-package /out/
@@ -101,6 +102,8 @@ COPY catalogs /opt/rx/catalogs
 COPY dependencies/native-stack.lock.json /opt/rx/manifests/native-stack.lock.json
 COPY native/support/solutions_status.py /opt/rx/tools/solutions_status.py
 COPY native/support/entrypoint.sh /opt/rx/entrypoint.sh
+COPY deployment/local-skills/host_runner.py deployment/local-skills/python_environment.py /opt/rx/python/
+RUN cp --dereference /usr/bin/python3 /opt/rx/python/python && python3 -c 'import hashlib,json,pathlib; p=pathlib.Path("/opt/rx/python"); (p/"release.json").write_text(json.dumps({"schema":"rx.python-host-release.v1","interpreter_sha256":hashlib.sha256((p/"python").read_bytes()).hexdigest()}))'
 COPY tools/write_runtime_inventory.py /opt/rx/tools/write_runtime_inventory.py
 COPY tools/audit_native_install.py /opt/rx/tools/audit_native_install.py
 RUN source /opt/ros/jazzy/setup.bash \

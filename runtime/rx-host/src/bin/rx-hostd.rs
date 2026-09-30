@@ -25,6 +25,28 @@ async fn run() -> service::Result<()> {
         );
         return Ok(());
     }
+    if args.len() == 5 && args[0] == "commit-binding-change" {
+        let plan = rx_package::policy::read(std::path::Path::new(&args[1]))?;
+        let current = Loaded::read(std::path::Path::new(&args[2]))?;
+        let proposed = Loaded::read(std::path::Path::new(&args[3]))?;
+        let request = rx_domain::types::Id::new(&args[4])?;
+        println!(
+            "{}",
+            serde_json::to_string(&service::maintenance::commit(
+                &plan, &current, &proposed, &request
+            )?)?
+        );
+        return Ok(());
+    }
+    if args.len() == 3 && args[0] == "lookup-binding-commit" {
+        let loaded = Loaded::read(std::path::Path::new(&args[1]))?;
+        let request = rx_domain::types::Id::new(&args[2])?;
+        println!(
+            "{}",
+            serde_json::to_string(&service::maintenance::lookup_commit(&loaded, &request)?)?
+        );
+        return Ok(());
+    }
     if args.len() == 3 && args[0] == "lookup-binding-preparation" {
         let current = Loaded::read(std::path::Path::new(&args[1]))?;
         let request = rx_domain::types::Id::new(&args[2])?;
@@ -78,7 +100,7 @@ async fn run() -> service::Result<()> {
         return Ok(());
     }
     if args.len() != 2 || !matches!(args[0].as_str(), "inspect" | "init" | "run") {
-        return Err("usage: rx-hostd drivers [jtc] | inspect|init|run CONFIG | inspect-binding-change PLAN CURRENT_CONFIG PROPOSED_CONFIG | prepare-binding-change PLAN CURRENT_CONFIG PROPOSED_CONFIG REQUEST_ID | cancel-binding-preparation|lookup-binding-preparation CURRENT_CONFIG REQUEST_ID".into());
+        return Err("usage: rx-hostd drivers [jtc] | inspect|init|run CONFIG | inspect-binding-change PLAN CURRENT_CONFIG PROPOSED_CONFIG | prepare-binding-change|commit-binding-change PLAN CURRENT_CONFIG PROPOSED_CONFIG REQUEST_ID | cancel-binding-preparation|lookup-binding-preparation|lookup-binding-commit CURRENT_CONFIG REQUEST_ID".into());
     }
     let loaded = Loaded::read(std::path::Path::new(&args[1]))?;
     if args[0] == "inspect" {

@@ -13,6 +13,7 @@ import sys
 import time
 import urllib.request
 import urllib.error
+import urllib.parse
 import uuid
 import webbrowser
 from image_identity import identities
@@ -167,16 +168,69 @@ def main():
     p = s.add_parser("add"); p.add_argument("directory", type=Path, nargs="?"); p.add_argument("--example", choices=["add"])
     p = s.add_parser("new"); p.add_argument("directory", type=Path)
     s.add_parser("list")
+    p = s.add_parser("prepare-environment"); p.add_argument("directory", type=Path); p.add_argument("--wheel", type=Path, action="append", default=[]); p.add_argument("--output", type=Path, required=True)
+    p = s.add_parser("verify-environment"); p.add_argument("directory", type=Path); p.add_argument("--digest", required=True)
     p = sub.add_parser("run"); p.add_argument("skill"); p.add_argument("--version", default="1.0.0"); p.add_argument("--input", default="{}"); p.add_argument("--request-id"); p.add_argument("--no-wait", action="store_true")
     p = sub.add_parser("result"); p.add_argument("id")
+    p = sub.add_parser("process"); processes = p.add_subparsers(dest="action", required=True)
+    p = processes.add_parser("add"); p.add_argument("directory", type=Path)
+    processes.add_parser("list"); processes.add_parser("runs")
+    p = processes.add_parser("result"); p.add_argument("id")
+    p = processes.add_parser("run"); p.add_argument("name"); p.add_argument("--version", default="1.0.0"); p.add_argument("--input", default="{}"); p.add_argument("--request-id"); p.add_argument("--no-wait", action="store_true")
+    p = sub.add_parser("metrics"); p.add_argument("--since-ms", type=int); p.add_argument("--until-ms", type=int)
+    p = sub.add_parser("runtime", help="Use an existing registered-terminal P/Host/Executor installation")
+    p.add_argument("--connection", type=Path, required=True)
+    p.add_argument("--state-dir", type=Path, default=Path.home() / ".local/share/rx-runtime-client")
+    runtime = p.add_subparsers(dest="action", required=True)
+    runtime.add_parser("skills")
+    p = runtime.add_parser("steps"); p.add_argument("--cell", required=True); p.add_argument("--device-plan", type=Path, action="append", default=[])
+    p = runtime.add_parser("compose"); p.add_argument("name"); p.add_argument("--cell", required=True); p.add_argument("--step", action="append", required=True); p.add_argument("--request-id"); p.add_argument("--device-plan", type=Path, action="append", default=[])
+    p = runtime.add_parser("compose-recover"); p.add_argument("id")
+    p = runtime.add_parser("run"); p.add_argument("name"); p.add_argument("--cell", required=True); p.add_argument("--count", type=int, default=1); p.add_argument("--request-id"); p.add_argument("--wait-seconds", type=int, default=60)
+    p = runtime.add_parser("recover"); p.add_argument("id"); p.add_argument("--wait-seconds", type=int, default=60)
+    for command in ("result", "inspect"):
+        p = runtime.add_parser(command); p.add_argument("id")
     for name in ("runs", "status", "up", "down", "logs", "token", "ui"):
         sub.add_parser(name)
     args = parser.parse_args()
+    if args.command == "runtime":
+        from runtime_client import RuntimeClient, Terminal, read_file
+        try:
+            client = RuntimeClient(Terminal(args.connection.absolute()), args.state_dir.absolute())
+            plans = []
+            for file in getattr(args, "device_plan", []):
+                value = json.loads(read_file(file.absolute()))
+                if not isinstance(value, dict) or not {"id","revision","plan_digest"}.issubset(value): raise ValueError("reviewed device plan fields missing")
+                plans.append({key:value[key] for key in ("id","revision","plan_digest")})
+            if args.action == "skills": result = client.catalog()
+            elif args.action == "steps": result = client.steps(args.cell, plans)
+            elif args.action == "compose":
+                request_id = str(uuid.UUID(args.request_id)) if args.request_id else str(uuid.uuid4())
+                print("Composition request: " + request_id, file=sys.stderr, flush=True)
+                result = client.compose(request_id, args.name, args.cell, args.step, plans)
+            elif args.action == "compose-recover": result = client.recover_composition(args.id)
+            elif args.action == "run":
+                request_id = str(uuid.UUID(args.request_id)) if args.request_id else str(uuid.uuid4())
+                print("Runtime request: " + request_id, file=sys.stderr, flush=True)
+                result = client.invoke(request_id, args.name, args.cell, args.count, args.wait_seconds)
+            elif args.action == "recover": result = client.recover(args.id, args.wait_seconds)
+            elif args.action == "inspect": result = client.inspect(args.id)
+            else: result = client.result(args.id)
+            print(json.dumps(result, indent=2))
+            if args.action in ("run", "recover") and result["result"]["run"]["value"]["state"] != "COMPLETED": sys.exit(2)
+        except (ValueError, OSError) as exc:
+            print("RX: " + str(exc) + ". Runtime requests remain under " + str(args.state_dir.absolute()), file=sys.stderr)
+            sys.exit(1)
+        return
     if args.command == "install":
         if not 1024 <= args.port <= 65535: raise ValueError("port must be 1024..65535")
         install(args); return
     if args.command == "skill":
-        if args.action == "list": result = api("/v1/skills")
+        if args.action in ("prepare-environment", "verify-environment"):
+            from python_environment import prepare, verify
+            result = prepare(args.directory, args.wheel, args.output) if args.action == "prepare-environment" else verify(args.directory, args.digest)
+            print(json.dumps(result, indent=2)); return
+        elif args.action == "list": result = api("/v1/skills")
         elif args.action == "new":
             args.directory.mkdir(parents=True, exist_ok=False)
             template = json.loads((ROOT / "examples/add/skill.json").read_text())
@@ -192,6 +246,31 @@ def main():
             package["code"] = (root / "skill.py").read_text()
             ast.parse(package["code"])
             result = api("/v1/skills", package)
+    elif args.command == "process":
+        if args.action == "add":
+            result = api("/v1/processes", json.loads((args.directory / "process.json").read_text()))
+        elif args.action == "list": result = api("/v1/processes")
+        elif args.action == "runs": result = api("/v1/process-runs")
+        elif args.action == "result": result = api("/v1/process-runs/" + str(uuid.UUID(args.id)))
+        else:
+            value = json.loads(Path(args.input[1:]).read_text() if args.input.startswith("@") else args.input)
+            request_id = str(uuid.UUID(args.request_id)) if args.request_id else str(uuid.uuid4())
+            request = {"request_id": request_id, "process": args.name, "version": args.version, "input": value}
+            local = HOME / "process-requests" / (request_id + ".json")
+            if local.exists() and json.loads(local.read_text()) != request: raise ValueError("process request ID already has different input")
+            save(local, request)
+            print("Process request: " + request_id, file=sys.stderr, flush=True)
+            result = api("/v1/process-runs", request)
+            if not args.no_wait:
+                deadline = time.monotonic() + 75
+                while result["status"] in ("QUEUED", "ACTIVE") and time.monotonic() < deadline:
+                    time.sleep(.2); result = api("/v1/process-runs/" + request_id)
+            print(json.dumps(result, indent=2))
+            if not args.no_wait and result["status"] != "SUCCEEDED": sys.exit(2)
+            return
+    elif args.command == "metrics":
+        window = {k: v for k, v in {"since_ms": args.since_ms, "until_ms": args.until_ms}.items() if v is not None}
+        result = api("/v1/metrics" + ("?" + urllib.parse.urlencode(window) if window else ""))
     elif args.command == "run":
         value = json.loads(Path(args.input[1:]).read_text() if args.input.startswith("@") else args.input)
         request_id = str(uuid.UUID(args.request_id)) if args.request_id else str(uuid.uuid4())

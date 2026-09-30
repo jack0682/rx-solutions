@@ -13,7 +13,7 @@ p.add_argument('--port',type=int,default=8766)
 p.add_argument('--bundle',type=Path,help='Use an already downloaded, extracted bundle')
 p.add_argument('--prefix',type=Path,default=Path.home()/'.local')
 a=p.parse_args()
-version='0.3.0-rc.2'
+version='0.4.0-dev.1'
 root=a.prefix.resolve()/'lib/rx-skills'/version
 if a.bundle:
     root=a.bundle.resolve()

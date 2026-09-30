@@ -35,7 +35,7 @@ impl<N: NativeAdapter, C: Clock> Host<N, C, NoHooks> {
     }
 }
 
-mod configuration;
+pub(crate) mod configuration;
 mod dispatch;
 mod grants;
 mod publication;
@@ -157,6 +157,13 @@ impl<N: NativeAdapter, C: Clock, H: BoundaryHook> Host<N, C, H> {
         self.core
             .lock()
             .map_err(|_| HostError::NativeUnknown("command gate faulted".into()))
+    }
+    pub(crate) fn bind_service_boot(&self, attempt: &Id) -> Result<()> {
+        let mut core = self.lock()?;
+        let boot = core.boot.clone();
+        core.store
+            .transact(|tx| crate::service::maintenance::bind_service_boot(tx, attempt, &boot))
+            .map_err(Into::into)
     }
     pub fn boot_id(&self) -> Result<Id> {
         Ok(self.lock()?.boot.clone())
