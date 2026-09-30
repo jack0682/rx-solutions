@@ -1,0 +1,230 @@
+#!/usr/bin/env python3
+"""Install and operate a device-free RX development and verification bundle."""
+import argparse
+import hashlib
+import json
+import os
+from pathlib import Path
+import shutil
+import subprocess
+import sys
+import tempfile
+import uuid
+
+sys.dont_write_bytecode = True
+ROOT = Path(__file__).resolve().parent
+
+
+def run(*args, capture=False):
+    result = subprocess.run(list(map(str, args)), check=True, text=True,
+                            stdout=subprocess.PIPE if capture else None)
+    return result.stdout.strip() if capture else None
+
+
+def write(path, value):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile(mode="w", dir=path.parent, prefix=".rx-write-", delete=False) as stream:
+        temporary = Path(stream.name)
+        stream.write(json.dumps(value, indent=2) + "\n")
+        stream.flush()
+        os.fsync(stream.fileno())
+    temporary.replace(path)
+
+
+def verify_bundle():
+    data = json.loads((ROOT / "bundle.json").read_text())
+    if data["schema"] != "rx.linux-dev-bundle.v1" or data["profile"] != "FILE_SIMULATION":
+        raise ValueError("Unsupported bundle profile")
+    for name, expected in data["files"].items():
+        file = ROOT / name
+        if Path(name).is_absolute() or ".." in Path(name).parts or file.is_symlink():
+            raise ValueError("Unsafe bundle path: " + name)
+        if not file.is_file():
+            raise ValueError("Missing bundle file: " + name)
+        with file.open("rb") as stream:
+            actual_digest = hashlib.file_digest(stream, "sha256").hexdigest()
+        if actual_digest != expected:
+            raise ValueError("Bundle content changed: " + name)
+    # Reject additional source/build inputs, not only changes to listed files.
+    actual = {str(p.relative_to(ROOT)) for p in ROOT.rglob("*") if p.is_file()}
+    if actual != set(data["files"]) | {"bundle.json"}:
+        raise ValueError("Bundle contains unlisted files; keep build/state directories outside it")
+    return data
+
+
+def docker_info(*, needs_git=True):
+    if sys.version_info < (3, 11):
+        raise ValueError("Python 3.11 or later is required")
+    for name in (["docker", "git"] if needs_git else ["docker"]):
+        if not shutil.which(name):
+            raise ValueError(name + " is required; install it before running this installer")
+    value = json.loads(run("docker", "info", "--format", "{{json .}}", capture=True))
+    if value["OSType"] != "linux":
+        raise ValueError("A running Linux Docker engine is required")
+    return value
+
+
+def install(state, args):
+    manifest = verify_bundle()
+    docker_info(needs_git=not manifest.get("binary_images_included", False))
+    state.mkdir(parents=True, exist_ok=True, mode=0o700)
+    state.chmod(0o700)
+    identity = hashlib.sha256((ROOT / "bundle.json").read_bytes()).hexdigest()
+    previous = state / "installation.json"
+    if previous.exists() and json.loads(previous.read_text())["bundle_sha256"] != identity:
+        raise ValueError("This state directory belongs to another bundle; choose a new --state-dir")
+    if manifest.get("binary_images_included"):
+        run("docker", "load", "--input", ROOT / "runtime-images.tar.gz")
+        for image in manifest["images"].values():
+            value = json.loads(run("docker", "image", "inspect", image, capture=True))[0]
+            if value["Os"] != "linux" or value["Architecture"] != manifest["architecture"]:
+                raise ValueError("Prebuilt image architecture differs")
+        write(previous, {"schema": "rx.dev-installation.v1", "bundle_sha256": identity,
+                         "images": manifest["images"], "architecture": manifest["architecture"],
+                         "physical_execution": "NOT_SUPPORTED"})
+        print("INSTALLED_NOT_RUNTIME_VERIFIED: run ./rx-dev verify to check this installation")
+        return
+    vendor = state / "vendor" / "BehaviorTree.CPP"
+    pin = "6e469c6ba133aaa842dac9b096b41f2d33ee2b0e"
+    if not vendor.exists():
+        vendor.mkdir(parents=True)
+        run("git", "init", vendor)
+        run("git", "-C", vendor, "fetch", "--depth", "1",
+            "https://github.com/BehaviorTree/BehaviorTree.CPP.git", pin)
+        run("git", "-C", vendor, "checkout", "--detach", "FETCH_HEAD")
+    if run("git", "-C", vendor, "rev-parse", "HEAD", capture=True) != pin:
+        raise ValueError("BehaviorTree.CPP source revision differs")
+    if run("git", "-C", vendor, "status", "--porcelain", capture=True):
+        raise ValueError("BehaviorTree.CPP source has local changes")
+    dockerfile = state / "Developer.Dockerfile"
+    dockerfile.write_bytes((ROOT / "sources/solutions/docker/RuntimeSkillValidation.Dockerfile").read_bytes()
+                           + (ROOT / "Dockerfile.append").read_bytes())
+    images = {}
+    for role in ["platform", "solutions"]:
+        tag = f"rx-dev-{role}:{identity[:12]}-{manifest['architecture']}"
+        command = ["docker", "build", "--progress", "plain", "--platform", "linux/" + manifest["architecture"],
+            "--build-context", "platform_source=" + str(ROOT / "sources/platform"),
+            "--build-context", "btcpp=" + str(vendor), "--target", "dev-" + role,
+            "-f", str(dockerfile), "-t", tag, str(ROOT / "sources/solutions")]
+        log = state / ("build-" + role + ".log")
+        print("Building " + role + "; log: " + str(log), flush=True)
+        with log.open("w") as output:
+            result = subprocess.run(command, stdout=output, stderr=subprocess.STDOUT)
+        if result.returncode:
+            raise ValueError("Image build failed; see " + str(log))
+        inspected = json.loads(run("docker", "image", "inspect", tag, capture=True))[0]
+        if inspected["Architecture"] != manifest["architecture"] or inspected["Os"] != "linux":
+            raise ValueError("Built image architecture differs")
+        images[role] = inspected["Id"]
+    write(previous, {"schema": "rx.dev-installation.v1", "bundle_sha256": identity,
+                     "images": images, "architecture": manifest["architecture"],
+                     "physical_execution": "NOT_SUPPORTED"})
+    print(json.dumps({"status": "INSTALLED_NOT_RUNTIME_VERIFIED", "state": str(state),
+                      "next": "./rx-dev verify --state-dir " + str(state)}, indent=2))
+
+
+def installed(state):
+    verify_bundle()
+    config = json.loads((state / "installation.json").read_text())
+    if config["bundle_sha256"] != hashlib.sha256((ROOT / "bundle.json").read_bytes()).hexdigest():
+        raise ValueError("Installed bundle identity differs")
+    for image in config["images"].values():
+        run("docker", "image", "inspect", image, capture=True)
+    return config
+
+
+def sessions(state, session=None):
+    root = state / "sessions"
+    if session:
+        if str(uuid.UUID(session)) != session:
+            raise ValueError("Canonical session UUID required")
+        return [root / session]
+    return sorted(p for p in root.glob("*") if (p / "session.json").is_file())
+
+
+def inspect_owned(name, session):
+    value = json.loads(run("docker", "inspect", name, capture=True))[0]
+    if value.get("Config", {}).get("Labels", {}).get("rx.dev.session") != session:
+        raise ValueError("Refusing unrelated container: " + name)
+    return value
+
+
+def status(state, selected):
+    output = []
+    for folder in sessions(state, selected):
+        record = json.loads((folder / "session.json").read_text())
+        current = []
+        for name in record.get("containers", []):
+            try:
+                value = inspect_owned(name, folder.name)
+                current.append({"name": name, "state": value["State"]["Status"],
+                                "exit_code": value["State"]["ExitCode"]})
+            except subprocess.CalledProcessError:
+                current.append({"name": name, "state": "MISSING"})
+        output.append({"session": folder.name, "phase": record["phase"], "containers": current,
+                       "recorded_verification": record.get("recorded_verification"),
+                       "evidence": str(folder / "evidence"), "physical_execution": "NOT_SUPPORTED"})
+    print(json.dumps(output, indent=2))
+
+
+def stop(state, selected):
+    if selected is None:
+        raise ValueError("Specify --session UUID; no global stop is performed")
+    folder = sessions(state, selected)[0]
+    record = json.loads((folder / "session.json").read_text())
+    (folder / "stop-request").touch(mode=0o600)
+    # Also works after runner loss. Identity is checked before every signal.
+    from session import shutdown
+    results = shutdown(folder)
+    record = json.loads((folder / "session.json").read_text())
+    record["shutdown"] = results
+    attention = any(v.get("running") or "error" in v or v.get("exit_code", 0) != 0 for v in results)
+    record["phase"] = "STOP_ATTENTION" if attention else "STOPPED"
+    write(folder / "session.json", record)
+    print(json.dumps({"phase": record["phase"], "records_and_volumes_preserved": True}, indent=2))
+    if attention:
+        raise ValueError("Shutdown needs attention; no force termination was performed")
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("command", choices=["install", "doctor", "verify", "demo", "status", "logs", "stop"])
+    parser.add_argument("--state-dir", type=Path, default=Path.home() / ".local/share/rx-linux-dev")
+    parser.add_argument("--session")
+    args = parser.parse_args()
+    state = args.state_dir.expanduser().resolve()
+    if state == ROOT or state.is_relative_to(ROOT):
+        raise ValueError("State must be outside the source bundle")
+    if args.command == "doctor":
+        manifest = verify_bundle()
+        info = docker_info(needs_git=not manifest.get("binary_images_included", False))
+        print(json.dumps({"status": "PREREQUISITES_READY", "target": manifest["architecture"],
+                          "docker": info["Architecture"], "runtime_verified": False}, indent=2))
+    elif args.command == "install":
+        install(state, args)
+    elif args.command in ["verify", "demo"]:
+        config = installed(state)
+        folder = state / "sessions" / str(uuid.uuid4())
+        folder.mkdir(parents=True, mode=0o700)
+        print("Session: " + folder.name, flush=True)
+        from session import start
+        start(ROOT, folder, config, demo=args.command == "demo")
+    elif args.command == "status":
+        status(state, args.session)
+    elif args.command == "stop":
+        stop(state, args.session)
+    else:
+        if not args.session:
+            raise ValueError("Specify --session UUID")
+        folder = sessions(state, args.session)[0]
+        for name in json.loads((folder / "session.json").read_text()).get("containers", []):
+            inspect_owned(name, args.session)
+            run("docker", "logs", "--tail", "100", name)
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except (ValueError, OSError, RuntimeError, subprocess.CalledProcessError) as error:
+        print("RX development installer: " + str(error), file=sys.stderr)
+        sys.exit(1)
