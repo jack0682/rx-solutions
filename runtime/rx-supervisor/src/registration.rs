@@ -37,15 +37,7 @@ fn execution_key(component: &Id, instance: &Id) -> Name {
 pub use rx_domain::component::{
     Binding, CatalogReference, Declaration, Registration, RegistrationState, VersionedRegistration,
 };
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum ExecutionState {
-    Assigned,
-    Running,
-    Exited,
-    NotStarted,
-    Unknown,
-}
+pub use rx_domain::resident_reporting::ExecutionState;
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Observation {

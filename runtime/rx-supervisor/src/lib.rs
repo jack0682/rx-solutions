@@ -9,6 +9,7 @@ pub mod process;
 pub mod process_identity;
 pub mod registered;
 pub mod registration;
+pub mod reporting;
 pub mod supervisor;
 pub mod use_assessment;
 pub use supervisor::Supervisor;
