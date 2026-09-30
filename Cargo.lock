@@ -1556,6 +1556,7 @@ dependencies = [
  "rx-domain",
  "rx-package",
  "rx-ports",
+ "rx-protocol",
  "rx-service-status",
  "rx-solution-catalog",
  "rx-storage",
@@ -1565,6 +1566,7 @@ dependencies = [
  "tempfile",
  "thiserror",
  "tokio",
+ "tonic",
  "uuid",
 ]
 
