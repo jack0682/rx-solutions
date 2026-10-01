@@ -197,6 +197,7 @@ export const pendingSchema = z
       '/api/v1/process-drafts',
       '/api/v1/definition-catalogs',
       '/api/v1/definitions',
+      '/api/v1/workflow-resolutions',
       '/api/v1/process-draft-bindings',
       '/api/v1/package-intakes',
       '/api/v1/process-reviews',

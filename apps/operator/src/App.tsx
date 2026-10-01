@@ -1,3 +1,5 @@
+import { WorkflowResolution } from './workflow-resolution';
+import { workflowRoute, validateWorkflowReceipt, type WorkflowReceipt } from './workflow-schema';
 import { definitionConflict } from './definition-names';
 import { Definitions } from './definitions';
 import {
@@ -62,6 +64,10 @@ export function App() {
   const [phase, setPhase] = useState<'checking' | 'signed-out' | 'active'>('checking');
   const [data, setData] = useState<Overview | null>(null);
   const [packageBuffers, setPackageBuffers] = useState<Record<string, PackageBuffer>>({});
+  const [workflowReceipt, setWorkflowReceipt] = useState<{
+    key: string;
+    value: WorkflowReceipt;
+  } | null>(null);
   const [definitionReceipt, setDefinitionReceipt] = useState<DefinitionReceipt | null>(null);
   const [definitionDirty, setDefinitionDirty] = useState(false);
   const [packageReceipt, setPackageReceipt] = useState<ReviewReceipt | null>(null);
@@ -121,6 +127,7 @@ export function App() {
         setPackageBuffers({});
         setPackageReceipt(null);
         setDefinitionReceipt(null);
+        setWorkflowReceipt(null);
         setDefinitionDirty(false);
         setDraftReceipt(null);
         setBindingReceipt(null);
@@ -317,7 +324,12 @@ export function App() {
   }
   async function submit(retry?: Pending, action?: Pending) {
     if (busy.current || !data || !fresh || storageError) return;
-    if (!cell && !definitionRoute((retry ?? action)?.route ?? '')) return;
+    if (
+      !cell &&
+      !definitionRoute((retry ?? action)?.route ?? '') &&
+      !workflowRoute((retry ?? action)?.route ?? '')
+    )
+      return;
     if (retry && !canRecoverHostRequest(retry, data)) return;
     if (
       !retry &&
@@ -325,7 +337,7 @@ export function App() {
         ? canRecoverHost
         : action && packageRoute(action.route)
           ? fresh && canReadDrafts && canEditDraftRequest(action.route)
-          : (action && definitionRoute(action.route)) ||
+          : (action && (definitionRoute(action.route) || workflowRoute(action.route))) ||
               action?.route === '/api/v1/process-drafts' ||
               action?.route === '/api/v1/process-draft-bindings'
             ? canSaveDraft
@@ -369,7 +381,12 @@ export function App() {
       sent = true;
       const result = await api(record.route, { body: requestBody(record) });
       try {
-        if (definitionRoute(record.route)) {
+        if (workflowRoute(record.route)) {
+          setWorkflowReceipt({
+            key: record.request_key,
+            value: validateWorkflowReceipt(record, result),
+          });
+        } else if (definitionRoute(record.route)) {
           setDefinitionReceipt(validateDefinitionReceipt(record, result));
         } else if (recoveryRoute(record.route)) {
           setRecoveryReceipt(await validateRecoveryReceipt(record, result));
@@ -764,7 +781,25 @@ export function App() {
               />
             </div>
           )}
-          {tab === 'Definitions' ? null : tab === 'My access' ? (
+          {data && canReadDrafts && tab === 'Workflow design' && (
+            <WorkflowResolution
+              key={JSON.stringify([
+                data.user.principal,
+                data.installation.id,
+                data.installation.store_generation,
+              ])}
+              principal={data.user.principal}
+              terminal={data.user.terminal}
+              canEdit={canSaveDraft}
+              locked={!!pending || working || storageError}
+              receipt={workflowReceipt}
+              onSubmit={(command) =>
+                packageSubmit('/api/v1/workflow-resolutions', command, 'Resolve workflow model')
+              }
+            />
+          )}
+          {tab === 'Definitions' ||
+          (tab === 'Workflow design' && !data?.cells.length) ? null : tab === 'My access' ? (
             <section className="panel access-panel">
               <p className="eyebrow">CURRENT ACCOUNT</p>
               <h2>{data?.user.principal}</h2>
