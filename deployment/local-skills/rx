@@ -197,11 +197,11 @@ def main():
     args = parser.parse_args()
     if args.command == "definitions":
         try:
-            result = definition_run(args)
+            result, rendered = definition_run(args)
         except (ValueError, OSError) as exc:
             print("RX definitions: " + str(exc) + ". Original requests remain under " + str(args.state_dir.absolute()), file=sys.stderr)
             sys.exit(1)
-        print(json.dumps(result, indent=2))
+        print(rendered if rendered is not None else json.dumps(result, indent=2))
         if result.get("violations"):
             sys.exit(2)
         return

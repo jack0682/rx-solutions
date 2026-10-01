@@ -1,3 +1,5 @@
+import { DefinitionName, useDefinitionNames } from './definition-name';
+import { provenanceRefs } from './definition-names';
 import { DefinitionPoints } from './definition-points';
 import { useEffect, useRef, useState } from 'react';
 import { api, explain } from './api';
@@ -594,6 +596,8 @@ export function Definitions({
 }
 function EffectiveValues({ view, dirty }: { view: DefinitionView; dirty: boolean }) {
   const effective = view.effective;
+  const d = view.version.definition;
+  const names = useDefinitionNames(provenanceRefs(view), { [refKey(d.reference)]: d.label });
   return (
     <section className="definition-effective">
       <h4>Saved field values and sources</h4>
@@ -620,17 +624,18 @@ function EffectiveValues({ view, dirty }: { view: DefinitionView; dirty: boolean
           </b>
           <p>{effective.values[key] ? valueText(effective.values[key].value) : 'Not set'}</p>
           <small>
-            Field declared by {field.declared_by.id} · r{field.declared_by.revision}
+            Field declared by <DefinitionName reference={field.declared_by} names={names} />
           </small>
           {effective.values[key] && (
             <small>
-              Value from {effective.values[key].declared_by.id} · r
-              {effective.values[key].declared_by.revision}
+              Value from{' '}
+              <DefinitionName reference={effective.values[key].declared_by} names={names} />
             </small>
           )}
           {effective.shadowed[key]?.map((v, i) => (
             <small key={i}>
-              Overridden: {valueText(v.value)} · {v.declared_by.id} r{v.declared_by.revision}
+              Overridden: {valueText(v.value)} ·{' '}
+              <DefinitionName reference={v.declared_by} names={names} />
             </small>
           ))}
         </article>

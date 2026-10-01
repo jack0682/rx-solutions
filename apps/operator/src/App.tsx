@@ -1,3 +1,4 @@
+import { definitionConflict } from './definition-names';
 import { Definitions } from './definitions';
 import {
   definitionRoute,
@@ -489,8 +490,16 @@ export function App() {
           setStorageError(true);
         }
       }
+      const detail =
+        !retry &&
+        record.route === '/api/v1/definitions' &&
+        e instanceof ApiFailure &&
+        !e.unknownOutcome &&
+        e.code === 'STALE_REVISION'
+          ? await definitionConflict(record.command)
+          : null;
       setToast(
-        `${explain(e)}${sent && (retry || !(e instanceof ApiFailure) || e.unknownOutcome) ? ' Verify the record using the same request key.' : ''}`,
+        `${detail ?? explain(e)}${sent && (retry || !(e instanceof ApiFailure) || e.unknownOutcome) ? ' Verify the record using the same request key.' : ''}`,
       );
       setDialog(null);
     } finally {
