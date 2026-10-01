@@ -1,3 +1,9 @@
+import { Definitions } from './definitions';
+import {
+  definitionRoute,
+  validateDefinitionReceipt,
+  type DefinitionReceipt,
+} from './definition-schema';
 import { Packages } from './packages';
 import {
   packageRoute,
@@ -55,6 +61,8 @@ export function App() {
   const [phase, setPhase] = useState<'checking' | 'signed-out' | 'active'>('checking');
   const [data, setData] = useState<Overview | null>(null);
   const [packageBuffers, setPackageBuffers] = useState<Record<string, PackageBuffer>>({});
+  const [definitionReceipt, setDefinitionReceipt] = useState<DefinitionReceipt | null>(null);
+  const [definitionDirty, setDefinitionDirty] = useState(false);
   const [packageReceipt, setPackageReceipt] = useState<ReviewReceipt | null>(null);
   const [draftBuffers, setDraftBuffers] = useState<Record<string, DraftBuffer | null>>({});
   const [bindingReceipt, setBindingReceipt] = useState<BindingVersion | null>(null);
@@ -111,6 +119,8 @@ export function App() {
         setDraftBuffers({});
         setPackageBuffers({});
         setPackageReceipt(null);
+        setDefinitionReceipt(null);
+        setDefinitionDirty(false);
         setDraftReceipt(null);
         setBindingReceipt(null);
         setRunSelections({});
@@ -135,6 +145,8 @@ export function App() {
         setDraftBuffers({});
         setPackageBuffers({});
         setPackageReceipt(null);
+        setDefinitionReceipt(null);
+        setDefinitionDirty(false);
         setDraftReceipt(null);
         setBindingReceipt(null);
       } else setError(explain(e));
@@ -173,9 +185,12 @@ export function App() {
     else dialogRef.current?.close();
   }, [dialog]);
 
-  const hasUnsavedDraft = Object.values(draftBuffers).some(
-    (d) => d?.dirty || d?.sourceText != null || d?.conditionText != null || d?.bindingEdit != null,
-  );
+  const hasUnsavedDraft =
+    definitionDirty ||
+    Object.values(draftBuffers).some(
+      (d) =>
+        d?.dirty || d?.sourceText != null || d?.conditionText != null || d?.bindingEdit != null,
+    );
   useEffect(() => {
     if (!hasUnsavedDraft) return;
     const guard = (event: BeforeUnloadEvent) => {
@@ -244,7 +259,7 @@ export function App() {
   }
   async function logout() {
     if (busy.current) return;
-    if (hasUnsavedDraft && !window.confirm('Discard unsaved workflow edits and sign out?')) return;
+    if (hasUnsavedDraft && !window.confirm('Discard unsaved authoring edits and sign out?')) return;
     busy.current = true;
     setWorking(true);
     try {
@@ -256,6 +271,8 @@ export function App() {
       setDraftBuffers({});
       setPackageBuffers({});
       setPackageReceipt(null);
+      setDefinitionReceipt(null);
+      setDefinitionDirty(false);
       setDraftReceipt(null);
       setBindingReceipt(null);
       setError('');
@@ -298,7 +315,8 @@ export function App() {
     });
   }
   async function submit(retry?: Pending, action?: Pending) {
-    if (busy.current || !data || !cell || !fresh || storageError) return;
+    if (busy.current || !data || !fresh || storageError) return;
+    if (!cell && !definitionRoute((retry ?? action)?.route ?? '')) return;
     if (retry && !canRecoverHostRequest(retry, data)) return;
     if (
       !retry &&
@@ -306,7 +324,8 @@ export function App() {
         ? canRecoverHost
         : action && packageRoute(action.route)
           ? fresh && canReadDrafts && canEditDraftRequest(action.route)
-          : action?.route === '/api/v1/process-drafts' ||
+          : (action && definitionRoute(action.route)) ||
+              action?.route === '/api/v1/process-drafts' ||
               action?.route === '/api/v1/process-draft-bindings'
             ? canSaveDraft
             : action?.route === '/api/v1/cases/acknowledge'
@@ -314,13 +333,12 @@ export function App() {
               : canRequest)
     )
       return;
-    busy.current = true;
-    setWorking(true);
-    setToast('');
     const reviewed = dialog?.cell ?? cell;
-    const config = reviewed.cell.value;
-    const record: Pending = retry ??
-      action ?? {
+    let record = retry ?? action;
+    if (!record) {
+      if (!reviewed) return;
+      const config = reviewed.cell.value;
+      record = {
         request_key: crypto.randomUUID(),
         principal: data.user.principal,
         installation: data.installation.id,
@@ -338,6 +356,10 @@ export function App() {
                 expected_cell: reviewed.cell.revision,
               },
       };
+    }
+    busy.current = true;
+    setWorking(true);
+    setToast('');
     let sent = false;
     try {
       // Persist before transmission. Reload means outcome unknown until the SAME key is recovered.
@@ -346,7 +368,9 @@ export function App() {
       sent = true;
       const result = await api(record.route, { body: requestBody(record) });
       try {
-        if (recoveryRoute(record.route)) {
+        if (definitionRoute(record.route)) {
+          setDefinitionReceipt(validateDefinitionReceipt(record, result));
+        } else if (recoveryRoute(record.route)) {
           setRecoveryReceipt(await validateRecoveryReceipt(record, result));
         } else if (packageRoute(record.route)) {
           const value = validatePackageReceipt(record.route, record.command, result);
@@ -584,7 +608,7 @@ export function App() {
             'Operating conditions',
             'Run records',
             'Intervention cases',
-            ...(canReadDrafts ? ['Workflow design', 'Package review'] : []),
+            ...(canReadDrafts ? ['Workflow design', 'Definitions', 'Package review'] : []),
             'Configuration',
             'My access',
           ].map((item, i) => (
@@ -638,7 +662,7 @@ export function App() {
                   ? 'CELL OPERATIONS'
                   : tab === 'Package review'
                     ? 'PACKAGE REVIEW'
-                    : tab === 'Workflow design'
+                    : tab === 'Workflow design' || tab === 'Definitions'
                       ? 'PROCESS AUTHORING'
                       : tab === 'Operating conditions'
                         ? 'CONDITIONS'
@@ -654,7 +678,9 @@ export function App() {
               <p className="muted">
                 {tab === 'Operations'
                   ? 'Prepare the next task using verified state.'
-                  : 'View records associated with the current installation and account.'}
+                  : tab === 'Definitions'
+                    ? 'Configure reusable parts, environments and task definitions.'
+                    : 'View records associated with the current installation and account.'}
               </p>
             </div>
             <div className="connection">
@@ -710,7 +736,26 @@ export function App() {
               {toast}
             </div>
           )}
-          {tab === 'My access' ? (
+          {data && canReadDrafts && (
+            <div hidden={tab !== 'Definitions'}>
+              <Definitions
+                key={JSON.stringify([
+                  data.user.principal,
+                  data.installation.id,
+                  data.installation.store_generation,
+                ])}
+                principal={data.user.principal}
+                terminal={data.user.terminal}
+                canEdit={canAuthor}
+                canSave={canSaveDraft}
+                locked={!!pending || working || storageError}
+                receipt={definitionReceipt}
+                onDirty={setDefinitionDirty}
+                onSubmit={packageSubmit}
+              />
+            </div>
+          )}
+          {tab === 'Definitions' ? null : tab === 'My access' ? (
             <section className="panel access-panel">
               <p className="eyebrow">CURRENT ACCOUNT</p>
               <h2>{data?.user.principal}</h2>

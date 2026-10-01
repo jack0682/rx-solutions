@@ -192,7 +192,19 @@ def main():
         p = runtime.add_parser(command); p.add_argument("id")
     for name in ("runs", "status", "up", "down", "logs", "token", "ui"):
         sub.add_parser(name)
+    from definitions_client import arguments as definition_arguments, run as definition_run
+    definition_arguments(sub)
     args = parser.parse_args()
+    if args.command == "definitions":
+        try:
+            result = definition_run(args)
+        except (ValueError, OSError) as exc:
+            print("RX definitions: " + str(exc) + ". Original requests remain under " + str(args.state_dir.absolute()), file=sys.stderr)
+            sys.exit(1)
+        print(json.dumps(result, indent=2))
+        if result.get("violations"):
+            sys.exit(2)
+        return
     if args.command == "runtime":
         from runtime_client import RuntimeClient, Terminal, read_file
         try:
