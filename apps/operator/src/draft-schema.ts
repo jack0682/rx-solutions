@@ -5,6 +5,19 @@ const counter = z
   .regex(/^(0|[1-9][0-9]{0,19})$/)
   .refine((v) => BigInt(v) <= 18446744073709551615n);
 const digest = z.string().regex(/^[0-9a-f]{64}$/);
+export const presentationSchema = z.object({
+  flows: z.record(
+    z.string(),
+    z.record(
+      z.string(),
+      z.object({
+        x: z.number().int().min(0).max(100000),
+        y: z.number().int().min(0).max(100000),
+      }),
+    ),
+  ),
+});
+export type Presentation = z.infer<typeof presentationSchema>;
 export const sourceReportSchema = z.object({
   validator: z.string(),
   validator_digest: digest,
@@ -25,6 +38,7 @@ export const draftDetailSchema = z.object({
     created_by: z.string(),
     updated_by: z.string(),
     updated_at: z.object({ clock_id: z.string(), ticks_ns: counter }),
+    presentation: presentationSchema.optional(),
   }),
   document: z.unknown(),
 });
@@ -47,6 +61,7 @@ export const draftPageSchema = z.object({
 export type DraftDetail = z.infer<typeof draftDetailSchema>;
 export type DraftSummary = z.infer<typeof draftPageSchema>['drafts'][number];
 export type DraftBuffer = {
+  presentation?: Presentation;
   bindingEdit?: BindingEdit | null;
   sourceText?: string | null;
   conditionText?: string | null;
@@ -78,6 +93,7 @@ export function fromDetail(d: DraftDetail): DraftBuffer {
     dirty: false,
     validation: d.version.validation,
     baseline: d,
+    presentation: d.version.presentation,
   };
 }
 export const editableSourceSchema = z

@@ -1,7 +1,8 @@
 import { count } from './labels';
 import { DraftBindings } from './draft-bindings';
 import type { BindingEdit, BindingVersion } from './draft-bindings-schema';
-import { previewRows } from './process-preview';
+import { WorkflowCanvas, WorkflowLibrary } from './workflow-canvas';
+import { connect, nodeKinds, type Point } from './workflow-graph';
 import { useEffect, useState } from 'react';
 import { api, explain } from './api';
 import {
@@ -13,17 +14,9 @@ import {
   type DraftDetail,
   type DraftSummary,
   type EditableSource,
+  type Presentation,
 } from './draft-schema';
-const kinds: Record<string, string> = {
-  SEQUENCE: 'Sequence',
-  PARALLEL_ALL: 'Parallel',
-  BRANCH: 'Branch',
-  REPEAT: 'Repeat',
-  CALL: 'Call workflow',
-  OPERATION: 'Operation',
-  WAIT: 'Wait for condition',
-  INTERVENTION: 'Operator intervention',
-};
+const kinds = nodeKinds;
 const issueLabels: Record<string, string> = {
   DOCUMENT_SHAPE: 'Check required fields and value types.',
   SOURCE_SHAPE: 'Check the workflow format and number of subworkflows.',
@@ -63,51 +56,6 @@ const blank = () => ({
     },
   ],
 });
-function Tree({
-  source,
-  flowIndex,
-  onSelect,
-}: {
-  source: EditableSource;
-  flowIndex: number;
-  nodeId: string;
-  onSelect: (i: number) => void;
-}) {
-  const flow = source.flows[flowIndex];
-  return (
-    <div className="graph-tree">
-      {previewRows(source, flowIndex).map((row, i) => {
-        const node = flow?.nodes[row.nodeIndex];
-        return (
-          <div
-            key={i}
-            className={`graph-branch graph-depth-${Math.max(0, Math.min(row.depth, 6))}`}
-          >
-            {row.problem ? (
-              <div className="graph-missing">
-                {row.problem} · {row.nodeId}
-              </div>
-            ) : (
-              node && (
-                <button
-                  className={`graph-node kind-${str(node.body.kind).toLowerCase()}`}
-                  onClick={() => onSelect(row.nodeIndex)}
-                >
-                  <small>{kinds[str(node.body.kind)] ?? 'Unsupported node'}</small>
-                  <strong>
-                    {node.body.kind === 'OPERATION'
-                      ? str(node.body.binding) || 'Operation bindings required'
-                      : node.id}
-                  </strong>
-                </button>
-              )
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
 export function ProcessEditor({
   cell,
   buffer,
@@ -188,11 +136,19 @@ export function ProcessEditor({
   const source = parsed.success ? parsed.data : null;
   const flow = source?.flows[flowIndex];
   const node = flow?.nodes[selected];
-  function change(fn: (s: EditableSource) => void) {
+  function change(
+    fn: (s: EditableSource) => void,
+    layout?: (s: EditableSource) => Presentation | undefined,
+  ) {
     if (!buffer || !source || !canEdit) return;
     const copy = structuredClone(source);
     fn(copy);
-    onBuffer({ ...buffer, document: copy, dirty: true });
+    onBuffer({
+      ...buffer,
+      document: copy,
+      presentation: layout ? layout(copy) : buffer.presentation,
+      dirty: true,
+    });
     setComparison(null);
   }
   async function load(id: string) {
@@ -228,48 +184,61 @@ export function ProcessEditor({
       setError(explain(e));
     }
   }
-  function add() {
-    change((s) => {
-      const f = s.flows[flowIndex];
-      if (!f) return;
-      let index = 1;
-      while (f.nodes.some((n) => n.id === `node-${index}`)) index++;
-      const id = `node-${index}`;
-      let body: Record<string, unknown> = { kind: nodeKind };
-      switch (nodeKind) {
-        case 'OPERATION':
-          body.binding = '';
-          break;
-        case 'SEQUENCE':
-        case 'PARALLEL_ALL':
-          body.children = [];
-          break;
-        case 'BRANCH':
-          body = { ...body, condition: '', when_true: '', when_false: '' };
-          break;
-        case 'REPEAT':
-          body = { ...body, count: '1', child: '' };
-          break;
-        case 'CALL':
-          body.flow = '';
-          break;
-        case 'WAIT':
-          body = { ...body, condition: '', timeout_ns: '1000000000' };
-          break;
-        case 'INTERVENTION':
-          body.procedure = null;
-          break;
-      }
-      f.nodes.push({ id, body });
-      if (!f.root) f.root = id;
-      else {
-        const root = f.nodes.find((n) => n.id === f.root);
-        if (root?.body.kind === 'SEQUENCE') {
-          root.body.children = [...strings(root.body.children), id];
+  function add(kind = nodeKind, point?: Point, binding?: string) {
+    change(
+      (s) => {
+        const f = s.flows[flowIndex];
+        if (!f) return;
+        let index = 1;
+        while (f.nodes.some((n) => n.id === `node-${index}`)) index++;
+        const id = `node-${index}`;
+        let body: Record<string, unknown> = { kind };
+        switch (kind) {
+          case 'OPERATION':
+            body.binding = binding ?? '';
+            break;
+          case 'SEQUENCE':
+          case 'PARALLEL_ALL':
+            body.children = [];
+            break;
+          case 'BRANCH':
+            body = { ...body, condition: '', when_true: '', when_false: '' };
+            break;
+          case 'REPEAT':
+            body = { ...body, count: '1', child: '' };
+            break;
+          case 'CALL':
+            body.flow = '';
+            break;
+          case 'WAIT':
+            body = { ...body, condition: '', timeout_ns: '1000000000' };
+            break;
+          case 'INTERVENTION':
+            body.procedure = null;
+            break;
         }
-      }
-      setSelected(f.nodes.length - 1);
-    });
+        f.nodes.push({ id, body });
+        if (!f.root) f.root = id;
+        else {
+          const root = f.nodes.find((n) => n.id === f.root);
+          if (root?.body.kind === 'SEQUENCE') {
+            root.body.children = [...strings(root.body.children), id];
+          }
+        }
+        setSelected(f.nodes.length - 1);
+      },
+      (s) => {
+        const f = s.flows[flowIndex],
+          last = f.nodes.at(-1);
+        if (!point || !last) return buffer?.presentation;
+        return {
+          flows: {
+            ...buffer?.presentation?.flows,
+            [f.id]: { ...buffer?.presentation?.flows[f.id], [last.id]: point },
+          },
+        };
+      },
+    );
   }
   function field(key: string, value: unknown) {
     change((s) => {
@@ -306,7 +275,7 @@ export function ProcessEditor({
   const disabled =
     inputDisabled || editingSource || editingConditions || buffer?.bindingEdit != null;
   return (
-    <div className="draft-workspace">
+    <div className={`draft-workspace ${buffer ? 'has-document' : ''}`}>
       <aside className="panel draft-list">
         <div className="section-heading">
           <h3>Workflow drafts</h3>
@@ -490,41 +459,66 @@ export function ProcessEditor({
                       : 'Structure needs verification'}
                 </span>
               </div>
-              {buffer.validation ? (
-                <>
+              <details className="validation-details">
+                <summary>Review validation details</summary>
+                {buffer.validation ? (
+                  <>
+                    <p className="muted">
+                      Validated revision r{buffer.expected} · expanded nodes{' '}
+                      {count(buffer.validation.expanded_nodes, 'item')} · device bindings, package
+                      verification, and physical verification are separate.
+                    </p>
+                    <ul className="draft-issues">
+                      {buffer.validation.issues.map((issue, i) => (
+                        <li key={i}>
+                          <button
+                            className="issue-location"
+                            onClick={() => {
+                              if (!source) return;
+                              const fi = source.flows.findIndex(
+                                (f) =>
+                                  issue.location === f.id || issue.location.startsWith(f.id + '/'),
+                              );
+                              if (fi < 0) return;
+                              const f = source.flows[fi],
+                                rest = issue.location.slice(f.id.length + 1);
+                              const ni = f.nodes.findIndex(
+                                (n) => rest === n.id || rest.startsWith(n.id + '/'),
+                              );
+                              setFlow(fi);
+                              setSelected(Math.max(0, ni));
+                            }}
+                          >
+                            {issue.location}
+                          </button>
+                          <span title={`${issue.code}: ${issue.message}`}>
+                            {issueLabels[issue.code] ?? issue.message}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                    <p>
+                      Operations to bind: {buffer.validation.required_bindings.join(', ') || 'None'}
+                    </p>
+                  </>
+                ) : (
                   <p className="muted">
-                    Validated revision r{buffer.expected} · expanded nodes{' '}
-                    {count(buffer.validation.expanded_nodes, 'item')} · device bindings, package
-                    verification, and physical verification are separate.
+                    Saving the draft validates its structure. Incomplete content can also be saved.
                   </p>
-                  <ul className="draft-issues">
-                    {buffer.validation.issues.map((issue, i) => (
-                      <li key={i}>
-                        <b>{issue.location}</b>
-                        <span title={`${issue.code}: ${issue.message}`}>
-                          {issueLabels[issue.code] ?? issue.message}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                  <p>
-                    Operations to bind: {buffer.validation.required_bindings.join(', ') || 'None'}
-                  </p>
-                </>
-              ) : (
-                <p className="muted">
-                  Saving the draft validates its structure. Incomplete content can also be saved.
-                </p>
-              )}
+                )}
+              </details>
             </section>
-            <DraftBindings
-              buffer={buffer}
-              onBuffer={onBuffer}
-              canEdit={canEdit && !loading}
-              canSave={canSave}
-              receipt={bindingReceipt}
-              onSave={onSaveBindings}
-            />
+            <details className="panel binding-details">
+              <summary>Device operation bindings</summary>
+              <DraftBindings
+                buffer={buffer}
+                onBuffer={onBuffer}
+                canEdit={canEdit && !loading}
+                canSave={canSave}
+                receipt={bindingReceipt}
+                onSave={onSaveBindings}
+              />
+            </details>
             {source ? (
               <>
                 <div className="panel flow-toolbar">
@@ -592,39 +586,78 @@ export function ProcessEditor({
                 {flow && (
                   <>
                     <div className="editor-grid">
-                      <section className="panel graph-canvas">
-                        <div className="section-heading">
-                          <h3>Workflow flow</h3>
-                          <span className="muted">{count(flow.nodes.length, 'node')}</span>
-                        </div>
-                        <label>
-                          Root node
-                          <select
-                            disabled={disabled}
-                            value={flow.root}
-                            onChange={(e) =>
-                              change((s) => {
-                                s.flows[flowIndex].root = e.target.value;
-                              })
-                            }
-                          >
-                            <option value="">Selection required</option>
-                            {flow.nodes.map((n, i) => (
-                              <option key={i} value={n.id}>
-                                {n.id}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-                        <div className="graph-scroll">
-                          <Tree
-                            source={source}
-                            flowIndex={flowIndex}
-                            nodeId={flow.root}
-                            onSelect={setSelected}
-                          />
-                        </div>
-                      </section>
+                      <WorkflowLibrary
+                        disabled={disabled}
+                        operations={[
+                          ...new Set(
+                            source.flows.flatMap((f) =>
+                              f.nodes
+                                .filter((n) => n.body.kind === 'OPERATION')
+                                .map((n) => str(n.body.binding))
+                                .filter(Boolean),
+                            ),
+                          ),
+                        ]}
+                        onAdd={add}
+                      />
+                      <WorkflowCanvas
+                        key={`${buffer.id}/${flow.id}`}
+                        flow={flow}
+                        positions={buffer.presentation?.flows[flow.id] ?? {}}
+                        selected={selected}
+                        disabled={disabled}
+                        onSelect={setSelected}
+                        onOpenFlow={(id) => {
+                          const index = source.flows.findIndex((f) => f.id === id);
+                          if (index < 0) {
+                            setError('The referenced workflow does not exist.');
+                            return;
+                          }
+                          setFlow(index);
+                          setSelected(0);
+                          setError('');
+                        }}
+                        onAdd={add}
+                        onMove={(id, point) => {
+                          if (!disabled)
+                            onBuffer({
+                              ...buffer,
+                              presentation: {
+                                flows: {
+                                  ...buffer.presentation?.flows,
+                                  [flow.id]: {
+                                    ...buffer.presentation?.flows[flow.id],
+                                    [id]: point,
+                                  },
+                                },
+                              },
+                              dirty: true,
+                            });
+                        }}
+                        onArrange={(positions) => {
+                          if (!disabled)
+                            onBuffer({
+                              ...buffer,
+                              presentation: {
+                                flows: { ...buffer.presentation?.flows, [flow.id]: positions },
+                              },
+                              dirty: true,
+                            });
+                        }}
+                        onConnect={(index, port, target) => {
+                          try {
+                            const connected = connect(flow, index, port, target);
+                            change((s) => {
+                              s.flows[flowIndex] = connected;
+                            });
+                            setError('');
+                          } catch (e) {
+                            setError(
+                              e instanceof Error ? e.message : 'Cannot connect these nodes.',
+                            );
+                          }
+                        }}
+                      />
                       <section className="panel node-inspector">
                         <div className="section-heading">
                           <h3>Node settings</h3>
@@ -655,10 +688,29 @@ export function ProcessEditor({
                               </option>
                             ))}
                           </select>
-                          <button disabled={disabled} onClick={add}>
+                          <button disabled={disabled} onClick={() => add()}>
                             Add node
                           </button>
                         </div>
+                        <label>
+                          Root node
+                          <select
+                            disabled={disabled}
+                            value={flow.root}
+                            onChange={(e) =>
+                              change((s) => {
+                                s.flows[flowIndex].root = e.target.value;
+                              })
+                            }
+                          >
+                            <option value="">Selection required</option>
+                            {flow.nodes.map((n, i) => (
+                              <option key={i} value={n.id}>
+                                {n.id}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
                         {node && (
                           <>
                             <p className="node-kind">

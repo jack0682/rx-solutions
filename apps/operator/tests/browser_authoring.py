@@ -15,7 +15,7 @@ def check_authoring(page,context,origin,headers,output):
     drafts=context.request.get(f'{origin}/api/v1/process-drafts?cell=cell%2Fdemo').json()['drafts']
     assert len(drafts)==1 and drafts[0]['revision']=='1' and not drafts[0]['structurally_valid']
     draft_id=drafts[0]['id']
-    page.get_by_role('button',name='Add node',exact=True).click()
+    page.get_by_role('button',name='□ Operation Add to this workflow',exact=True).click()
     page.get_by_label('Operation binding name',exact=True).fill('load-material')
     page.get_by_role('button',name='Save draft and validate structure',exact=True).click()
     expect(page.locator('.draft-validation .badge')).to_have_text('Structure verified')
