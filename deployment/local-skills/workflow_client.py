@@ -211,6 +211,20 @@ def quantity_text(q):
     return json.dumps(data['value'], ensure_ascii=False)
 
 
+def readable_violation(message):
+    prefix, separator, raw = message.partition('; worst-case left=')
+    if not separator: return message
+    try:
+        decoder = json.JSONDecoder()
+        left, end = decoder.raw_decode(raw)
+        rest = raw[end:]
+        if not rest.startswith(' right='): return message
+        right = json.loads(rest[len(' right='):])
+        return f"{prefix}; worst-case left={quantity_text(left)} {left['unit']}, right={quantity_text(right)} {right['unit']}"
+    except (ValueError, TypeError, KeyError):
+        return message
+
+
 def format_report(result):
     if 'report' not in result: return json.dumps(result,indent=2,ensure_ascii=False)
     report=result['report']; names={encoded(d['reference']):d['label'] for d in report['definitions']}
@@ -230,5 +244,5 @@ def format_report(result):
                 if identity in seen: continue
                 seen.add(identity)
                 lines.append('    ' + source(origin) + ' = ' + quantity_text(origin['value']) + ' ' + origin['value']['unit'])
-    for issue in report['violations']: lines.append(issue['location']+': '+issue['code']+' — '+issue['message'])
+    for issue in report['violations']: lines.append(issue['location']+': '+issue['code']+' — '+readable_violation(issue['message']))
     return '\n'.join(lines)

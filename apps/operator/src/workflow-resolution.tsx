@@ -13,7 +13,11 @@ import { DefinitionName } from './definition-name';
 import {
   workflowModelSchema,
   workflowsSchema,
-  workflowReportsSchema,
+  workflowReportIndexSchema,
+  type WorkflowReportIndexEntry,
+  reportIdentityTime,
+  violationProperty,
+  readableViolation,
   workflowReceiptSchema,
   parseQuantity,
   quantityText,
@@ -53,13 +57,23 @@ export function WorkflowResolution({
   const [overrides, setOverrides] = useState<WorkflowRequest['overrides']>({});
   const [result, setResult] = useState<WorkflowReceipt | null>(null);
   const [selected, setSelected] = useState('');
+  const [propertyTarget, setPropertyTarget] = useState<{
+    node: string;
+    property: string;
+    request: number;
+  } | null>(null);
+  const propertyRows = useRef(new Map<string, HTMLTableRowElement>());
+  useEffect(() => {
+    if (!propertyTarget || propertyTarget.node !== selected) return;
+    const row = propertyRows.current.get(propertyTarget.property);
+    row?.focus({ preventScroll: true });
+    row?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }, [propertyTarget, selected]);
   const [reportModel, setReportModel] = useState<{
     reference: DefinitionRef;
     label: string;
   } | null>(null);
-  const [history, setHistory] = useState<
-    Array<{ reference: DefinitionRef; workflow: DefinitionRef; slot_index: string; status: string }>
-  >([]);
+  const [history, setHistory] = useState<WorkflowReportIndexEntry[]>([]);
   const [historyNext, setHistoryNext] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -99,9 +113,11 @@ export function WorkflowResolution({
   async function reports(after?: string) {
     if (!catalog) return;
     const g = generation.current;
-    const params = new URLSearchParams({ catalog });
+    const params = new URLSearchParams({ catalog, view: 'details' });
     if (after) params.set('after', after);
-    const page = workflowReportsSchema.parse(await api(`/api/v1/workflow-resolutions?${params}`));
+    const page = workflowReportIndexSchema.parse(
+      await api(`/api/v1/workflow-resolutions?${params}`),
+    );
     if (page.catalog !== catalog) throw new Error('Report catalog differs');
     if (g === generation.current) {
       setHistory((old) => (after ? [...old, ...page.reports] : page.reports));
@@ -166,6 +182,7 @@ export function WorkflowResolution({
     seen.current = receipt.key;
     if (receipt.value.reference.catalog !== catalog) return;
     setResult(receipt.value);
+    setPropertyTarget(null);
     setSelected(receipt.value.report.steps[0]?.node ?? '');
     void reports().catch((e) => setError(explain(e)));
   }, [receipt, catalog]);
@@ -232,6 +249,7 @@ export function WorkflowResolution({
         throw new Error('Resolution reference differs');
       if (g === generation.current) {
         setResult(value);
+        setPropertyTarget(null);
         setSelected(value.report.steps[0]?.node ?? '');
       }
     } catch (e) {
@@ -475,6 +493,36 @@ export function WorkflowResolution({
               <button disabled={busy || locked} onClick={() => void openReport(h.reference)}>
                 Slot {h.slot_index} · {h.status} · {h.reference.id}
               </button>
+              <small
+                className="workflow-report-detail"
+                title={`Stored clock: ${h.created_at.clock_id} / ${h.created_at.ticks_ns} ns`}
+              >
+                Created (record ID clock):{' '}
+                {reportIdentityTime(h.reference.id)
+                  ? new Date(reportIdentityTime(h.reference.id)!).toLocaleString()
+                  : 'wall time unavailable'}{' '}
+                · {h.created_by}
+              </small>
+              <small className="workflow-report-detail">
+                Contexts:{' '}
+                {Object.entries(h.contexts)
+                  .map(
+                    ([slot, refs]) =>
+                      `${slot}=${refs.map((r) => `${h.definitions.find((d) => refKey(d.reference) === refKey(r))?.label ?? r.id} r${r.revision}`).join(', ') || 'unbound'}`,
+                  )
+                  .join('; ')}
+              </small>
+              <small className="workflow-report-detail">
+                Overrides:{' '}
+                {Object.entries(h.overrides)
+                  .flatMap(([node, properties]) =>
+                    Object.entries(properties).map(
+                      ([property, value]) =>
+                        `${node}.${property}=${quantityText(value)} ${value.unit}`,
+                    ),
+                  )
+                  .join('; ') || 'none'}
+              </small>
             </p>
           ))}
           {historyNext && (
@@ -504,11 +552,15 @@ export function WorkflowResolution({
                 onClick={() => {
                   const node = violationNode(v.location);
                   if (node) setSelected(node);
+                  const target = violationProperty(v.location);
+                  setPropertyTarget(
+                    target ? { ...target, request: (propertyTarget?.request ?? 0) + 1 } : null,
+                  );
                 }}
               >
                 {v.location}
               </button>
-              : {v.message} ({v.code})
+              : {readableViolation(v.message)} ({v.code})
             </p>
           ))}
           <div className="definition-list">
@@ -538,7 +590,19 @@ export function WorkflowResolution({
                 </thead>
                 <tbody>
                   {Object.entries(step.properties).map(([key, value]) => (
-                    <tr key={key}>
+                    <tr
+                      key={key}
+                      tabIndex={-1}
+                      ref={(element) => {
+                        if (element) propertyRows.current.set(key, element);
+                        else propertyRows.current.delete(key);
+                      }}
+                      className={
+                        propertyTarget?.node === step.node && propertyTarget.property === key
+                          ? 'workflow-property-target'
+                          : undefined
+                      }
+                    >
                       <td>{key}</td>
                       <td>{quantityText(value.value)}</td>
                       <td>

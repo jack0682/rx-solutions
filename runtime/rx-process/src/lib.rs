@@ -1,6 +1,7 @@
 //! Process source validation and deterministic expansion. Execution authority remains in P.
 pub mod bt_xml;
 pub mod compile;
+pub mod workflow;
 pub use compile::{Error, compile};
 pub use model::*;
 pub use rx_process_contract::frontier;
