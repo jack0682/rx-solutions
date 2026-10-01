@@ -1,28 +1,9 @@
 //! Source-side declaration custody fence. P has not accepted anything by this operation.
 use super::*;
+use rx_domain::component_transfer::{FREEZE, FREEZE_SCHEMA as SCHEMA, PREFIXES};
+pub use rx_domain::component_transfer::{FreezeRecord, FreezeRequest};
 use rx_storage::SqliteRepository;
-const FREEZE: &str = "components/registry-freeze";
-const SCHEMA: &str = "rx.registration-source-freeze.v1";
-const PREFIXES: [&str; 3] = [
-    "components/registration/",
-    "components/resident-selections",
-    FREEZE,
-];
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct FreezeRequest {
-    pub id: Id,
-    pub target_installation: Id,
-}
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct FreezeRecord {
-    pub request: FreezeRequest,
-    pub declarations_digest: Digest,
-    pub declaration_count: Counter,
-    pub history_head: Counter,
-}
 /// Constructed only after the real SQLite transaction installed and checked its fences.
 /// Serialization is an export, not a remote proof or a P acceptance receipt.
 #[derive(Debug, Serialize)]
