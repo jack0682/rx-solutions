@@ -1,0 +1,42 @@
+{
+  "schema": "rx.laser-equipment-reference.v1",
+  "basis": "User explicitly confirmed a separate rotary alignment device, including for dual-gripper operation",
+  "equipment": [
+    {
+      "role": "processing-machine",
+      "type": "laser-heat-treatment-machine",
+      "interface": "UNSPECIFIED"
+    },
+    {
+      "role": "alignment-station",
+      "type": "rotary-alignment-station",
+      "existence": "USER_CONFIRMED",
+      "performed_by": "DEDICATED_EQUIPMENT_NOT_ROBOT_WRIST",
+      "logical_operations": [
+        "detect-orientation",
+        "rotate-to-required-orientation"
+      ],
+      "proposed_observations": [
+        "ready",
+        "material-seated",
+        "orientation-confirmed",
+        "rotation-stopped"
+      ],
+      "interface": "UNSPECIFIED",
+      "physical_parameters": null,
+      "qualification": "NOT_ESTABLISHED"
+    }
+  ],
+  "shared_by": [
+    "single",
+    "dual",
+    "single-buffered"
+  ],
+  "open_questions": [
+    "Whether robot grip is retained or released during rotation and how support is confirmed",
+    "Ownership of the orientation detector and completion/stop signal definitions",
+    "Device command/acknowledgement/operation IDs and loss recovery",
+    "Rotation limits, target orientation per product/face, calibration and valid timeouts",
+    "Physical fixture installation and tooling-role association"
+  ]
+}

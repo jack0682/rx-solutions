@@ -1,0 +1,380 @@
+{
+  "schema": "rx.laser-tooling-reference.v1",
+  "source_image_sha256": "f58102ea0ae9286511daff8b08207a42d525560a841f01f71c67735afd2012de",
+  "design_claim": "The supplied drawing reports 3 finger families and 4 jig families in 14/17 forms; this is not runtime qualification",
+  "interpretation": "Five part families times two forms gives ten product variants. CVR_F front/back are distinct setups of one product, producing twelve setup rows. Form labels do not assert dimensions in mm.",
+  "part_variants": [
+    {
+      "id": "ECC_51-14",
+      "family": "ECC_51",
+      "form_label": "14 type",
+      "dimensions": null,
+      "mass": null
+    },
+    {
+      "id": "ECC_51-17",
+      "family": "ECC_51",
+      "form_label": "17 type",
+      "dimensions": null,
+      "mass": null
+    },
+    {
+      "id": "ECC_99-14",
+      "family": "ECC_99",
+      "form_label": "14 type",
+      "dimensions": null,
+      "mass": null
+    },
+    {
+      "id": "ECC_99-17",
+      "family": "ECC_99",
+      "form_label": "17 type",
+      "dimensions": null,
+      "mass": null
+    },
+    {
+      "id": "CVR_F-14",
+      "family": "CVR_F",
+      "form_label": "14 type",
+      "dimensions": null,
+      "mass": null
+    },
+    {
+      "id": "CVR_F-17",
+      "family": "CVR_F",
+      "form_label": "17 type",
+      "dimensions": null,
+      "mass": null
+    },
+    {
+      "id": "FLANGE_L-14",
+      "family": "FLANGE_L",
+      "form_label": "14 type",
+      "dimensions": null,
+      "mass": null
+    },
+    {
+      "id": "FLANGE_L-17",
+      "family": "FLANGE_L",
+      "form_label": "17 type",
+      "dimensions": null,
+      "mass": null
+    },
+    {
+      "id": "FLANGE_R-14",
+      "family": "FLANGE_R",
+      "form_label": "14 type",
+      "dimensions": null,
+      "mass": null
+    },
+    {
+      "id": "FLANGE_R-17",
+      "family": "FLANGE_R",
+      "form_label": "17 type",
+      "dimensions": null,
+      "mass": null
+    }
+  ],
+  "setups": [
+    {
+      "id": "ECC_51-14-unspecified",
+      "part": "ECC_51-14",
+      "work_face": "unspecified",
+      "jig": {
+        "family": "PART1",
+        "form": "14",
+        "basis": "Label in supplied drawing"
+      },
+      "finger": {
+        "visual_group": "blue",
+        "actual_part_number": null,
+        "basis": "Color grouping in drawing; actual finger identity not confirmed"
+      },
+      "process_source": "source.json",
+      "execution_parameters": {
+        "tool_frame": null,
+        "work_frame": null,
+        "grip_force": null,
+        "approach_pose": null,
+        "insert_pose": null,
+        "processing_recipe": null
+      },
+      "status": "AUTHORING_REFERENCE_NOT_QUALIFIED"
+    },
+    {
+      "id": "ECC_51-17-unspecified",
+      "part": "ECC_51-17",
+      "work_face": "unspecified",
+      "jig": {
+        "family": "PART1",
+        "form": "17",
+        "basis": "Label in supplied drawing"
+      },
+      "finger": {
+        "visual_group": "blue",
+        "actual_part_number": null,
+        "basis": "Color grouping in drawing; actual finger identity not confirmed"
+      },
+      "process_source": "source.json",
+      "execution_parameters": {
+        "tool_frame": null,
+        "work_frame": null,
+        "grip_force": null,
+        "approach_pose": null,
+        "insert_pose": null,
+        "processing_recipe": null
+      },
+      "status": "AUTHORING_REFERENCE_NOT_QUALIFIED"
+    },
+    {
+      "id": "ECC_99-14-unspecified",
+      "part": "ECC_99-14",
+      "work_face": "unspecified",
+      "jig": {
+        "family": "PART1",
+        "form": "14",
+        "basis": "Label in supplied drawing"
+      },
+      "finger": {
+        "visual_group": "blue",
+        "actual_part_number": null,
+        "basis": "Color grouping in drawing; actual finger identity not confirmed"
+      },
+      "process_source": "source.json",
+      "execution_parameters": {
+        "tool_frame": null,
+        "work_frame": null,
+        "grip_force": null,
+        "approach_pose": null,
+        "insert_pose": null,
+        "processing_recipe": null
+      },
+      "status": "AUTHORING_REFERENCE_NOT_QUALIFIED"
+    },
+    {
+      "id": "ECC_99-17-unspecified",
+      "part": "ECC_99-17",
+      "work_face": "unspecified",
+      "jig": {
+        "family": "PART1",
+        "form": "17",
+        "basis": "Label in supplied drawing"
+      },
+      "finger": {
+        "visual_group": "blue",
+        "actual_part_number": null,
+        "basis": "Color grouping in drawing; actual finger identity not confirmed"
+      },
+      "process_source": "source.json",
+      "execution_parameters": {
+        "tool_frame": null,
+        "work_frame": null,
+        "grip_force": null,
+        "approach_pose": null,
+        "insert_pose": null,
+        "processing_recipe": null
+      },
+      "status": "AUTHORING_REFERENCE_NOT_QUALIFIED"
+    },
+    {
+      "id": "CVR_F-14-front",
+      "part": "CVR_F-14",
+      "work_face": "front",
+      "jig": {
+        "family": "PART2",
+        "form": "14",
+        "basis": "Label in supplied drawing"
+      },
+      "finger": {
+        "visual_group": "blue",
+        "actual_part_number": null,
+        "basis": "Color grouping in drawing; actual finger identity not confirmed"
+      },
+      "process_source": "source.json",
+      "execution_parameters": {
+        "tool_frame": null,
+        "work_frame": null,
+        "grip_force": null,
+        "approach_pose": null,
+        "insert_pose": null,
+        "processing_recipe": null
+      },
+      "status": "AUTHORING_REFERENCE_NOT_QUALIFIED"
+    },
+    {
+      "id": "CVR_F-14-back",
+      "part": "CVR_F-14",
+      "work_face": "back",
+      "jig": {
+        "family": "PART3",
+        "form": "14",
+        "basis": "Label in supplied drawing"
+      },
+      "finger": {
+        "visual_group": "magenta",
+        "actual_part_number": null,
+        "basis": "Color grouping in drawing; actual finger identity not confirmed"
+      },
+      "process_source": "source.json",
+      "execution_parameters": {
+        "tool_frame": null,
+        "work_frame": null,
+        "grip_force": null,
+        "approach_pose": null,
+        "insert_pose": null,
+        "processing_recipe": null
+      },
+      "status": "AUTHORING_REFERENCE_NOT_QUALIFIED"
+    },
+    {
+      "id": "CVR_F-17-front",
+      "part": "CVR_F-17",
+      "work_face": "front",
+      "jig": {
+        "family": "PART2",
+        "form": "17",
+        "basis": "Label in supplied drawing"
+      },
+      "finger": {
+        "visual_group": "blue",
+        "actual_part_number": null,
+        "basis": "Color grouping in drawing; actual finger identity not confirmed"
+      },
+      "process_source": "source.json",
+      "execution_parameters": {
+        "tool_frame": null,
+        "work_frame": null,
+        "grip_force": null,
+        "approach_pose": null,
+        "insert_pose": null,
+        "processing_recipe": null
+      },
+      "status": "AUTHORING_REFERENCE_NOT_QUALIFIED"
+    },
+    {
+      "id": "CVR_F-17-back",
+      "part": "CVR_F-17",
+      "work_face": "back",
+      "jig": {
+        "family": "PART3",
+        "form": "17",
+        "basis": "Label in supplied drawing"
+      },
+      "finger": {
+        "visual_group": "magenta",
+        "actual_part_number": null,
+        "basis": "Color grouping in drawing; actual finger identity not confirmed"
+      },
+      "process_source": "source.json",
+      "execution_parameters": {
+        "tool_frame": null,
+        "work_frame": null,
+        "grip_force": null,
+        "approach_pose": null,
+        "insert_pose": null,
+        "processing_recipe": null
+      },
+      "status": "AUTHORING_REFERENCE_NOT_QUALIFIED"
+    },
+    {
+      "id": "FLANGE_L-14-unspecified",
+      "part": "FLANGE_L-14",
+      "work_face": "unspecified",
+      "jig": {
+        "family": "PART4",
+        "form": "14",
+        "basis": "Label in supplied drawing"
+      },
+      "finger": {
+        "visual_group": "cyan",
+        "actual_part_number": null,
+        "basis": "Color grouping in drawing; actual finger identity not confirmed"
+      },
+      "process_source": "source.json",
+      "execution_parameters": {
+        "tool_frame": null,
+        "work_frame": null,
+        "grip_force": null,
+        "approach_pose": null,
+        "insert_pose": null,
+        "processing_recipe": null
+      },
+      "status": "AUTHORING_REFERENCE_NOT_QUALIFIED"
+    },
+    {
+      "id": "FLANGE_L-17-unspecified",
+      "part": "FLANGE_L-17",
+      "work_face": "unspecified",
+      "jig": {
+        "family": "PART4",
+        "form": "17",
+        "basis": "Label in supplied drawing"
+      },
+      "finger": {
+        "visual_group": "cyan",
+        "actual_part_number": null,
+        "basis": "Color grouping in drawing; actual finger identity not confirmed"
+      },
+      "process_source": "source.json",
+      "execution_parameters": {
+        "tool_frame": null,
+        "work_frame": null,
+        "grip_force": null,
+        "approach_pose": null,
+        "insert_pose": null,
+        "processing_recipe": null
+      },
+      "status": "AUTHORING_REFERENCE_NOT_QUALIFIED"
+    },
+    {
+      "id": "FLANGE_R-14-unspecified",
+      "part": "FLANGE_R-14",
+      "work_face": "unspecified",
+      "jig": {
+        "family": "PART2",
+        "form": "14",
+        "basis": "Label in supplied drawing"
+      },
+      "finger": {
+        "visual_group": "magenta",
+        "actual_part_number": null,
+        "basis": "Color grouping in drawing; actual finger identity not confirmed"
+      },
+      "process_source": "source.json",
+      "execution_parameters": {
+        "tool_frame": null,
+        "work_frame": null,
+        "grip_force": null,
+        "approach_pose": null,
+        "insert_pose": null,
+        "processing_recipe": null
+      },
+      "status": "AUTHORING_REFERENCE_NOT_QUALIFIED"
+    },
+    {
+      "id": "FLANGE_R-17-unspecified",
+      "part": "FLANGE_R-17",
+      "work_face": "unspecified",
+      "jig": {
+        "family": "PART2",
+        "form": "17",
+        "basis": "Label in supplied drawing"
+      },
+      "finger": {
+        "visual_group": "magenta",
+        "actual_part_number": null,
+        "basis": "Color grouping in drawing; actual finger identity not confirmed"
+      },
+      "process_source": "source.json",
+      "execution_parameters": {
+        "tool_frame": null,
+        "work_frame": null,
+        "grip_force": null,
+        "approach_pose": null,
+        "insert_pose": null,
+        "processing_recipe": null
+      },
+      "status": "AUTHORING_REFERENCE_NOT_QUALIFIED"
+    }
+  ]
+}

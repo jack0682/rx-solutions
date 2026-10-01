@@ -985,6 +985,7 @@ export function App() {
                           expected: buffer.expected,
                           title: buffer.title,
                           document: buffer.document,
+                          presentation: buffer.presentation,
                         },
                       })
                     }
