@@ -33,3 +33,8 @@ test-harness = []
 name = "rx-resident-report-fixture"
 path = "tests/support/report_fixture.rs"
 required-features = ["test-harness"]
+
+[[bin]]
+name = "rx-registration-source-fixture"
+path = "tests/support/registration_source_fixture.rs"
+required-features = ["test-harness"]
