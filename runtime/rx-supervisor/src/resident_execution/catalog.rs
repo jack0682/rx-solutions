@@ -87,6 +87,19 @@ impl Prepared {
         catalog: Catalog,
         registry: &mut Registry<SqliteRepository>,
     ) -> Result<Self> {
+        if registry.platform_binding()? != peer.registry {
+            return Err(invalid("assignment registry differs"));
+        }
+        let mut prepared = Self::reconstruct(intent, peer, catalog)?;
+        prepared.offer.legacy_source = registry.platform_preflight(&prepared.intent, peer)?;
+        Ok(prepared)
+    }
+    /// Reconstruct content, not authority. Recovery must never call admission to read old work.
+    pub(super) fn reconstruct(
+        intent: data::Intent,
+        peer: &data::Peer,
+        catalog: Catalog,
+    ) -> Result<Self> {
         let selections = intent
             .nodes
             .iter()
@@ -100,8 +113,8 @@ impl Prepared {
         }
         .validate()
         .map_err(invalid)?;
-        if intent.supervisor != peer.principal || registry.platform_binding()? != peer.registry {
-            return Err(invalid("assignment Supervisor/registry differs"));
+        if intent.supervisor != peer.principal {
+            return Err(invalid("assignment Supervisor differs"));
         }
         let mut instances = BTreeSet::new();
         let mut programs = BTreeMap::new();
@@ -157,7 +170,6 @@ impl Prepared {
             processes,
         };
         let plan_digest = plan.validate(&catalog.programs, &catalog.support)?;
-        let legacy_source = registry.platform_preflight(&intent, peer)?;
         let offer = data::Preparation {
             assignment: intent.id.clone(),
             intent_digest: intent.digest().map_err(invalid)?,
@@ -165,7 +177,7 @@ impl Prepared {
             release: catalog.release,
             plan_digest,
             programs,
-            legacy_source,
+            legacy_source: None,
         };
         Ok(Self {
             intent,

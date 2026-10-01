@@ -59,6 +59,105 @@ pub(super) fn ids(tx: &mut dyn Transaction) -> Result<Vec<Id>> {
         .collect()
 }
 impl Registry<SqliteRepository> {
+    pub(crate) fn platform_run_directory(&self, assignment: &Id) -> Result<std::path::PathBuf> {
+        let path = self.repository.canonical_path()?;
+        let parent = path
+            .parent()
+            .ok_or_else(|| StoreError::Integrity("registry has no parent directory".into()))?;
+        Ok(parent.join("platform-runs").join(assignment.as_str()))
+    }
+    /// Original consumption and execution records; no adoption or history rewrite.
+    pub(crate) fn platform_recovery_records(
+        &mut self,
+        intent: &data::Intent,
+        grant: &data::Grant,
+        legacy: Option<&FreezeRecord>,
+    ) -> Result<std::collections::BTreeMap<Name, Option<Execution>>> {
+        if self.platform_binding()? != grant.peer.registry {
+            return Err(StoreError::Integrity("recovery registry differs".into()));
+        }
+        if let Some(expected) = legacy {
+            let actual = self.frozen_source()?;
+            if actual.record() != expected || !actual.platform_acknowledged() {
+                return Err(StoreError::Integrity("recovery source cut differs".into()));
+            }
+        }
+        self.repository.transact(|tx| {
+            if owner(tx)?.as_ref() != Some(&grant.peer.installation) {
+                return Err(StoreError::Integrity(
+                    "recovery registry owner differs".into(),
+                ));
+            }
+            intent
+                .nodes
+                .iter()
+                .map(|(selection, node)| {
+                    if node.origin.as_ref().is_some_and(|origin| {
+                        origin.registry != grant.peer.registry || Some(&origin.freeze) != legacy
+                    }) {
+                        return Err(StoreError::Integrity("recovery origin differs".into()));
+                    }
+                    let original: Snapshot = decode(
+                        &tx.get(&snapshot_key(&node.registration.id))?
+                            .ok_or_else(|| {
+                                StoreError::Integrity("recovery snapshot absent".into())
+                            })?,
+                        SNAPSHOT,
+                    )?;
+                    if original.installation != grant.peer.installation
+                        || original.node.registration.id != node.registration.id
+                        || original.node.revision < node.revision
+                        || (original.node.revision == node.revision
+                            && original.node.registration != node.registration)
+                    {
+                        return Err(StoreError::Integrity("recovery snapshot differs".into()));
+                    }
+                    let execution =
+                        tx.get(&execution_key(&node.registration.id, &node.instance))?;
+                    let consumed = tx.get(&claim_key(&node.instance))?;
+                    let value = match (consumed, execution) {
+                        (None, None) => {
+                            if original.assignment != intent.id || original.node != *node {
+                                return Err(StoreError::Integrity(
+                                    "unconsumed recovery requires the original assignment snapshot"
+                                        .into(),
+                                ));
+                            }
+                            None
+                        }
+                        (Some(c), Some(e)) => {
+                            let c: Consumed = decode(&c, CLAIM)?;
+                            let e: Execution = decode(&e, EXECUTION)?;
+                            let binding = Binding {
+                                registration: node.registration.id.clone(),
+                                registration_revision: node.revision,
+                                catalog: node.registration.declaration.catalog.clone(),
+                                run: intent.run.clone(),
+                                selection: selection.clone(),
+                                instance: node.instance.clone(),
+                            };
+                            if c.grant != grant.id
+                                || c.peer != grant.peer
+                                || c.binding != binding
+                                || e.binding != binding
+                            {
+                                return Err(StoreError::Integrity(
+                                    "recovery consumption binding differs".into(),
+                                ));
+                            }
+                            Some(e)
+                        }
+                        _ => {
+                            return Err(StoreError::Integrity(
+                                "recovery consumption/execution pair incomplete".into(),
+                            ));
+                        }
+                    };
+                    Ok((selection.clone(), value))
+                })
+                .collect()
+        })
+    }
     /// Bound to the actual canonical path; parent aliases and other registry files cannot substitute.
     pub fn platform_binding(&self) -> Result<Digest> {
         canonical::digest(

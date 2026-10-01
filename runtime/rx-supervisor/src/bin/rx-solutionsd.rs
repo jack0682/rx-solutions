@@ -121,7 +121,12 @@ async fn main() -> Result<()> {
 }
 async fn run() -> Result<()> {
     let args = std::env::args().skip(1).collect::<Vec<_>>();
-    if args.len() == 2 && matches!(args[0].as_str(), "platform-run" | "catalog") {
+    if args.len() == 2
+        && matches!(
+            args[0].as_str(),
+            "platform-run" | "platform-investigate" | "catalog"
+        )
+    {
         return Ok(
             rx_supervisor::resident_execution::run::execute(&args[0], Path::new(&args[1])).await?,
         );

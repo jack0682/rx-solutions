@@ -121,18 +121,26 @@ pub async fn execute(mode: &str, path: &Path) -> Result<()> {
         registry.into_repository().close()?;
         return Ok(());
     }
-    if mode != "platform-run" {
+    if !matches!(mode, "platform-run" | "platform-investigate") {
         return Err(invalid("unknown managed execution mode"));
     }
     let assignment = c
         .assignment
-        .ok_or_else(|| invalid("platform-run requires an assignment ID"))?;
+        .ok_or_else(|| invalid("managed execution requires an assignment ID"))?;
     let connection_path = c
         .connection
         .as_deref()
-        .ok_or_else(|| invalid("platform-run requires its execution connection"))?;
+        .ok_or_else(|| invalid("managed execution requires its execution connection"))?;
     let clock: Arc<dyn Clock> = Arc::new(SystemClock::new()?);
     let mut client = Client::connect(connection(connection_path)?, clock, &registry).await?;
+    if mode == "platform-investigate" {
+        let inspection = client
+            .investigate(&assignment, catalog, &mut registry)
+            .await?;
+        println!("{}", serde_json::to_string(&inspection).map_err(invalid)?);
+        registry.into_repository().close()?;
+        return Ok(());
+    }
     let prepared = client.prepare(&assignment, catalog, &mut registry).await?;
     println!(
         "{}",

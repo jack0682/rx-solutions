@@ -4,6 +4,7 @@ mod client;
 mod clock;
 mod delivery;
 mod grant;
+mod recovery;
 pub mod run;
 pub use crate::reporting::Connection;
 use crate::{Error, Result};
@@ -13,6 +14,7 @@ pub use clock::{Clock, SystemClock};
 pub use delivery::Delivery;
 pub(crate) use grant::Lease;
 pub use grant::{Authority, LiveGrant};
+pub use recovery::SourceInspection;
 use rx_domain::{canonical, resident_execution as data, types::*};
 use std::sync::Arc;
 fn invalid(value: impl std::fmt::Display) -> Error {
