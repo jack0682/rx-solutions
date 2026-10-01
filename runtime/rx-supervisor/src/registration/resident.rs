@@ -2,14 +2,14 @@
 use super::*;
 use std::collections::{BTreeMap, BTreeSet};
 
-const INDEX: &str = "rx.resident-selections.v1";
+pub(super) const INDEX: &str = "rx.resident-selections.v1";
 const INDEX_KEY: &str = "components/resident-selections";
 
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-struct Selection {
-    selection: Name,
-    registration: Id,
+pub(super) struct Selection {
+    pub(super) selection: Name,
+    pub(super) registration: Id,
 }
 
 impl<R: Repository> Registry<R> {
@@ -27,6 +27,7 @@ impl<R: Repository> Registry<R> {
             let index = if let Some(row) = tx.get(&index_key)? {
                 decode::<Vec<Selection>>(&row, INDEX)?
             } else {
+                transfer::require_local_authority(tx)?;
                 if !fresh_execution_store || tx.control_head()?.0 != 0 || !empty_registry {
                     return Err(StoreError::Integrity("resident selection mapping missing; no automatic registration or adoption".into()));
                 }

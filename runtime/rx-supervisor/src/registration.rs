@@ -10,7 +10,9 @@ pub mod diagnostic;
 mod recovery;
 pub use recovery::*;
 mod resident;
+mod transfer;
 mod work;
+pub use transfer::{DeclarationAuthority, FreezeRecord, FreezeRequest, FrozenRegistry};
 
 type Result<T> = rx_ports::Result<T>;
 const REGISTRATION: &str = "rx.component-registration.v1";
@@ -57,6 +59,7 @@ pub struct Execution {
 }
 #[derive(Clone, Debug, Serialize)]
 pub struct View {
+    pub declaration_authority: DeclarationAuthority,
     pub registration: VersionedRegistration,
     pub executions: Vec<Execution>,
     pub recovery: RecoveryView,
@@ -140,6 +143,7 @@ fn save(
     Ok(entity)
 }
 fn eligible(tx: &mut dyn Transaction, binding: &Binding) -> Result<()> {
+    transfer::require_local_authority(tx)?;
     let current = load(tx, &binding.registration)?;
     if current.registration.state != RegistrationState::Accepted {
         return Err(StoreError::Invalid(
@@ -176,6 +180,7 @@ impl<R: Repository> Registry<R> {
             state: RegistrationState::Accepted,
         };
         self.repository.transact(|tx| {
+            transfer::require_local_authority(tx)?;
             let row = save(
                 tx,
                 &registration.id,
@@ -208,6 +213,7 @@ impl<R: Repository> Registry<R> {
         declaration: Option<Declaration>,
     ) -> Result<VersionedRegistration> {
         self.repository.transact(|tx| {
+            transfer::require_local_authority(tx)?;
             let mut current = load(tx, id)?;
             if current.revision != expected {
                 return Err(StoreError::RevisionConflict(
@@ -244,6 +250,7 @@ impl<R: Repository> Registry<R> {
             let executions = executions(tx, id)?;
             let recovery = recovery::view(tx, id, &executions)?;
             Ok(View {
+                declaration_authority: transfer::authority(tx)?,
                 registration: load(tx, id)?,
                 executions,
                 recovery,
