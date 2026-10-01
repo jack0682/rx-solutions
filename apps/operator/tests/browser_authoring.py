@@ -41,6 +41,8 @@ def check_authoring(page,context,origin,headers,output):
     expect(page.get_by_text('The request outcome needs verification',exact=True)).not_to_be_visible()
     assert sent==recovered
     page.get_by_role('button',name='Workflow design',exact=True).click()
+    library=page.locator('.workflow-library-panel')
+    if library.get_attribute('open') is None: library.locator('summary').click()
     page.get_by_role('button',name='Draft to recover after response loss',exact=False).click()
     expect(page.get_by_label('Draft title',exact=True)).to_have_value('Draft to recover after response loss')
     page.get_by_label('Draft title',exact=True).fill('Preserve my edits')
@@ -61,6 +63,8 @@ def check_authoring(page,context,origin,headers,output):
     page.get_by_role('button',name='Workflow design',exact=True).click()
     expect(page.get_by_label('Draft title',exact=True)).to_have_value('Preserve my edits')
     page.get_by_role('button',name='Discard changes',exact=True).click()
+    library=page.locator('.workflow-library-panel')
+    if library.get_attribute('open') is None: library.locator('summary').click()
     page.get_by_role('button',name='Draft changed on the server',exact=False).click()
     expect(page.get_by_label('Draft title',exact=True)).to_have_value('Draft changed on the server')
     page.locator('summary').filter(has_text='Advanced source editing and import').click()

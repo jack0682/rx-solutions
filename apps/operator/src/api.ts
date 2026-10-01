@@ -55,7 +55,7 @@ const messages: Record<string, string> = {
   KEY_CONFLICT:
     'This request key is associated with different content. Contact the responsible operator.',
   NOT_COMMISSIONED: 'Site verification and operating qualification registration are required.',
-  BUSY: 'Too many requests. Try again shortly.',
+  BUSY: 'The action is blocked by the current state or another pending request. Review the current record.',
   VERIFICATION_REPORT_REJECTED:
     'Cannot verify the signature, content, or target of the verification evidence.',
   REVIEW_REVERIFICATION_FAILED:
