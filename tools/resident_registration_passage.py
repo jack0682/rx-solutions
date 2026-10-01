@@ -21,6 +21,8 @@ def main():
     parser.add_argument('--image', required=True)
     parser.add_argument('--builder', default='rust:1.98.1-slim-bookworm')
     parser.add_argument('--evidence', type=Path, required=True)
+    parser.add_argument('--binary', type=Path, help='Already built Linux daemon overlay')
+    parser.add_argument('--reporting-unavailable', action='store_true', help='Exercise optional reporting failure without blocking real child stop')
     args = parser.parse_args()
     evidence = args.evidence.resolve()
     evidence.mkdir(parents=True, exist_ok=False)
@@ -37,11 +39,16 @@ def main():
         return result
 
     runtime = json.loads(run('image', ['docker', 'image', 'inspect', args.image]).stdout)[0]['Id']
-    builder = json.loads(run('builder', ['docker', 'image', 'inspect', args.builder]).stdout)[0]['Id']
-    run('build', ['docker', 'run', '--rm', '-v', f'{ROOT}:/source:ro', '-v', f'{evidence}:/evidence',
-        '-w', '/source', '-e', 'CARGO_HOME=/evidence/cargo-home', '--entrypoint', 'cargo', builder,
-        'build', '--locked', '-p', 'rx-supervisor', '--bin', 'rx-solutionsd', '--target-dir', '/evidence/target'])
-    binary = evidence / 'target/debug/rx-solutionsd'
+    if args.binary:
+        binary = args.binary.resolve()
+        if not binary.is_file(): raise ValueError('Linux daemon binary absent')
+        builder = None
+    else:
+        builder = json.loads(run('builder', ['docker', 'image', 'inspect', args.builder]).stdout)[0]['Id']
+        run('build', ['docker', 'run', '--rm', '-v', f'{ROOT}:/source:ro', '-v', f'{evidence}:/evidence',
+            '-w', '/source', '-e', 'CARGO_HOME=/evidence/cargo-home', '--entrypoint', 'cargo', builder,
+            'build', '--locked', '-p', 'rx-supervisor', '--bin', 'rx-solutionsd', '--target-dir', '/evidence/target'])
+        binary = evidence / 'target/debug/rx-solutionsd'
     config = {'schema': 'rx.solutions-startup.v1', 'state_subdirectory': 'managed',
         'plan': {'schema': 'rx.solutions-process-plan.v1', 'id': str(uuid.uuid4()),
             'environment': 'SIMULATION', 'profiles': ['SIM-JTC-6DOF'], 'processes': [
@@ -49,6 +56,8 @@ def main():
                     'depends_on': [], 'startup_timeout_ms': '10000', 'shutdown_timeout_ms': '5000',
                     'restart_limit': '0', 'restart_backoff_ms': '500'}
                 for selection, port in [('first', 8081), ('second', 8082)]]}}
+    if args.reporting_unavailable:
+        config['reporting'] = {'connection': '/intentionally/absent-report-connection.json', 'scopes': '/intentionally/absent-report-scopes.json'}
     config_path = evidence / 'startup.json'
     config_path.write_text(json.dumps(config, indent=2) + '\n')
     data = evidence / 'data'
@@ -117,6 +126,29 @@ def main():
         assert len(set(identities.values())) == 2
         final_observation = [r for r in first_output if r.get('schema') == 'rx.resident-registration-observation.v1'][-1]
         assert all(v['executions'][-1]['last_observed']['state'] == 'EXITED' for v in final_observation['registrations'].values())
+
+        if args.reporting_unavailable:
+            reporting = [row['status'] for row in first_output if row.get('schema') == 'rx.resident-reporting-status.v1']
+            assert reporting and reporting[-1]['stopped'] and reporting[-1]['error']
+            assert reporting[-1]['retained_snapshots'] == 2
+            import sqlite3
+            db = data / 'managed/reporting.db'
+            assert db.is_file()
+            with sqlite3.connect(db.as_uri() + '?mode=ro', uri=True) as store:
+                rows = [json.loads(row[0]) for row in store.execute("SELECT document FROM entities WHERE key LIKE 'resident-report/outbox/%'")]
+            assert len(rows) == 2
+            assert all(row['value']['latest']['last_observed']['state'] == 'EXITED' for row in rows)
+            assert all(row['value']['accepted'] is None for row in rows)
+            (evidence / 'retained-report-snapshots.json').write_text(json.dumps(rows, indent=2) + '\n')
+            result = {'result': 'PASS_REPORTER_UNAVAILABLE_LOCAL_STOP', 'runtime_image': runtime,
+                'daemon_sha256': hashlib.sha256(binary.read_bytes()).hexdigest(),
+                'registration_ids': identities, 'reporting_status': reporting[-1], 'first': first_start,
+                'final_registry': final_observation,
+                'scope': 'Actual Linux rx-solutionsd entrypoint with configured unavailable reporting; two real release-owned status children become ready and stop; reporting error visible and journal retained',
+                'not_established': ['Linux mTLS scene', 'new release image qualification', 'physical execution']}
+            (evidence / 'result.json').write_text(json.dumps(result, indent=2) + '\n')
+            print(json.dumps({'result': result['result'], 'evidence': str(evidence)}))
+            return
 
         second = start('reopen', 'run')
         assert stopped(second) == 0

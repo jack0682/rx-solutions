@@ -1,5 +1,6 @@
 //! Device-free cross-repository fixture: real owned software child -> S registry -> mTLS P.
 use rx_domain::{resident_reporting::*, types::*};
+use rx_ports::Repository;
 use rx_solution_catalog::DeviceCatalog;
 use rx_storage::SqliteRepository;
 use rx_supervisor::{
@@ -7,7 +8,10 @@ use rx_supervisor::{
     process::{Backend, OsProcesses},
     registered::{RegisteredSupervisor, catalog_reference},
     registration::{Declaration, Registry},
-    reporting::{Client, Connection, from_execution},
+    reporting::{
+        outbox::Outbox,
+        resident::{Configuration as ReportingConfiguration, Resident},
+    },
 };
 use serde::Deserialize;
 use sha2::Digest as _;
@@ -29,6 +33,8 @@ struct Config {
     store_generation: Id,
     clock: String,
     release: Digest,
+    #[serde(default)]
+    outage: bool,
 }
 fn name(s: &str) -> Name {
     Name::new(s).unwrap()
@@ -142,40 +148,21 @@ HTTPServer(('127.0.0.1',int(sys.argv[2])),Handler).serve_forever()
         catalog: catalog_reference(&program)?,
     })?;
     let component = registration.registration.id.clone();
-    let mut client = Client::connect(Connection {
-        endpoint: config.endpoint,
-        server_name: "localhost".into(),
-        ca_pem: std::fs::read(config.ca)?,
-        certificate_pem: std::fs::read(config.certificate)?,
-        private_key_pem: std::fs::read(config.key)?,
-        principal: name("reporter"),
-        installation: config.installation,
-        store_generation: config.store_generation,
-        shared_clock_id: config.clock,
-        release_digest: config.release,
-    })
-    .await?;
+    let connection = config.output.join("connection.json");
     write(
-        &config.output.join("ready.json"),
-        &serde_json::json!({"peer":client.peer(),"registration":registration}),
+        &connection,
+        &serde_json::json!({"schema":"rx.resident-report-connection.v1",
+        "endpoint":config.endpoint,"server_name":"localhost","ca":config.ca,"certificate":config.certificate,"private_key":config.key,
+        "principal":"reporter","installation":config.installation,"store_generation":config.store_generation,"shared_clock_id":config.clock,"release_digest":config.release}),
     );
-    let deadline = Instant::now() + Duration::from_secs(30);
-    let authorization = config.output.join("authorization.json");
-    while !authorization.is_file() {
-        if Instant::now() > deadline {
-            return Err("reporting scope not supplied".into());
-        }
-        tokio::time::sleep(Duration::from_millis(20)).await;
-    }
-    #[derive(Deserialize)]
-    struct Authorization {
-        scope: Id,
-        component: Id,
-    }
-    let authorization: Authorization = serde_json::from_slice(&std::fs::read(authorization)?)?;
-    let scope = client
-        .inspect_scope(&authorization.scope, &authorization.component, &component)
-        .await?;
+    let scopes = config.output.join("scopes.json");
+    let journal = config.output.join("reporting.db");
+    let reporting_config = ReportingConfiguration {
+        connection,
+        scopes: scopes.clone(),
+    };
+    let mut reporter =
+        Resident::start(reporting_config.clone(), journal.clone()).map_err(|e| e.to_string())?;
     let plan = Plan {
         schema: name("rx.solutions-process-plan.v1"),
         id: id(),
@@ -203,7 +190,7 @@ HTTPServer(('127.0.0.1',int(sys.argv[2])),Handler).serve_forever()
         BTreeMap::from([(program.id.clone(), program)]),
         &support,
         registry,
-        component,
+        component.clone(),
     )?;
     let deadline = Instant::now() + Duration::from_secs(15);
     loop {
@@ -216,19 +203,58 @@ HTTPServer(('127.0.0.1',int(sys.argv[2])),Handler).serve_forever()
         }
         tokio::time::sleep(Duration::from_millis(20)).await;
     }
-    let views = supervisor.registrations()?;
-    let execution = &views[&name("status")].executions[0];
-    let first = from_execution(&scope, execution, Counter(1))?;
-    assert_eq!(first.state, ExecutionState::Running);
-    let key = id();
-    let lost = client
-        .publish(&scope, &key, first.clone())
-        .await
-        .unwrap_err();
-    assert!(
-        matches!(lost,rx_supervisor::reporting::Error::Rpc(ref s) if s.code()==tonic::Code::Unavailable)
+    // The child becomes ready before an owner scope exists; reporting cannot gate local execution.
+    reporter
+        .observe(supervisor.reporting_snapshot()?)
+        .map_err(|e| e.to_string())?;
+    let deadline = Instant::now() + Duration::from_secs(30);
+    while reporter.status().peer.is_none() {
+        if Instant::now() > deadline {
+            return Err("reporter peer absent".into());
+        }
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+    write(
+        &config.output.join("ready.json"),
+        &serde_json::json!({"peer":reporter.status().peer,"registration":registration}),
     );
-    let recovered = client.publish(&scope, &key, first).await?;
+    let authorization = config.output.join("authorization.json");
+    while !authorization.is_file() {
+        if Instant::now() > deadline {
+            return Err("reporting scope not supplied".into());
+        }
+        supervisor.tick()?;
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+    let authorization: serde_json::Value = serde_json::from_slice(&std::fs::read(authorization)?)?;
+    write(
+        &scopes,
+        &serde_json::json!({"schema":"rx.resident-report-scopes.v1","selections":{"status":{
+        "component":authorization["component"],"scope":authorization["scope"],"registration":component}}}),
+    );
+    while reporter.status().delivered_snapshots != 1 {
+        if Instant::now() > deadline {
+            return Err(format!("report not delivered: {:?}", reporter.status()).into());
+        }
+        supervisor.tick()?;
+        reporter
+            .observe(supervisor.reporting_snapshot()?)
+            .map_err(|e| e.to_string())?;
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+    if config.outage {
+        write(
+            &config.output.join("running.json"),
+            &serde_json::json!({"delivered":reporter.status().delivered_snapshots}),
+        );
+        while !config.output.join("stop-approved.json").is_file() {
+            if Instant::now() > deadline {
+                return Err("outage control absent".into());
+            }
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+    }
+    let stop_started = Instant::now();
     supervisor.request_stop()?;
     let deadline = Instant::now() + Duration::from_secs(10);
     loop {
@@ -241,15 +267,78 @@ HTTPServer(('127.0.0.1',int(sys.argv[2])),Handler).serve_forever()
         }
         tokio::time::sleep(Duration::from_millis(20)).await;
     }
-    let views = supervisor.registrations()?;
-    let execution = &views[&name("status")].executions[0];
-    let stopped = from_execution(&scope, execution, Counter(2))?;
-    assert_eq!(stopped.state, ExecutionState::Exited);
-    assert_eq!(stopped.exit_code, Some(0));
-    let last = client.publish(&scope, &id(), stopped).await?;
+    let local_stop_ms = stop_started.elapsed().as_millis();
+    assert!(local_stop_ms < 2000, "local stop was delayed by reporting");
+    let snapshots = supervisor.reporting_snapshot()?;
+    let instance = snapshots[0].binding.instance.clone();
+    let status = reporter.finish(snapshots.clone()).await;
+    let mut retained_during_outage = false;
+    if config.outage {
+        assert!(status.stopped && status.error.is_some(), "{status:?}");
+        let mut retained = Outbox::new(SqliteRepository::open(&journal)?);
+        let row = retained
+            .inspect(&instance)?
+            .ok_or("outage snapshot absent")?;
+        assert_eq!(row.latest.last_observed.state, ExecutionState::Exited);
+        assert_eq!(
+            row.accepted.as_ref().unwrap().report.state,
+            ExecutionState::Running
+        );
+        retained_during_outage = true;
+        retained.into_repository().close()?;
+        reporter = Resident::start(reporting_config, journal.clone()).map_err(|e| e.to_string())?;
+        reporter
+            .observe(snapshots.clone())
+            .map_err(|e| e.to_string())?;
+        let deadline = Instant::now() + Duration::from_secs(25);
+        while reporter.status().peer.is_none() {
+            if Instant::now() > deadline {
+                return Err("restart peer absent".into());
+            }
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+        write(
+            &config.output.join("restart-ready.json"),
+            &reporter.status().peer.unwrap(),
+        );
+        while !config.output.join("authorization-restart.json").is_file() {
+            if Instant::now() > deadline {
+                return Err("restart authorization absent".into());
+            }
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+        let authorization: serde_json::Value = serde_json::from_slice(&std::fs::read(
+            config.output.join("authorization-restart.json"),
+        )?)?;
+        write(
+            &scopes,
+            &serde_json::json!({"schema":"rx.resident-report-scopes.v1","selections":{"status":{
+            "component":authorization["component"],"scope":authorization["scope"],"registration":component}}}),
+        );
+        let final_status = reporter.finish(snapshots).await;
+        assert!(
+            final_status.stopped && final_status.error.is_none(),
+            "{final_status:?}"
+        );
+    } else {
+        assert!(status.stopped && status.error.is_none(), "{status:?}");
+    }
+    let mut store = SqliteRepository::open(journal)?;
+    let events = store.control_events_after(Counter(0), 100)?;
+    let recovered: Receipt = events
+        .iter()
+        .filter_map(|e| serde_json::from_value::<Receipt>(e.document.value["receipt"].clone()).ok())
+        .find(|r| r.report.state == ExecutionState::Running)
+        .ok_or("accepted running receipt missing")?;
+    let mut outbox = Outbox::new(store);
+    let row = outbox.inspect(&instance)?.ok_or("outbox absent")?;
+    assert!(row.pending.is_none());
+    let last = row.accepted.ok_or("exit receipt absent")?;
+    assert_eq!(last.report.state, ExecutionState::Exited);
+    assert_eq!(last.report.exit_code, Some(0));
     write(
         &config.output.join("result.json"),
-        &serde_json::json!({"status":"PASS","recovered":recovered,"stopped":last,
+        &serde_json::json!({"status":"PASS","recovered":recovered,"stopped":last,"local_stop_ms":local_stop_ms,"retained_during_outage":retained_during_outage,
         "scope":"Actual locally approved non-actuating Supervisor child and attributed mTLS reports; not Platform launch authority or registry migration"}),
     );
     Ok(())

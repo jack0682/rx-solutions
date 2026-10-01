@@ -4,6 +4,9 @@ use rx_protocol::resident_reporting as wire;
 use serde::{Serialize, de::DeserializeOwned};
 use sha2::Digest as _;
 use std::time::Duration;
+pub mod outbox;
+pub mod resident;
+
 use tonic::transport::{Certificate, Channel, ClientTlsConfig, Endpoint, Identity};
 
 #[derive(Debug, thiserror::Error)]
@@ -67,6 +70,15 @@ fn decode<T: DeserializeOwned + Serialize>(payload: wire::Payload, schema: &str)
 
 impl Client {
     pub async fn connect(connection: Connection) -> Result<Self> {
+        Self::connect_incarnation(
+            connection,
+            Id::new(uuid::Uuid::new_v4().to_string()).map_err(|_| Error::Invalid("peer boot"))?,
+        )
+        .await
+    }
+
+    /// Reconnect within this reporting process using the same boot. Never reuse a prior process boot.
+    pub async fn connect_incarnation(connection: Connection, boot: Id) -> Result<Self> {
         if !connection.endpoint.starts_with("https://")
             || connection.server_name.is_empty()
             || connection.shared_clock_id.is_empty()
@@ -103,8 +115,6 @@ impl Client {
             wire::resident_reporting_service_client::ResidentReportingServiceClient::new(channel)
                 .max_decoding_message_size(1_048_576)
                 .max_encoding_message_size(1_048_576);
-        let boot =
-            Id::new(uuid::Uuid::new_v4().to_string()).map_err(|_| Error::Invalid("peer boot"))?;
         let payload = transport
             .open(wire::OpenReporter {
                 peer_id: connection.principal.to_string(),
@@ -157,6 +167,37 @@ impl Client {
             return Err(Error::Invalid("reporting scope differs"));
         }
         Ok(VerifiedScope(scope))
+    }
+
+    pub async fn head(&mut self, scope: &VerifiedScope, instance: &Id) -> Result<Head> {
+        if scope.0.reporter_session != self.peer.id {
+            return Err(Error::Invalid("scope peer differs"));
+        }
+        let payload = self
+            .transport
+            .head(wire::ReadHead {
+                session_id: self.peer.id.to_string(),
+                scope_id: scope.0.id.to_string(),
+                instance_id: instance.to_string(),
+                binding_hash: binding_hash(),
+            })
+            .await?
+            .into_inner();
+        let head: Head = decode(payload, "rx.resident-report-head.v1")?;
+        if head.scope != scope.0.id || head.instance != *instance {
+            return Err(Error::Invalid("head context differs"));
+        }
+        if let Some(receipt) = &head.receipt
+            && (receipt.component != scope.0.component
+                || receipt.component_revision != scope.0.component_revision
+                || receipt.report.source.instance != *instance
+                || receipt.report.source.registration != scope.0.source_registration
+                || receipt.report.source.registration_revision != scope.0.source_revision
+                || receipt.report.source.catalog != scope.0.catalog)
+        {
+            return Err(Error::Invalid("head source differs"));
+        }
+        Ok(head)
     }
 
     /// One transmission. On response loss retain this exact request key/report and retry explicitly.
