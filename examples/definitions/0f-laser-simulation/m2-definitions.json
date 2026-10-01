@@ -1,0 +1,1342 @@
+{
+  "schema": "rx.definition-package.v1",
+  "catalog": "a86ea3cc-8431-58ac-8401-5c2c63cb532c",
+  "title": "0F Laser cell · SIMULATION",
+  "definitions": [
+    {
+      "key": "m2.grasp_width",
+      "id": "cce279f3-9069-5034-8a75-7f35a7f2a330",
+      "label": "m2.grasp_width · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "PROPERTY",
+        "specification": {
+          "value_type": "NUMBER",
+          "category": "EXECUTION",
+          "constraint_scope": null,
+          "unit": "mm",
+          "minimum": 0,
+          "maximum": 100000,
+          "choices": [],
+          "vector_length": null,
+          "overridable": true,
+          "parameter_mapping": {}
+        }
+      }
+    },
+    {
+      "key": "m2.footprint",
+      "id": "396b13b2-a2c9-5ba0-a751-21071240336b",
+      "label": "m2.footprint · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "PROPERTY",
+        "specification": {
+          "value_type": "NUMBER",
+          "category": "EXECUTION",
+          "constraint_scope": null,
+          "unit": "mm",
+          "minimum": 0,
+          "maximum": 100000,
+          "choices": [],
+          "vector_length": null,
+          "overridable": false,
+          "parameter_mapping": {}
+        }
+      }
+    },
+    {
+      "key": "m2.grip_force",
+      "id": "3f3e4ceb-53a8-5e78-9706-f4a705f707b4",
+      "label": "m2.grip_force · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "PROPERTY",
+        "specification": {
+          "value_type": "NUMBER",
+          "category": "EXECUTION",
+          "constraint_scope": null,
+          "unit": "N",
+          "minimum": 0,
+          "maximum": 100000,
+          "choices": [],
+          "vector_length": null,
+          "overridable": true,
+          "parameter_mapping": {}
+        }
+      }
+    },
+    {
+      "key": "m2.clamp_force",
+      "id": "0f67db7c-aea1-5dd9-bf05-c25ede81dbc7",
+      "label": "m2.clamp_force · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "PROPERTY",
+        "specification": {
+          "value_type": "NUMBER",
+          "category": "EXECUTION",
+          "constraint_scope": null,
+          "unit": "N",
+          "minimum": 0,
+          "maximum": 100000,
+          "choices": [],
+          "vector_length": null,
+          "overridable": true,
+          "parameter_mapping": {}
+        }
+      }
+    },
+    {
+      "key": "m2.force_factor",
+      "id": "ae105237-2c78-528b-937e-66777e9054df",
+      "label": "m2.force_factor · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "PROPERTY",
+        "specification": {
+          "value_type": "NUMBER",
+          "category": "EXECUTION",
+          "constraint_scope": null,
+          "unit": "unitless",
+          "minimum": 0,
+          "maximum": 1,
+          "choices": [],
+          "vector_length": null,
+          "overridable": true,
+          "parameter_mapping": {}
+        }
+      }
+    },
+    {
+      "key": "m2.clamp_factor",
+      "id": "21e468e1-fcab-54fd-8cea-635eba141a31",
+      "label": "m2.clamp_factor · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "PROPERTY",
+        "specification": {
+          "value_type": "NUMBER",
+          "category": "EXECUTION",
+          "constraint_scope": null,
+          "unit": "unitless",
+          "minimum": 0,
+          "maximum": 1,
+          "choices": [],
+          "vector_length": null,
+          "overridable": true,
+          "parameter_mapping": {}
+        }
+      }
+    },
+    {
+      "key": "m2.position",
+      "id": "8712848a-a524-560e-8fde-e3e295a9a96d",
+      "label": "m2.position · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "PROPERTY",
+        "specification": {
+          "value_type": "VECTOR",
+          "category": "EXECUTION",
+          "constraint_scope": null,
+          "unit": "mm",
+          "minimum": -100000,
+          "maximum": 100000,
+          "choices": [],
+          "vector_length": 3,
+          "overridable": false,
+          "parameter_mapping": {}
+        }
+      }
+    },
+    {
+      "key": "m2.orientation",
+      "id": "9a8c90a6-bd84-57d9-a878-fd764a535d99",
+      "label": "m2.orientation · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "PROPERTY",
+        "specification": {
+          "value_type": "VECTOR",
+          "category": "EXECUTION",
+          "constraint_scope": null,
+          "unit": "unitless",
+          "minimum": -1,
+          "maximum": 1,
+          "choices": [],
+          "vector_length": 4,
+          "overridable": false,
+          "parameter_mapping": {}
+        }
+      }
+    },
+    {
+      "key": "m2.frame",
+      "id": "86a89e0b-7bf4-5cb0-9ee8-c5495ea66acc",
+      "label": "m2.frame · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "PROPERTY",
+        "specification": {
+          "value_type": "TEXT",
+          "category": "EXECUTION",
+          "constraint_scope": null,
+          "unit": "unitless",
+          "minimum": null,
+          "maximum": null,
+          "choices": [],
+          "vector_length": null,
+          "overridable": false,
+          "parameter_mapping": {}
+        }
+      }
+    },
+    {
+      "key": "m2.surface_z",
+      "id": "66cb42a7-8a50-55bc-b65c-5f6db05118c0",
+      "label": "m2.surface_z · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "PROPERTY",
+        "specification": {
+          "value_type": "NUMBER",
+          "category": "EXECUTION",
+          "constraint_scope": null,
+          "unit": "mm",
+          "minimum": -100000,
+          "maximum": 100000,
+          "choices": [],
+          "vector_length": null,
+          "overridable": false,
+          "parameter_mapping": {}
+        }
+      }
+    },
+    {
+      "key": "m2.distance",
+      "id": "92151f37-db60-503a-93fc-2207c25ab085",
+      "label": "m2.distance · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "PROPERTY",
+        "specification": {
+          "value_type": "NUMBER",
+          "category": "EXECUTION",
+          "constraint_scope": null,
+          "unit": "mm",
+          "minimum": -100000,
+          "maximum": 100000,
+          "choices": [],
+          "vector_length": null,
+          "overridable": false,
+          "parameter_mapping": {}
+        }
+      }
+    },
+    {
+      "key": "m2.timeout",
+      "id": "76eb386a-05e7-501a-b172-c33d0dd12b2a",
+      "label": "m2.timeout · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "PROPERTY",
+        "specification": {
+          "value_type": "NUMBER",
+          "category": "EXECUTION",
+          "constraint_scope": null,
+          "unit": "s",
+          "minimum": 0,
+          "maximum": 3600,
+          "choices": [],
+          "vector_length": null,
+          "overridable": true,
+          "parameter_mapping": {}
+        }
+      }
+    },
+    {
+      "key": "m2.process_duration",
+      "id": "bcd87b6a-b093-58b2-ae8d-3eda11a9fbe2",
+      "label": "m2.process_duration · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "PROPERTY",
+        "specification": {
+          "value_type": "NUMBER",
+          "category": "EXECUTION",
+          "constraint_scope": null,
+          "unit": "s",
+          "minimum": 0,
+          "maximum": 3600,
+          "choices": [],
+          "vector_length": null,
+          "overridable": true,
+          "parameter_mapping": {}
+        }
+      }
+    },
+    {
+      "key": "m2.target_state",
+      "id": "8499a31a-997b-5cfa-860b-6a238a4d9f4a",
+      "label": "m2.target_state · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "PROPERTY",
+        "specification": {
+          "value_type": "BOOLEAN",
+          "category": "EXECUTION",
+          "constraint_scope": null,
+          "unit": "unitless",
+          "minimum": null,
+          "maximum": null,
+          "choices": [],
+          "vector_length": null,
+          "overridable": false,
+          "parameter_mapping": {}
+        }
+      }
+    },
+    {
+      "key": "m2.release_gripper",
+      "id": "3185b1f9-dd49-5ff7-b125-ee3e71cea98a",
+      "label": "m2.release_gripper · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "PROPERTY",
+        "specification": {
+          "value_type": "BOOLEAN",
+          "category": "EXECUTION",
+          "constraint_scope": null,
+          "unit": "unitless",
+          "minimum": null,
+          "maximum": null,
+          "choices": [],
+          "vector_length": null,
+          "overridable": false,
+          "parameter_mapping": {}
+        }
+      }
+    },
+    {
+      "key": "m2.count",
+      "id": "22188c2e-eec0-516b-a02f-4e4311845a20",
+      "label": "m2.count · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "PROPERTY",
+        "specification": {
+          "value_type": "NUMBER",
+          "category": "EXECUTION",
+          "constraint_scope": null,
+          "unit": "unitless",
+          "minimum": 0,
+          "maximum": 100000,
+          "choices": [],
+          "vector_length": null,
+          "overridable": false,
+          "parameter_mapping": {}
+        }
+      }
+    },
+    {
+      "key": "m2.cap_manipulate",
+      "id": "0c3c54e0-3698-511f-8c70-c34b95594278",
+      "label": "m2.cap_manipulate · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "PROPERTY",
+        "specification": {
+          "value_type": "BOOLEAN",
+          "category": "RESOURCE",
+          "constraint_scope": null,
+          "unit": "unitless",
+          "minimum": null,
+          "maximum": null,
+          "choices": [],
+          "vector_length": null,
+          "overridable": false,
+          "parameter_mapping": {}
+        }
+      }
+    },
+    {
+      "key": "m2.cap_clamp",
+      "id": "0ca63cd5-e061-5a7b-b557-9d7460718902",
+      "label": "m2.cap_clamp · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "PROPERTY",
+        "specification": {
+          "value_type": "BOOLEAN",
+          "category": "RESOURCE",
+          "constraint_scope": null,
+          "unit": "unitless",
+          "minimum": null,
+          "maximum": null,
+          "choices": [],
+          "vector_length": null,
+          "overridable": false,
+          "parameter_mapping": {}
+        }
+      }
+    },
+    {
+      "key": "m2.cap_door",
+      "id": "1f59c295-8cc5-5b9d-85db-50381cece777",
+      "label": "m2.cap_door · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "PROPERTY",
+        "specification": {
+          "value_type": "BOOLEAN",
+          "category": "RESOURCE",
+          "constraint_scope": null,
+          "unit": "unitless",
+          "minimum": null,
+          "maximum": null,
+          "choices": [],
+          "vector_length": null,
+          "overridable": false,
+          "parameter_mapping": {}
+        }
+      }
+    },
+    {
+      "key": "m2.cap_process",
+      "id": "bd4dd448-1758-5cba-a4b3-21bf52c26508",
+      "label": "m2.cap_process · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "PROPERTY",
+        "specification": {
+          "value_type": "BOOLEAN",
+          "category": "RESOURCE",
+          "constraint_scope": null,
+          "unit": "unitless",
+          "minimum": null,
+          "maximum": null,
+          "choices": [],
+          "vector_length": null,
+          "overridable": false,
+          "parameter_mapping": {}
+        }
+      }
+    },
+    {
+      "key": "m2.implementation",
+      "id": "fa5f9b35-c493-5b7b-9b64-0a2c5105bd1b",
+      "label": "m2.implementation · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "PROPERTY",
+        "specification": {
+          "value_type": "TEXT",
+          "category": "RESOURCE",
+          "constraint_scope": null,
+          "unit": "unitless",
+          "minimum": null,
+          "maximum": null,
+          "choices": [],
+          "vector_length": null,
+          "overridable": false,
+          "parameter_mapping": {}
+        }
+      }
+    },
+    {
+      "key": "m2.implementation_version",
+      "id": "085d53b8-311d-5f75-8781-ef1a040bd4d2",
+      "label": "m2.implementation_version · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "PROPERTY",
+        "specification": {
+          "value_type": "TEXT",
+          "category": "RESOURCE",
+          "constraint_scope": null,
+          "unit": "unitless",
+          "minimum": null,
+          "maximum": null,
+          "choices": [],
+          "vector_length": null,
+          "overridable": false,
+          "parameter_mapping": {}
+        }
+      }
+    },
+    {
+      "key": "m2.tooling_family",
+      "id": "deb6725b-7fed-5d61-b45a-5d10cefcb7ba",
+      "label": "m2.tooling_family · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "PROPERTY",
+        "specification": {
+          "value_type": "TEXT",
+          "category": "RESOURCE",
+          "constraint_scope": null,
+          "unit": "unitless",
+          "minimum": null,
+          "maximum": null,
+          "choices": [],
+          "vector_length": null,
+          "overridable": false,
+          "parameter_mapping": {}
+        }
+      }
+    },
+    {
+      "key": "observation.part_held",
+      "id": "87f80f3c-54cf-53cb-bab2-ad032b17444a",
+      "label": "observation.part_held · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "PROPERTY",
+        "specification": {
+          "value_type": "BOOLEAN",
+          "category": "RESOURCE",
+          "constraint_scope": null,
+          "unit": "unitless",
+          "minimum": null,
+          "maximum": null,
+          "choices": [],
+          "vector_length": null,
+          "overridable": false,
+          "parameter_mapping": {}
+        }
+      }
+    },
+    {
+      "key": "observation.part_seated",
+      "id": "afe08512-c146-5370-9d81-315a605aa071",
+      "label": "observation.part_seated · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "PROPERTY",
+        "specification": {
+          "value_type": "BOOLEAN",
+          "category": "RESOURCE",
+          "constraint_scope": null,
+          "unit": "unitless",
+          "minimum": null,
+          "maximum": null,
+          "choices": [],
+          "vector_length": null,
+          "overridable": false,
+          "parameter_mapping": {}
+        }
+      }
+    },
+    {
+      "key": "observation.clamped",
+      "id": "a0570da5-6f4c-5f96-aa6a-f39abadb741c",
+      "label": "observation.clamped · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "PROPERTY",
+        "specification": {
+          "value_type": "BOOLEAN",
+          "category": "RESOURCE",
+          "constraint_scope": null,
+          "unit": "unitless",
+          "minimum": null,
+          "maximum": null,
+          "choices": [],
+          "vector_length": null,
+          "overridable": false,
+          "parameter_mapping": {}
+        }
+      }
+    },
+    {
+      "key": "observation.door_closed",
+      "id": "5a7d2e59-33f4-59d1-9846-6cb83183ba8a",
+      "label": "observation.door_closed · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "PROPERTY",
+        "specification": {
+          "value_type": "BOOLEAN",
+          "category": "RESOURCE",
+          "constraint_scope": null,
+          "unit": "unitless",
+          "minimum": null,
+          "maximum": null,
+          "choices": [],
+          "vector_length": null,
+          "overridable": false,
+          "parameter_mapping": {}
+        }
+      }
+    },
+    {
+      "key": "observation.process_done",
+      "id": "4fea93c1-6633-5b22-b3da-2737cb5a4e76",
+      "label": "observation.process_done · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "PROPERTY",
+        "specification": {
+          "value_type": "BOOLEAN",
+          "category": "RESOURCE",
+          "constraint_scope": null,
+          "unit": "unitless",
+          "minimum": null,
+          "maximum": null,
+          "choices": [],
+          "vector_length": null,
+          "overridable": false,
+          "parameter_mapping": {}
+        }
+      }
+    },
+    {
+      "key": "observation.part_unloaded",
+      "id": "43b12c48-87ae-597c-a22b-54297dcaf1a6",
+      "label": "observation.part_unloaded · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "PROPERTY",
+        "specification": {
+          "value_type": "BOOLEAN",
+          "category": "RESOURCE",
+          "constraint_scope": null,
+          "unit": "unitless",
+          "minimum": null,
+          "maximum": null,
+          "choices": [],
+          "vector_length": null,
+          "overridable": false,
+          "parameter_mapping": {}
+        }
+      }
+    },
+    {
+      "key": "observation.part_placed",
+      "id": "91c6baba-7954-5bba-9419-63a93a248873",
+      "label": "observation.part_placed · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "PROPERTY",
+        "specification": {
+          "value_type": "BOOLEAN",
+          "category": "RESOURCE",
+          "constraint_scope": null,
+          "unit": "unitless",
+          "minimum": null,
+          "maximum": null,
+          "choices": [],
+          "vector_length": null,
+          "overridable": false,
+          "parameter_mapping": {}
+        }
+      }
+    },
+    {
+      "key": "type.m2_robot",
+      "id": "75ba11ff-9fd5-5f1f-9f4c-667d989185c9",
+      "label": "type.m2_robot · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "RESOURCE_TYPE",
+        "parent": {
+          "$ref": "type.positioned"
+        },
+        "fields": {
+          "cap_manipulate": {
+            "property": {
+              "$ref": "m2.cap_manipulate"
+            },
+            "required": true
+          },
+          "implementation": {
+            "property": {
+              "$ref": "m2.implementation"
+            },
+            "required": true
+          },
+          "implementation_version": {
+            "property": {
+              "$ref": "m2.implementation_version"
+            },
+            "required": true
+          },
+          "payload": {
+            "property": {
+              "$ref": "resource.payload"
+            },
+            "required": true
+          }
+        }
+      }
+    },
+    {
+      "key": "type.m2_machine",
+      "id": "7ae72e70-eae6-5ab8-9c5a-e0dd1d85daa0",
+      "label": "type.m2_machine · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "RESOURCE_TYPE",
+        "parent": {
+          "$ref": "type.positioned"
+        },
+        "fields": {
+          "cap_clamp": {
+            "property": {
+              "$ref": "m2.cap_clamp"
+            },
+            "required": true
+          },
+          "cap_door": {
+            "property": {
+              "$ref": "m2.cap_door"
+            },
+            "required": true
+          },
+          "cap_process": {
+            "property": {
+              "$ref": "m2.cap_process"
+            },
+            "required": true
+          },
+          "implementation": {
+            "property": {
+              "$ref": "m2.implementation"
+            },
+            "required": true
+          },
+          "implementation_version": {
+            "property": {
+              "$ref": "m2.implementation_version"
+            },
+            "required": true
+          }
+        }
+      }
+    },
+    {
+      "key": "type.m2_jig",
+      "id": "e24731b8-698b-5374-8f58-11ba70467967",
+      "label": "type.m2_jig · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "RESOURCE_TYPE",
+        "parent": {
+          "$ref": "type.jig"
+        },
+        "fields": {
+          "family": {
+            "property": {
+              "$ref": "m2.tooling_family"
+            },
+            "required": true
+          },
+          "seat_depth": {
+            "property": {
+              "$ref": "resource.slot_depth"
+            },
+            "required": true
+          }
+        }
+      }
+    },
+    {
+      "key": "robot.simulation",
+      "id": "68a2d6ae-02e2-5392-ab6d-7c7b29db81af",
+      "label": "robot.simulation · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "RESOURCE_MODEL",
+        "resource_type": {
+          "$ref": "type.m2_robot"
+        },
+        "values": {
+          "profile": {
+            "text": "SIMULATION"
+          },
+          "frame": {
+            "text": "SIMULATION/world"
+          },
+          "origin": {
+            "vector": [
+              0,
+              0,
+              0
+            ]
+          },
+          "orientation": {
+            "vector": [
+              0,
+              0,
+              0,
+              1
+            ]
+          },
+          "cap_manipulate": {
+            "boolean": true
+          },
+          "implementation": {
+            "text": "rx.simulation.manipulation"
+          },
+          "implementation_version": {
+            "text": "1.0.0"
+          },
+          "payload": {
+            "number": 10
+          }
+        }
+      }
+    },
+    {
+      "key": "machine.simulation",
+      "id": "443a9eb0-2aab-5133-a8da-12e26c464cb0",
+      "label": "machine.simulation · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "RESOURCE_MODEL",
+        "resource_type": {
+          "$ref": "type.m2_machine"
+        },
+        "values": {
+          "profile": {
+            "text": "SIMULATION"
+          },
+          "frame": {
+            "text": "SIMULATION/world"
+          },
+          "origin": {
+            "vector": [
+              0,
+              0,
+              0
+            ]
+          },
+          "orientation": {
+            "vector": [
+              0,
+              0,
+              0,
+              1
+            ]
+          },
+          "cap_clamp": {
+            "boolean": true
+          },
+          "cap_door": {
+            "boolean": true
+          },
+          "cap_process": {
+            "boolean": true
+          },
+          "implementation": {
+            "text": "rx.simulation.laser-machine"
+          },
+          "implementation_version": {
+            "text": "1.0.0"
+          }
+        }
+      }
+    },
+    {
+      "key": "jig.m2-model",
+      "id": "681912f9-d01b-592a-8cff-02621521591f",
+      "label": "jig.m2-model · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "RESOURCE_MODEL",
+        "resource_type": {
+          "$ref": "type.m2_jig"
+        },
+        "values": {
+          "profile": {
+            "text": "SIMULATION"
+          },
+          "frame": {
+            "text": "SIMULATION/world"
+          },
+          "origin": {
+            "vector": [
+              0,
+              0,
+              0
+            ]
+          },
+          "orientation": {
+            "vector": [
+              0,
+              0,
+              0,
+              1
+            ]
+          },
+          "family": {
+            "text": "PART1/14"
+          },
+          "width": {
+            "number": 120
+          },
+          "depth": {
+            "number": 120
+          },
+          "height": {
+            "number": 40
+          },
+          "seat_depth": {
+            "number": 0
+          }
+        }
+      }
+    },
+    {
+      "key": "jig.m2-work",
+      "id": "5780350d-831e-59e8-8fbd-8b91aaef03e9",
+      "label": "jig.m2-work · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "RESOURCE_INSTANCE",
+        "base": {
+          "$ref": "jig.m2-model"
+        },
+        "values": {
+          "origin": {
+            "vector": [
+              600,
+              500,
+              800
+            ]
+          }
+        }
+      }
+    },
+    {
+      "key": "m2.properties.ECC_51",
+      "id": "63e7b645-b502-56b9-8f34-905973c1fb99",
+      "label": "m2.properties.ECC_51 · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "PROPERTY_SET",
+        "values": {
+          "clearance": {
+            "property": {
+              "$ref": "execution.clearance"
+            },
+            "value": {
+              "number": 25
+            }
+          },
+          "grasp_clearance": {
+            "property": {
+              "$ref": "execution.grasp_clearance"
+            },
+            "value": {
+              "number": 2
+            }
+          },
+          "force_factor": {
+            "property": {
+              "$ref": "m2.force_factor"
+            },
+            "value": {
+              "number": 0.5
+            }
+          },
+          "clamp_factor": {
+            "property": {
+              "$ref": "m2.clamp_factor"
+            },
+            "value": {
+              "number": 0.6
+            }
+          },
+          "timeout": {
+            "property": {
+              "$ref": "m2.timeout"
+            },
+            "value": {
+              "number": 30
+            }
+          },
+          "process_duration": {
+            "property": {
+              "$ref": "m2.process_duration"
+            },
+            "value": {
+              "number": 5
+            }
+          }
+        }
+      }
+    },
+    {
+      "key": "m2.properties.ECC_99",
+      "id": "21ed86ef-6297-534f-b180-891e414d239a",
+      "label": "m2.properties.ECC_99 · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "PROPERTY_SET",
+        "values": {
+          "clearance": {
+            "property": {
+              "$ref": "execution.clearance"
+            },
+            "value": {
+              "number": 40
+            }
+          },
+          "grasp_clearance": {
+            "property": {
+              "$ref": "execution.grasp_clearance"
+            },
+            "value": {
+              "number": 2
+            }
+          },
+          "force_factor": {
+            "property": {
+              "$ref": "m2.force_factor"
+            },
+            "value": {
+              "number": 0.5
+            }
+          },
+          "clamp_factor": {
+            "property": {
+              "$ref": "m2.clamp_factor"
+            },
+            "value": {
+              "number": 0.6
+            }
+          },
+          "timeout": {
+            "property": {
+              "$ref": "m2.timeout"
+            },
+            "value": {
+              "number": 30
+            }
+          },
+          "process_duration": {
+            "property": {
+              "$ref": "m2.process_duration"
+            },
+            "value": {
+              "number": 7
+            }
+          }
+        }
+      }
+    },
+    {
+      "key": "type.m2_tray",
+      "id": "0854ab1b-35b0-583a-a3e3-02423aa493d7",
+      "label": "Tray geometry and explicit pose · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "RESOURCE_TYPE",
+        "parent": {
+          "$ref": "type.positioned"
+        },
+        "fields": {
+          "height": {
+            "property": {
+              "$ref": "resource.height"
+            },
+            "required": true
+          },
+          "width": {
+            "property": {
+              "$ref": "resource.width"
+            },
+            "required": true
+          },
+          "depth": {
+            "property": {
+              "$ref": "resource.depth"
+            },
+            "required": true
+          },
+          "rows": {
+            "property": {
+              "$ref": "resource.rows"
+            },
+            "required": true
+          },
+          "columns": {
+            "property": {
+              "$ref": "resource.columns"
+            },
+            "required": true
+          },
+          "row_pitch": {
+            "property": {
+              "$ref": "resource.row_pitch"
+            },
+            "required": true
+          },
+          "column_pitch": {
+            "property": {
+              "$ref": "resource.column_pitch"
+            },
+            "required": true
+          },
+          "slot_depth": {
+            "property": {
+              "$ref": "resource.slot_depth"
+            },
+            "required": true
+          }
+        }
+      }
+    },
+    {
+      "key": "m2.tray.standard",
+      "id": "2713022c-ab3e-584d-8cc1-2c129f5ae9e7",
+      "label": "Standard tray, local geometry · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "RESOURCE_MODEL",
+        "resource_type": {
+          "$ref": "type.m2_tray"
+        },
+        "values": {
+          "profile": {
+            "text": "SIMULATION"
+          },
+          "frame": {
+            "text": "TRAY_LOCAL"
+          },
+          "origin": {
+            "vector": [
+              0,
+              0,
+              0
+            ]
+          },
+          "height": {
+            "number": 50
+          },
+          "width": {
+            "number": 600
+          },
+          "depth": {
+            "number": 400
+          },
+          "rows": {
+            "number": 4
+          },
+          "columns": {
+            "number": 6
+          },
+          "row_pitch": {
+            "number": 80
+          },
+          "column_pitch": {
+            "number": 80
+          },
+          "slot_depth": {
+            "number": 10
+          },
+          "orientation": {
+            "vector": [
+              0,
+              0,
+              0,
+              1
+            ]
+          }
+        }
+      }
+    },
+    {
+      "key": "m2.tray.dense",
+      "id": "ebdfa150-1ce0-528e-a80e-7f62f34db9cc",
+      "label": "Dense tray, local geometry · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "RESOURCE_MODEL",
+        "resource_type": {
+          "$ref": "type.m2_tray"
+        },
+        "values": {
+          "profile": {
+            "text": "SIMULATION"
+          },
+          "frame": {
+            "text": "TRAY_LOCAL"
+          },
+          "origin": {
+            "vector": [
+              0,
+              0,
+              0
+            ]
+          },
+          "height": {
+            "number": 50
+          },
+          "width": {
+            "number": 1500
+          },
+          "depth": {
+            "number": 1000
+          },
+          "rows": {
+            "number": 40
+          },
+          "columns": {
+            "number": 60
+          },
+          "row_pitch": {
+            "number": 20
+          },
+          "column_pitch": {
+            "number": 20
+          },
+          "slot_depth": {
+            "number": 8
+          },
+          "orientation": {
+            "vector": [
+              0,
+              0,
+              0,
+              1
+            ]
+          }
+        }
+      }
+    },
+    {
+      "key": "m2.tray.supply",
+      "id": "2a65fcdd-a0e1-582e-b425-8c44e89244d7",
+      "label": "Supply tray at site · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "RESOURCE_INSTANCE",
+        "base": {
+          "$ref": "m2.tray.standard"
+        },
+        "values": {
+          "origin": {
+            "vector": [
+              100,
+              200,
+              760
+            ]
+          },
+          "orientation": {
+            "vector": [
+              0,
+              0,
+              0,
+              1
+            ]
+          },
+          "frame": {
+            "text": "SIMULATION/world"
+          }
+        }
+      }
+    },
+    {
+      "key": "m2.tray.output",
+      "id": "38cb08cd-a779-5f89-8222-326c09afd6e7",
+      "label": "Output tray at site · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "RESOURCE_INSTANCE",
+        "base": {
+          "$ref": "m2.tray.standard"
+        },
+        "values": {
+          "origin": {
+            "vector": [
+              800,
+              200,
+              760
+            ]
+          },
+          "orientation": {
+            "vector": [
+              0,
+              0,
+              0,
+              1
+            ]
+          },
+          "frame": {
+            "text": "SIMULATION/world"
+          }
+        }
+      }
+    },
+    {
+      "key": "m2.tray.dense-site",
+      "id": "4b9ae80e-a36c-5b06-b94f-da37e95a8886",
+      "label": "Dense tray at supply site · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "RESOURCE_INSTANCE",
+        "base": {
+          "$ref": "m2.tray.dense"
+        },
+        "values": {
+          "origin": {
+            "vector": [
+              100,
+              200,
+              760
+            ]
+          },
+          "orientation": {
+            "vector": [
+              0,
+              0,
+              0,
+              1
+            ]
+          },
+          "frame": {
+            "text": "SIMULATION/world"
+          }
+        }
+      }
+    },
+    {
+      "key": "m2.rule.tray-slots",
+      "id": "59d8194d-55e0-5bdd-acb1-f119917caac6",
+      "label": "Tray slot poses from the explicit site pose · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "POINT_PATTERN",
+        "resource_type": {
+          "$ref": "type.m2_tray"
+        },
+        "origin": "origin",
+        "frame": "frame",
+        "axes": [
+          {
+            "count": "rows",
+            "pitch": "row_pitch",
+            "direction": [
+              0,
+              1,
+              0
+            ]
+          },
+          {
+            "count": "columns",
+            "pitch": "column_pitch",
+            "direction": [
+              1,
+              0,
+              0
+            ]
+          }
+        ],
+        "orientation": "orientation"
+      }
+    }
+  ]
+}

@@ -1,9 +1,10 @@
-# 0F cell model — M1 developer quickstart
+# 0F cell model — M1/M2 developer quickstart
 
 This is the **SIMULATION authoring milestone**, not the final Linux RC or a
 device-control installation. The platform stores and resolves all definitions;
 the existing `rx` CLI and Definitions screen are clients of the same API.
-Task execution-value resolution, publication, Preview and operation are M2/M3.
+M2 adds Task execution-value resolution and constraints below. Publication,
+Preview and operation remain M3.
 
 `cell.json` contains 58 definitions: properties, inherited object/resource types,
 models, site instances, family property sets and a pinned Cartesian pose rule.
@@ -155,3 +156,95 @@ The legacy `surface_height` declaration in M1 is not consumed by the pose rule.
 It is not a second z offset. M2 must derive slot surface position from the full
 pose and validate any separately retained measurement in the same frame/unit.
 Existing saved M1 revisions and their calculated poses remain unchanged.
+
+## M2: resolve and constrain
+
+Use the matching M2 platform binary. These are design-resolution reports, not
+Preview, publication or device execution. `m2-definitions.json` adds 46 definitions
+to M1; `workflow.json` stores eight Tasks, 23 bounded rules and 23 constraints as
+one immutable Workflow revision. Member IDs are pinned by that revision/digest.
+
+With the same local API/password/state variables as above, from this checkout:
+
+```sh
+rxflow() {
+  python3 deployment/local-skills/rx workflow \
+    --local-url http://127.0.0.1:8080 --public-origin http://127.0.0.1:5173 \
+    --password-file "$RX_MODEL_HOME/password" --state-dir "$RX_MODEL_HOME/client" "$@"
+}
+rxdef --references "$RX_MODEL_HOME/cell.receipt.json" apply \
+  examples/definitions/0f-laser-simulation/m2-definitions.json \
+  --output "$RX_MODEL_HOME/m2-definitions.receipt.json"
+rxflow --references "$RX_MODEL_HOME/m2-definitions.receipt.json" apply \
+  examples/definitions/0f-laser-simulation/workflow.json \
+  --output "$RX_MODEL_HOME/workflow.receipt.json"
+rxflow --format text resolve "$RX_MODEL_HOME/workflow.receipt.json" \
+  --output "$RX_MODEL_HOME/part-a.receipt.json"
+rxflow --format text resolve "$RX_MODEL_HOME/workflow.receipt.json" \
+  --context part=part.ECC_99-14 --output "$RX_MODEL_HOME/part-b.receipt.json"
+rxflow --format text resolve "$RX_MODEL_HOME/workflow.receipt.json" \
+  --context supply=m2.tray.dense-site
+rxflow --format text resolve "$RX_MODEL_HOME/workflow.receipt.json" \
+  --override pick.grip_force=60:N
+rxflow --format text report "$RX_MODEL_HOME/part-a.receipt.json"
+```
+
+The default part is ECC_51-14. Expected simulated values at slot zero:
+
+| Value | ECC_51-14 | ECC_99-14 |
+|---|---:|---:|
+| pick grasp width | 47 mm | 77 mm |
+| pick grip force | 25 N | 17.5 N |
+| pick approach z | 795 mm | 825 mm |
+| load approach z | 885 mm | 915 mm |
+| clamp force | 30 N | 21 N |
+| process duration | 5 s | 7 s |
+
+The dense tray fails located geometry constraints. A direct force override of
+60 N fails the part force limit; zero force fails the positive-force constraint.
+`--override pick.grasp_width=100:mm` is below the gripper opening limit but exceeds
+the tray pitch and is still blocked. `--override pick.grip_force=40:kg` reports a
+unit error without falling back to the default. Quote intervals in shells if
+needed: `--override 'pick.grip_force=20..40:N'` is bounded and valid for part A but
+is `BOUNDED_INPUT_NOT_EXECUTABLE`, never a concrete command. Invalid reports are
+`BLOCKED`; valid concrete reports remain `RESOLVED_NOT_QUALIFIED`.
+
+Each resolve prints its request ID before sending. If a reply is lost, use
+`rxflow recover REQUEST_ID --output NEW_RECEIPT_FILE` with the same connection and
+state directory. This reuses the recorded original request and server receipt.
+An output file is immutable: use a new filename for a new resolve, or reuse the
+original `--request-id` for an exact retry. Model apply uses a deterministic
+request ID; reapplying unchanged data is idempotent. `--latest` explicitly reads
+current context revisions; the default keeps the model's saved references.
+
+In the UI: **Workflow design → Versioned workflow resolution → catalog → saved
+Workflow model → Resolve saved model**. Change the part or supply context to
+compare. Under **Explicit overrides**, select pick / grip_force, enter 60 and N,
+then Add override and resolve. Click the reported property location to open its
+node. **Sources and rules** shows pinned names, member paths and contributing
+values. **Saved resolution reports** opens the exact report written by the CLI,
+including after a browser reload. The UI never recalculates these values.
+
+M2 tray models use a local slot-mouth datum (`TRAY_LOCAL`, zero origin). Site
+instances explicitly provide world frame, origin and quaternion. They do not
+inherit the ambiguous M1 `surface_height` field. The slot pose is the position
+source; the simulated contact datum is the part center at
+`mouth + local normal * (part height / 2 - seat depth)`. Approach uses
+`mouth + local normal * (part height - seat depth + clearance)`. Jig surface is
+`jig origin + local normal * jig height`. All transforms are explicit; these
+assumptions do not establish a calibrated robot TCP or collision-free path.
+M1 saved definitions and point rules retain their original meaning.
+
+Prechecks (no devices):
+
+```sh
+python3 tools/test_workflow_client.py
+python3 tools/test_workflow_api.py --binary /absolute/path/to/rx-platform-local \
+  --output /absolute/path/to/m2-api-check.json
+```
+
+The API check starts a fresh temporary installation and exercises A/B, the dense
+tray, direct/ranged/wrong-unit overrides, conflicting property sets, a third part
+type and rotated tray added only as data, report indexing, and lost replies plus
+process restart. M2 still requires the user's own CLI/UI acceptance. Runtime
+binding, Preview/publish/run, fault recovery and the final Linux RC are M3.
