@@ -1,18 +1,19 @@
 import { count } from './labels';
 import { DraftBindings } from './draft-bindings';
+import { DraftLibrary } from './draft-library';
 import type { BindingEdit, BindingVersion } from './draft-bindings-schema';
 import { WorkflowCanvas, WorkflowLibrary } from './workflow-canvas';
 import { connect, nodeKinds, type Point } from './workflow-graph';
 import { useEffect, useState } from 'react';
 import { api, explain } from './api';
 import {
-  draftPageSchema,
+  draftHistorySchema,
   draftDetailSchema,
   editableSourceSchema,
   fromDetail,
   type DraftBuffer,
   type DraftDetail,
-  type DraftSummary,
+  type DraftHistory,
   type EditableSource,
   type Presentation,
 } from './draft-schema';
@@ -77,8 +78,6 @@ export function ProcessEditor({
   bindingReceipt: BindingVersion | null;
   onSaveBindings: (edit: BindingEdit) => Promise<unknown>;
 }) {
-  const [drafts, setDrafts] = useState<DraftSummary[]>([]);
-  const [next, setNext] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [flowIndex, setFlow] = useState(0);
@@ -98,40 +97,38 @@ export function ProcessEditor({
   const pendingEdit =
     !!buffer && (buffer.dirty || editingSource || editingConditions || buffer.bindingEdit != null);
   const [comparison, setComparison] = useState<DraftDetail | null>(null);
-  async function list(after?: string) {
+  const [history, setHistory] = useState<DraftHistory | null>(null);
+  const [inspectorOpen, setInspectorOpen] = useState(false);
+  useEffect(() => {
+    setHistory(null);
+  }, [buffer?.id, buffer?.expected]);
+  async function loadHistory(before?: string) {
+    if (!buffer?.expected) return;
+    setLoading(true);
+    setError('');
     try {
-      const page = draftPageSchema.parse(
+      const value = draftHistorySchema.parse(
         await api(
-          `/api/v1/process-drafts?cell=${encodeURIComponent(cell)}${after ? `&after=${after}` : ''}`,
+          `/api/v1/process-draft-history?cell=${encodeURIComponent(cell)}&id=${buffer.id}${before ? `&before=${before}` : ''}`,
         ),
       );
-      setDrafts((old) => (after ? [...old, ...page.drafts] : page.drafts));
-      setNext(page.next);
+      if (value.cell !== cell || value.draft !== buffer.id)
+        throw new Error('History identity differs');
+      setHistory((old) =>
+        before && old?.draft === value.draft
+          ? { ...value, versions: [...old.versions, ...value.versions] }
+          : value,
+      );
     } catch (e) {
       setError(explain(e));
+    } finally {
+      setLoading(false);
     }
   }
-  useEffect(() => {
-    let active = true;
-    setError('');
-    void api(`/api/v1/process-drafts?cell=${encodeURIComponent(cell)}`)
-      .then((v) => {
-        if (active) {
-          const p = draftPageSchema.parse(v);
-          setDrafts(p.drafts);
-          setNext(p.next);
-        }
-      })
-      .catch((e) => {
-        if (active) setError(explain(e));
-      });
-    return () => {
-      active = false;
-    };
-  }, [cell]);
-  useEffect(() => {
-    if (receipt?.version.cell === cell) void list();
-  }, [receipt]);
+  function selectNode(index: number) {
+    setSelected(index);
+    setInspectorOpen(true);
+  }
   const parsed = editableSourceSchema.safeParse(buffer?.document);
   const source = parsed.success ? parsed.data : null;
   const flow = source?.flows[flowIndex];
@@ -140,7 +137,7 @@ export function ProcessEditor({
     fn: (s: EditableSource) => void,
     layout?: (s: EditableSource) => Presentation | undefined,
   ) {
-    if (!buffer || !source || !canEdit) return;
+    if (!buffer || !source || !canEdit || buffer.library?.archived) return;
     const copy = structuredClone(source);
     fn(copy);
     onBuffer({
@@ -162,6 +159,7 @@ export function ProcessEditor({
       onBuffer(fromDetail(d));
       setFlow(0);
       setSelected(0);
+      setInspectorOpen(false);
       setComparison(null);
     } catch (e) {
       setError(explain(e));
@@ -225,7 +223,7 @@ export function ProcessEditor({
             root.body.children = [...strings(root.body.children), id];
           }
         }
-        setSelected(f.nodes.length - 1);
+        selectNode(f.nodes.length - 1);
       },
       (s) => {
         const f = s.flows[flowIndex],
@@ -271,57 +269,37 @@ export function ProcessEditor({
     link.click();
     URL.revokeObjectURL(url);
   }
-  const inputDisabled = !canEdit || loading;
+  const archived = buffer?.library?.archived === true;
+  const inputDisabled = !canEdit || loading || archived;
   const disabled =
     inputDisabled || editingSource || editingConditions || buffer?.bindingEdit != null;
   return (
     <div className={`draft-workspace ${buffer ? 'has-document' : ''}`}>
-      <aside className="panel draft-list">
-        <div className="section-heading">
-          <h3>Workflow drafts</h3>
-          <span className="count">{drafts.length}</span>
-        </div>
-        <button
-          className="primary wide"
-          disabled={disabled || pendingEdit}
-          onClick={() => {
-            onBuffer({
-              id: crypto.randomUUID(),
-              cell,
-              expected: null,
-              title: 'New workflow',
-              document: blank(),
-              dirty: true,
-              validation: null,
-              baseline: null,
-            });
-            setFlow(0);
-            setSelected(0);
-          }}
-        >
-          New draft
-        </button>
-        {drafts.map((d) => (
-          <button
-            className={`draft-list-item ${buffer?.id === d.id ? 'selected' : ''}`}
-            key={d.id}
-            disabled={loading || pendingEdit}
-            onClick={() => void load(d.id)}
-          >
-            <b>{d.title}</b>
-            <small>
-              r{d.revision} ·{' '}
-              {d.structurally_valid
-                ? 'Structure verified'
-                : `${count(d.issue_count, 'item')} to review`}
-            </small>
-          </button>
-        ))}
-        {next && <button onClick={() => void list(next)}>Load more</button>}
-        {buffer?.dirty && (
-          <p className="muted">Save or discard your changes before opening another draft.</p>
-        )}
-      </aside>
+      <DraftLibrary
+        key={cell}
+        cell={cell}
+        selected={buffer?.id}
+        locked={loading || pendingEdit}
+        canCreate={canEdit && !loading}
+        refresh={receipt ? `${receipt.version.id}/${receipt.version.revision}` : undefined}
+        onOpen={(id) => void load(id)}
+        onCreate={() => {
+          onBuffer({
+            id: crypto.randomUUID(),
+            cell,
+            expected: null,
+            title: 'New workflow',
+            document: blank(),
+            dirty: true,
+            validation: null,
+            baseline: null,
+          });
+          setFlow(0);
+          setSelected(0);
+          setInspectorOpen(false);
+          setComparison(null);
+        }}
+      />
       <section className="draft-main">
         {error && (
           <div className="notice error" role="alert">
@@ -354,16 +332,20 @@ export function ProcessEditor({
                   />
                 </label>
                 <p className="muted">
-                  {buffer.expected ? `Baseline r${buffer.expected}` : 'Not saved yet'} ·{' '}
-                  {pendingEdit ? 'Unsaved changes' : 'Saved version'} · The configuration being
-                  edited is not applied to execution.
+                  {buffer.expected ? `Draft r${buffer.expected}` : 'Not saved yet'} ·{' '}
+                  {pendingEdit ? 'Unsaved changes' : 'Saved version'} · Not applied to operation.
                 </p>
               </div>
               <div className="draft-actions">
                 <button
                   className="primary"
                   disabled={
-                    !canSave || !buffer.dirty || loading || editingSource || editingConditions
+                    !canSave ||
+                    !buffer.dirty ||
+                    loading ||
+                    editingSource ||
+                    editingConditions ||
+                    archived
                   }
                   onClick={() => void onSave(buffer)}
                 >
@@ -379,13 +361,17 @@ export function ProcessEditor({
                   Discard changes
                 </button>
                 <button
-                  disabled={disabled || pendingEdit}
+                  disabled={!canEdit || loading || pendingEdit}
                   onClick={() => {
                     onBuffer({
                       ...buffer,
                       id: crypto.randomUUID(),
                       expected: null,
                       title: `${buffer.title} Copy`.slice(0, 120),
+                      library: {
+                        ...(buffer.library ?? { site: null, service: null }),
+                        archived: false,
+                      },
                       document: structuredClone(buffer.document),
                       dirty: true,
                       validation: null,
@@ -401,13 +387,85 @@ export function ProcessEditor({
                 </button>
                 <button onClick={exportJson}>Export source</button>
                 {buffer.expected && (
+                  <>
+                    <button disabled={loading} onClick={() => void loadHistory()}>
+                      Version history
+                    </button>
+                    <button
+                      disabled={!canSave || loading || pendingEdit}
+                      onClick={() => {
+                        const next = {
+                          ...buffer,
+                          library: {
+                            ...(buffer.library ?? { site: null, service: null }),
+                            archived: !archived,
+                          },
+                          dirty: true,
+                        };
+                        onBuffer(next);
+                        void onSave(next);
+                      }}
+                    >
+                      {archived ? 'Restore draft' : 'Archive draft'}
+                    </button>
+                  </>
+                )}
+                {buffer.expected && (
                   <button onClick={() => void compare()}>Compare server version</button>
                 )}
               </div>
             </header>
+            {archived && !buffer.dirty && (
+              <p className="notice warning">
+                This draft is archived. Restore it to edit, or copy a version into a new draft.
+                Installed workflows are unchanged.
+              </p>
+            )}
+            <div className="draft-state-line">
+              <span
+                className={`badge ${buffer.validation?.structurally_valid && !buffer.dirty ? 'good' : 'warning'}`}
+              >
+                {buffer.dirty
+                  ? 'Unsaved changes'
+                  : archived
+                    ? 'Archived'
+                    : buffer.validation?.structurally_valid
+                      ? 'Structure verified'
+                      : 'Review required'}
+              </span>
+              <span>
+                {buffer.library?.site ?? 'No site label'} ·{' '}
+                {buffer.library?.service ?? 'No service label'}
+              </span>
+            </div>
+            {history?.draft === buffer.id && (
+              <section className="panel draft-history">
+                <div className="section-heading">
+                  <h3>Version history</h3>
+                  <button onClick={() => setHistory(null)}>Close history</button>
+                </div>
+                <div className="draft-history-versions">
+                  {history.versions.map((v) => (
+                    <button
+                      key={v.revision}
+                      disabled={loading}
+                      onClick={() => void compare(v.revision)}
+                    >
+                      r{v.revision} · {v.title} · {v.library?.archived ? 'Archived' : 'Draft'}
+                    </button>
+                  ))}
+                </div>
+                {history.next && (
+                  <button disabled={loading} onClick={() => void loadHistory(history.next!)}>
+                    Older versions
+                  </button>
+                )}
+              </section>
+            )}
             {comparison && (
               <div className="panel draft-comparison">
                 <h3>Current edits and server record</h3>
+                <button onClick={() => setComparison(null)}>Close comparison</button>
                 <p>
                   Editing baseline r{buffer.expected} / server r{comparison.version.revision}
                 </p>
@@ -428,6 +486,31 @@ export function ProcessEditor({
                     Load this version
                   </button>
                 </div>
+                <button
+                  disabled={!canEdit || loading || pendingEdit}
+                  onClick={() => {
+                    const old = fromDetail(comparison);
+                    onBuffer({
+                      ...old,
+                      id: crypto.randomUUID(),
+                      expected: null,
+                      title: `${old.title} Copy`.slice(0, 120),
+                      library: {
+                        ...(old.library ?? { site: null, service: null }),
+                        archived: false,
+                      },
+                      dirty: true,
+                      validation: null,
+                      baseline: null,
+                    });
+                    setFlow(0);
+                    setSelected(0);
+                    setInspectorOpen(false);
+                    setComparison(null);
+                  }}
+                >
+                  Edit a copy of this version
+                </button>
                 <div className="compare-grid">
                   <div>
                     <b>My edits</b>
@@ -446,100 +529,9 @@ export function ProcessEditor({
                 </p>
               </div>
             )}
-            <section className="panel draft-validation">
-              <div className="section-heading">
-                <h3>Saved version validation results</h3>
-                <span
-                  className={`badge ${buffer.validation?.structurally_valid && !buffer.dirty ? 'good' : 'warning'}`}
-                >
-                  {buffer.dirty
-                    ? 'Current edits need revalidation'
-                    : buffer.validation?.structurally_valid
-                      ? 'Structure verified'
-                      : 'Structure needs verification'}
-                </span>
-              </div>
-              <details className="validation-details">
-                <summary>Review validation details</summary>
-                {buffer.validation ? (
-                  <>
-                    <p className="muted">
-                      Validated revision r{buffer.expected} · expanded nodes{' '}
-                      {count(buffer.validation.expanded_nodes, 'item')} · device bindings, package
-                      verification, and physical verification are separate.
-                    </p>
-                    <ul className="draft-issues">
-                      {buffer.validation.issues.map((issue, i) => (
-                        <li key={i}>
-                          <button
-                            className="issue-location"
-                            onClick={() => {
-                              if (!source) return;
-                              const fi = source.flows.findIndex(
-                                (f) =>
-                                  issue.location === f.id || issue.location.startsWith(f.id + '/'),
-                              );
-                              if (fi < 0) return;
-                              const f = source.flows[fi],
-                                rest = issue.location.slice(f.id.length + 1);
-                              const ni = f.nodes.findIndex(
-                                (n) => rest === n.id || rest.startsWith(n.id + '/'),
-                              );
-                              setFlow(fi);
-                              setSelected(Math.max(0, ni));
-                            }}
-                          >
-                            {issue.location}
-                          </button>
-                          <span title={`${issue.code}: ${issue.message}`}>
-                            {issueLabels[issue.code] ?? issue.message}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                    <p>
-                      Operations to bind: {buffer.validation.required_bindings.join(', ') || 'None'}
-                    </p>
-                  </>
-                ) : (
-                  <p className="muted">
-                    Saving the draft validates its structure. Incomplete content can also be saved.
-                  </p>
-                )}
-              </details>
-            </section>
-            <details className="panel binding-details">
-              <summary>Device operation bindings</summary>
-              <DraftBindings
-                buffer={buffer}
-                onBuffer={onBuffer}
-                canEdit={canEdit && !loading}
-                canSave={canSave}
-                receipt={bindingReceipt}
-                onSave={onSaveBindings}
-              />
-            </details>
             {source ? (
               <>
                 <div className="panel flow-toolbar">
-                  <label>
-                    Entry workflow
-                    <select
-                      disabled={disabled}
-                      value={source.entry}
-                      onChange={(e) =>
-                        change((s) => {
-                          s.entry = e.target.value;
-                        })
-                      }
-                    >
-                      {source.flows.map((f, i) => (
-                        <option key={i} value={f.id}>
-                          {f.id}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
                   <label>
                     Workflow to edit
                     <select
@@ -570,22 +562,12 @@ export function ProcessEditor({
                   >
                     Add subworkflow
                   </button>
-                  <label>
-                    Workflow identifier
-                    <input
-                      value={source.process}
-                      disabled={disabled}
-                      onChange={(e) =>
-                        change((s) => {
-                          s.process = e.target.value;
-                        })
-                      }
-                    />
-                  </label>
                 </div>
                 {flow && (
                   <>
-                    <div className="editor-grid">
+                    <div
+                      className={`editor-grid ${inspectorOpen ? 'inspector-open' : 'inspector-closed'}`}
+                    >
                       <WorkflowLibrary
                         disabled={disabled}
                         operations={[
@@ -606,7 +588,7 @@ export function ProcessEditor({
                         positions={buffer.presentation?.flows[flow.id] ?? {}}
                         selected={selected}
                         disabled={disabled}
-                        onSelect={setSelected}
+                        onSelect={selectNode}
                         onOpenFlow={(id) => {
                           const index = source.flows.findIndex((f) => f.id === id);
                           if (index < 0) {
@@ -658,15 +640,16 @@ export function ProcessEditor({
                           }
                         }}
                       />
-                      <section className="panel node-inspector">
+                      <section className="panel node-inspector" hidden={!inspectorOpen}>
                         <div className="section-heading">
                           <h3>Node settings</h3>
+                          <button onClick={() => setInspectorOpen(false)}>Close settings</button>
                         </div>
                         <label>
                           Select node
                           <select
                             value={selected}
-                            onChange={(e) => setSelected(Number(e.target.value))}
+                            onChange={(e) => selectNode(Number(e.target.value))}
                           >
                             {flow.nodes.map((n, i) => (
                               <option key={i} value={i}>
@@ -954,6 +937,156 @@ export function ProcessEditor({
                 editing to inspect it. The saved source is preserved.
               </div>
             )}
+            <section className="panel draft-validation">
+              <div className="section-heading">
+                <h3>Saved version validation results</h3>
+                <span
+                  className={`badge ${buffer.validation?.structurally_valid && !buffer.dirty ? 'good' : 'warning'}`}
+                >
+                  {buffer.dirty
+                    ? 'Current edits need revalidation'
+                    : buffer.validation?.structurally_valid
+                      ? 'Structure verified'
+                      : 'Structure needs verification'}
+                </span>
+              </div>
+              <details className="validation-details">
+                <summary>Review validation details</summary>
+                {buffer.validation ? (
+                  <>
+                    <p className="muted">
+                      Validated revision r{buffer.expected} · expanded nodes{' '}
+                      {count(buffer.validation.expanded_nodes, 'item')} · device bindings, package
+                      verification, and physical verification are separate.
+                    </p>
+                    <ul className="draft-issues">
+                      {buffer.validation.issues.map((issue, i) => (
+                        <li key={i}>
+                          <button
+                            className="issue-location"
+                            onClick={() => {
+                              if (!source) return;
+                              const fi = source.flows.findIndex(
+                                (f) =>
+                                  issue.location === f.id || issue.location.startsWith(f.id + '/'),
+                              );
+                              if (fi < 0) return;
+                              const f = source.flows[fi],
+                                rest = issue.location.slice(f.id.length + 1);
+                              const ni = f.nodes.findIndex(
+                                (n) => rest === n.id || rest.startsWith(n.id + '/'),
+                              );
+                              setFlow(fi);
+                              setSelected(Math.max(0, ni));
+                            }}
+                          >
+                            {issue.location}
+                          </button>
+                          <span title={`${issue.code}: ${issue.message}`}>
+                            {issueLabels[issue.code] ?? issue.message}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                    <p>
+                      Operations to bind: {buffer.validation.required_bindings.join(', ') || 'None'}
+                    </p>
+                  </>
+                ) : (
+                  <p className="muted">
+                    Saving the draft validates its structure. Incomplete content can also be saved.
+                  </p>
+                )}
+              </details>
+            </section>
+            <details className="panel binding-details">
+              <summary>Device operation bindings</summary>
+              <DraftBindings
+                buffer={buffer}
+                onBuffer={onBuffer}
+                canEdit={canEdit && !loading && !archived}
+                canSave={canSave && !archived}
+                receipt={bindingReceipt}
+                onSave={onSaveBindings}
+              />
+            </details>
+            <details className="panel workflow-metadata">
+              <summary>Workflow settings and classification</summary>
+              {source && (
+                <div className="flow-toolbar">
+                  {' '}
+                  <label>
+                    Entry workflow
+                    <select
+                      disabled={disabled}
+                      value={source.entry}
+                      onChange={(e) =>
+                        change((s) => {
+                          s.entry = e.target.value;
+                        })
+                      }
+                    >
+                      {source.flows.map((f, i) => (
+                        <option key={i} value={f.id}>
+                          {f.id}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    Workflow identifier
+                    <input
+                      value={source.process}
+                      disabled={disabled}
+                      onChange={(e) =>
+                        change((s) => {
+                          s.process = e.target.value;
+                        })
+                      }
+                    />
+                  </label>
+                </div>
+              )}
+              <label>
+                Site label
+                <input
+                  maxLength={120}
+                  value={buffer.library?.site ?? ''}
+                  disabled={disabled}
+                  onChange={(e) =>
+                    onBuffer({
+                      ...buffer,
+                      library: {
+                        ...(buffer.library ?? { site: null, service: null, archived: false }),
+                        site: e.target.value || null,
+                      },
+                      dirty: true,
+                    })
+                  }
+                />
+              </label>
+              <label>
+                Service label
+                <input
+                  maxLength={120}
+                  value={buffer.library?.service ?? ''}
+                  disabled={disabled}
+                  onChange={(e) =>
+                    onBuffer({
+                      ...buffer,
+                      library: {
+                        ...(buffer.library ?? { site: null, service: null, archived: false }),
+                        service: e.target.value || null,
+                      },
+                      dirty: true,
+                    })
+                  }
+                />
+              </label>
+              <p className="muted">
+                Labels organize drafts. They do not register a site or change access permissions.
+              </p>
+            </details>
             <details className="panel advanced-source">
               <summary>Advanced source editing and import</summary>
               <p className="muted">

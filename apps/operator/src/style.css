@@ -2377,3 +2377,126 @@ textarea:focus-visible {
 .page:has(.draft-workspace.has-document) .cell-tabs {
   margin-bottom: 10px;
 }
+.draft-workspace {
+  grid-template-columns: minmax(0, 1fr);
+}
+.workflow-library-panel {
+  padding: 12px 16px;
+}
+.workflow-library-panel summary,
+.workflow-metadata summary {
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+}
+.workflow-library-panel summary span {
+  margin-left: 12px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 400;
+}
+.workflow-library-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 10px;
+  padding: 16px 0;
+}
+.workflow-library-filters label {
+  flex: 1 1 140px;
+  font-size: 12px;
+}
+.workflow-library-filters input,
+.workflow-library-filters select {
+  padding: 8px;
+  margin-top: 5px;
+}
+.workflow-library-results {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+  max-height: 340px;
+  overflow: auto;
+}
+.workflow-library-results .draft-list-item {
+  margin: 0;
+}
+.draft-state-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--muted);
+  padding: 0 4px;
+}
+.draft-history-versions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 12px 0;
+}
+.workflow-metadata > label {
+  display: block;
+  margin: 12px 0;
+  font-size: 12px;
+}
+.has-document .editor-grid.inspector-closed {
+  grid-template-columns: 185px minmax(0, 1fr);
+}
+.node-inspector[hidden] {
+  display: none;
+}
+.wf-canvas-scroll {
+  height: clamp(420px, calc(100vh - 340px), 720px);
+}
+main:has(.draft-workspace.has-document) .topbar {
+  height: 48px;
+  padding: 0 24px;
+}
+.page:has(.draft-workspace.has-document) .page-heading .muted {
+  display: none;
+}
+.page:has(.draft-workspace.has-document) .page-heading h1 {
+  font-size: 18px;
+  margin: 0;
+}
+.page:has(.draft-workspace.has-document) .connection {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: end;
+  gap: 6px;
+}
+.page:has(.draft-workspace.has-document) .connection small,
+.page:has(.draft-workspace.has-document) .connection .text-button {
+  margin: 0;
+}
+.has-document .draft-header {
+  padding: 10px 14px;
+}
+.has-document .flow-toolbar {
+  padding: 6px 12px;
+}
+@media (max-width: 1250px) {
+  .has-document .editor-grid {
+    position: relative;
+  }
+  .has-document .node-inspector:not([hidden]) {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 4;
+    width: min(300px, 90%);
+    max-height: none;
+    background: white;
+    box-shadow: -6px 0 20px #2330471a;
+    border-left: 1px solid #d6dbe1;
+  }
+}
+@media (max-width: 700px) {
+  .has-document .editor-grid.inspector-closed {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

@@ -12,6 +12,7 @@ import {
   draftDetailSchema,
   fromDetail,
   stableDocument,
+  libraryForSave,
   type DraftBuffer,
   type DraftDetail,
 } from './draft-schema';
@@ -379,6 +380,11 @@ export function App() {
             value.version.id !== record.command.id ||
             value.version.cell !== record.command.cell ||
             value.version.title !== record.command.title ||
+            (record.command.library !== undefined &&
+              stableDocument(value.version.library) !== stableDocument(record.command.library)) ||
+            (record.command.presentation !== undefined &&
+              stableDocument(value.version.presentation) !==
+                stableDocument(record.command.presentation)) ||
             stableDocument(value.document) !== stableDocument(record.command.document)
           )
             throw new Error('draft correlation');
@@ -388,6 +394,10 @@ export function App() {
             if (
               current?.id === value.version.id &&
               current.title === value.version.title &&
+              stableDocument(libraryForSave(current.library)) ===
+                stableDocument(record.command.library) &&
+              stableDocument(current.presentation) ===
+                stableDocument(record.command.presentation) &&
               stableDocument(current.document) === stableDocument(value.document)
             )
               return { ...old, [value.version.cell]: fromDetail(value) };
@@ -943,9 +953,10 @@ export function App() {
                     key={cell.cell.value.id}
                     cell={cell.cell.value.id}
                     buffer={draftBuffers[cell.cell.value.id] ?? null}
-                    onBuffer={(value) =>
-                      setDraftBuffers((old) => ({ ...old, [cell.cell.value.id]: value }))
-                    }
+                    onBuffer={(value) => {
+                      if (value?.id !== draftBuffers[cell.cell.value.id]?.id) setToast('');
+                      setDraftBuffers((old) => ({ ...old, [cell.cell.value.id]: value }));
+                    }}
                     canEdit={canEditDraft}
                     canSave={canSaveDraft}
                     receipt={draftReceipt}
@@ -986,6 +997,7 @@ export function App() {
                           title: buffer.title,
                           document: buffer.document,
                           presentation: buffer.presentation,
+                          library: libraryForSave(buffer.library),
                         },
                       })
                     }
