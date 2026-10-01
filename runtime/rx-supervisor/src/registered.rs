@@ -865,6 +865,33 @@ impl<S: Repository, B: Backend, A: LifecycleAuthority, R: Repository>
     pub fn state(&mut self) -> Result<State> {
         self.supervisor.state()
     }
+    /// Retained snapshots for the current run's exact instances, without ownership promotion.
+    pub fn reporting_snapshot(&mut self) -> Result<Vec<crate::registration::Execution>> {
+        let state = self.supervisor.state()?;
+        let mut snapshots = Vec::new();
+        for (selection, binding) in &self.bindings {
+            let Some(instance) = &state.records[selection].instance else {
+                continue;
+            };
+            let view = self.registry.borrow_mut().query(&binding.registration)?;
+            if let Some(execution) = view
+                .executions
+                .into_iter()
+                .find(|e| e.binding.instance == *instance)
+            {
+                if execution.binding.run != self.run
+                    || execution.binding.selection != *selection
+                    || execution.binding.catalog != binding.catalog
+                {
+                    return Err(Error::Reconciliation(
+                        "report source differs from current run".into(),
+                    ));
+                }
+                snapshots.push(execution);
+            }
+        }
+        Ok(snapshots)
+    }
     pub fn execution_admission(&mut self) -> Result<BTreeMap<Name, execution::Status>> {
         self.supervisor.execution_admission()
     }
