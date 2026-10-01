@@ -212,8 +212,11 @@ is `BOUNDED_INPUT_NOT_EXECUTABLE`, never a concrete command. Invalid reports are
 Each resolve prints its request ID before sending. If a reply is lost, use
 `rxflow recover REQUEST_ID --output NEW_RECEIPT_FILE` with the same connection and
 state directory. This reuses the recorded original request and server receipt.
-An output file is immutable: use a new filename for a new resolve, or reuse the
-original `--request-id` for an exact retry. Model apply uses a deterministic
+Resolve refuses an existing `--output` path before making any server request.
+Use a new filename or omit `--output`; use `report` to read an existing receipt.
+For an exact retry, reuse the original `--request-id` with a new output path or
+without `--output`. A concurrent output-write failure after a successful request
+can still be recovered through the original request journal. Model apply uses a deterministic
 request ID; reapplying unchanged data is idempotent. `--latest` explicitly reads
 current context revisions; the default keeps the model's saved references.
 
@@ -248,3 +251,11 @@ tray, direct/ranged/wrong-unit overrides, conflicting property sets, a third par
 type and rotated tray added only as data, report indexing, and lost replies plus
 process restart. M2 still requires the user's own CLI/UI acceptance. Runtime
 binding, Preview/publish/run, fault recovery and the final Linux RC are M3.
+
+Workflow CLI exit codes: 0 for a valid concrete resolution, 1 for a client/request
+error, 2 for BLOCKED, and 3 for BOUNDED_INPUT_NOT_EXECUTABLE. The report and recover
+commands use the same status codes. A nonzero design status still emits its
+report; it does not authorize execution. Text output shows fixed numbers as
+`25 N` and intervals as `20..40 N`, plus the report ID and digest. Only identical
+origin records within one property are collapsed in text; JSON provenance is
+unchanged and distinct references, paths or values remain visible.

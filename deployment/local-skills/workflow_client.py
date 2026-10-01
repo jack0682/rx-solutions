@@ -7,6 +7,10 @@ from definitions_client import Definitions, LocalAuthoring, reference
 from runtime_client import Terminal, encoded, read_file, save_new
 
 
+class OutputExistsError(ValueError):
+    """The requested output already exists; no server request was sent."""
+
+
 class Workflows(Definitions):
     def command(self, request_id, route, command, validate):
         with self.journal(request_id) as root:
@@ -139,6 +143,12 @@ def arguments(sub):
 
 
 def run(args):
+    output = getattr(args, 'output', None)
+    if args.action == 'resolve' and output is not None:
+        output = output.absolute()
+        if output.exists() or output.is_symlink():
+            raise OutputExistsError(f'Output path already exists: {output}. No server request was sent. '
+                                    'Use a new --output path, omit --output, or read the existing receipt with workflow report')
     if args.connection: terminal=Terminal(args.connection.absolute())
     else:
         if not args.password_file: raise ValueError('--password-file is required for local authoring')
@@ -190,6 +200,17 @@ def run(args):
     return result, format_report(result) if args.format=='text' else None
 
 
+def quantity_text(q):
+    def number(n):
+        return str(int(n)) if isinstance(n, float) and n.is_integer() else str(n)
+    def span(r):
+        return number(r['min']) if r['min'] == r['max'] else number(r['min']) + '..' + number(r['max'])
+    data = q['data']
+    if data['kind'] == 'NUMBER': return span(data['range'])
+    if data['kind'] == 'VECTOR': return '[' + ', '.join(span(r) for r in data['ranges']) + ']'
+    return json.dumps(data['value'], ensure_ascii=False)
+
+
 def format_report(result):
     if 'report' not in result: return json.dumps(result,indent=2,ensure_ascii=False)
     report=result['report']; names={encoded(d['reference']):d['label'] for d in report['definitions']}
@@ -198,11 +219,16 @@ def format_report(result):
         ref=o['reference']
         label='request input' if ref is None else ('Workflow' if ref==workflow else names.get(encoded(ref),'Definition'))+' r'+ref['revision']
         return o['kind']+': '+label+' / '+o['path']
-    lines=[report['status'],'Resolution: '+result['reference']['digest'],'Slot index: '+report['request']['slot_index']]
+    lines=[report['status'],'Resolution: '+result['reference']['id'],'Digest: '+result['reference']['digest'],'Slot index: '+report['request']['slot_index']]
     for step in report['steps']:
         lines.append('\n'+step['node']+' — '+step['label'])
         for key,value in step['properties'].items():
-            q=value['value'];lines.append(f"  {key}: {json.dumps(q['data'],ensure_ascii=False)} {q['unit']}"+(f" [{value['frame']}]" if value['frame'] else ''))
-            for origin in value['origins']: lines.append('    '+source(origin))
+            q=value['value'];lines.append(f"  {key}: {quantity_text(q)} {q['unit']}"+(f" [{value['frame']}]" if value['frame'] else ''))
+            seen = set()
+            for origin in value['origins']:
+                identity = encoded(origin)
+                if identity in seen: continue
+                seen.add(identity)
+                lines.append('    ' + source(origin) + ' = ' + quantity_text(origin['value']) + ' ' + origin['value']['unit'])
     for issue in report['violations']: lines.append(issue['location']+': '+issue['code']+' — '+issue['message'])
     return '\n'.join(lines)

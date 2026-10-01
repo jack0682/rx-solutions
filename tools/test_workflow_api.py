@@ -122,6 +122,33 @@ def main():
                 raise AssertionError('forged workflow digest accepted')
             except RuntimeRejected as e:assert e.status==400
             checks.append('forged workflow reference is refused')
+
+            model_file=root/'model.receipt.json';model_file.write_text(json.dumps(model))
+            prefix=[sys.executable,str(ROOT/'deployment/local-skills/rx'),'workflow',
+                    '--local-url',url,'--public-origin',url,'--password-file',str(password),
+                    '--state-dir',str(root/'cli-state')]
+            def cli(*arguments):
+                return subprocess.run(prefix+list(arguments),capture_output=True,text=True,timeout=20)
+            output=root/'cli-output.json'
+            fixed=cli('resolve',str(model_file),'--output',str(output))
+            assert fixed.returncode==0, fixed.stderr
+            fixed_report=json.loads(fixed.stdout)
+            assert json.loads(output.read_text())==fixed_report
+            before=w.terminal.get('/api/v1/workflow-resolutions',catalog=model['workflow']['catalog'])
+            original=output.read_bytes()
+            collision=cli('resolve',str(model_file),'--output',str(output))
+            assert collision.returncode==1 and 'Output path already exists' in collision.stderr
+            assert 'No server request was sent' in collision.stderr and 'Resolution request:' not in collision.stderr
+            assert output.read_bytes()==original
+            assert w.terminal.get('/api/v1/workflow-resolutions',catalog=model['workflow']['catalog'])==before
+            blocked=cli('resolve',str(model_file),'--override','pick.grip_force=60:N')
+            assert blocked.returncode==2 and json.loads(blocked.stdout)['report']['status']=='BLOCKED'
+            bounded_file=root/'bounded.json'
+            limited=cli('resolve',str(model_file),'--override','pick.grip_force=20..40:N','--output',str(bounded_file))
+            assert limited.returncode==3 and json.loads(limited.stdout)['report']['status']=='BOUNDED_INPUT_NOT_EXECUTABLE'
+            reread=cli('report',str(bounded_file))
+            assert reread.returncode==3 and json.loads(reread.stdout)==json.loads(limited.stdout)
+            checks.append('CLI existing-output preflight leaves server report list unchanged; concrete/blocked/bounded statuses exit 0/2/3 and saved bounded report stays readable')
         finally:
             if process is not None:
                 if process.poll() is None:process.terminate();process.wait(timeout=10)
