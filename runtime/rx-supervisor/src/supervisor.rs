@@ -255,6 +255,36 @@ impl<R: Repository, B: Backend, A: LifecycleAuthority> Supervisor<R, B, A> {
         })?;
         Ok(())
     }
+    /// Persist P-assigned identities without entering the OS boundary. No restart or adoption.
+    pub(crate) fn prepare_assigned_instances(
+        &mut self,
+        instances: &BTreeMap<Name, Id>,
+    ) -> Result<()> {
+        let state = self.state()?;
+        if state.stop_requested
+            || state
+                .records
+                .keys()
+                .collect::<std::collections::BTreeSet<_>>()
+                != instances.keys().collect()
+            || state.records.iter().any(|(name, r)| {
+                !matches!(r.phase, Phase::Pending | Phase::Prepared)
+                    || r.attempts.0 != 0
+                    || r.pid.is_some()
+                    || r.resources.is_some()
+                    || r.instance.as_ref().is_some_and(|id| id != &instances[name])
+            })
+        {
+            return Err(Error::Reconciliation("P execution requires untouched pending/prepared identities; no reset of prior effects".into()));
+        }
+        self.change(|s| {
+            for (name, id) in instances {
+                let record = s.records.get_mut(name).expect("validated selection");
+                record.phase = Phase::Prepared;
+                record.instance = Some(id.clone());
+            }
+        })
+    }
     pub fn request_stop(&mut self) -> Result<()> {
         self.stop_latched = true;
         self.change(|s| s.stop_requested = true)
@@ -834,6 +864,13 @@ impl<R: Repository, B: Backend, A: LifecycleAuthority> Supervisor<R, B, A> {
                 Phase::Skipped | Phase::StopRequested | Phase::Unknown => {}
             }
         }
+        self.status_with_blocked(blocked)
+    }
+    /// Read stored state and current-owner resource facts, without probing or lifecycle actions.
+    pub fn status(&mut self) -> Result<Status> {
+        self.status_with_blocked(Vec::new())
+    }
+    fn status_with_blocked(&mut self, blocked: Vec<String>) -> Result<Status> {
         let state = self.state()?;
         let all_exited = state.stop_requested
             && state

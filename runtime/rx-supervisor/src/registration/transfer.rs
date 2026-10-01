@@ -19,6 +19,9 @@ pub struct FrozenRegistry {
 }
 
 impl FrozenRegistry {
+    pub fn platform_acknowledged(&self) -> bool {
+        self.acceptance.is_some()
+    }
     pub fn record(&self) -> &FreezeRecord {
         &self.record
     }
@@ -33,10 +36,22 @@ impl FrozenRegistry {
 #[derive(Clone, Debug, Serialize)]
 #[serde(tag = "state", rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum DeclarationAuthority {
+    PlatformManaged {
+        installation: Id,
+        declaration_basis: &'static str,
+    },
     Local,
-    SourceFrozen { request: FreezeRequest },
+    SourceFrozen {
+        request: FreezeRequest,
+    },
 }
 pub(super) fn authority(tx: &mut dyn Transaction) -> Result<DeclarationAuthority> {
+    if let Some(installation) = super::platform::owner(tx)? {
+        return Ok(DeclarationAuthority::PlatformManaged {
+            installation,
+            declaration_basis: "P_ATTRIBUTED_SNAPSHOT; CURRENT_STANDING_NOT_VALIDATED_BY_LOCAL_READ",
+        });
+    }
     match tx.get(&name(FREEZE))? {
         Some(row) => Ok(DeclarationAuthority::SourceFrozen {
             request: decode::<FreezeRecord>(&row, SCHEMA)?.request,
@@ -46,7 +61,7 @@ pub(super) fn authority(tx: &mut dyn Transaction) -> Result<DeclarationAuthority
 }
 
 pub(super) fn require_local_authority(tx: &mut dyn Transaction) -> Result<()> {
-    if tx.get(&name(FREEZE))?.is_some() {
+    if tx.get(&name(FREEZE))?.is_some() || super::platform::owner(tx)?.is_some() {
         return Err(StoreError::Invalid("registration source frozen for transfer; local declaration/assignment authority removed".into()));
     }
     Ok(())

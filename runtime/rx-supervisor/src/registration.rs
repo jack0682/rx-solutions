@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize, de::DeserializeOwned};
 mod decisions;
 pub use decisions::*;
 pub mod diagnostic;
+mod platform;
 mod recovery;
 pub use recovery::*;
 mod resident;
@@ -93,6 +94,9 @@ fn decode<T: DeserializeOwned>(record: &Record, schema: &str) -> Result<T> {
     .map_err(|e| StoreError::Integrity(e.to_string()))
 }
 fn load(tx: &mut dyn Transaction, id: &Id) -> Result<VersionedRegistration> {
+    if let Some(snapshot) = platform::snapshot(tx, id)? {
+        return Ok(snapshot);
+    }
     let row = tx
         .get(&key(id))?
         .ok_or_else(|| StoreError::Invalid("component registration not found".into()))?;
@@ -262,19 +266,16 @@ impl<R: Repository> Registry<R> {
     }
     pub fn list(&mut self) -> Result<Vec<VersionedRegistration>> {
         self.repository.transact(|tx| {
-            tx.scan("components/registration/")?
-                .iter()
-                .map(|r| {
-                    let registration: Registration = decode(r, REGISTRATION)?;
-                    if r.key != key(&registration.id) {
-                        return Err(StoreError::Integrity("registration key differs".into()));
-                    }
-                    Ok(VersionedRegistration {
-                        revision: r.revision,
-                        registration,
-                    })
-                })
-                .collect()
+            let mut ids = std::collections::BTreeSet::new();
+            for row in tx.scan("components/registration/")? {
+                let registration: Registration = decode(&row, REGISTRATION)?;
+                if row.key != key(&registration.id) {
+                    return Err(StoreError::Integrity("registration key differs".into()));
+                }
+                ids.insert(registration.id);
+            }
+            ids.extend(platform::ids(tx)?);
+            ids.into_iter().map(|id| load(tx, &id)).collect()
         })
     }
     pub fn history(&mut self, id: &Id) -> Result<Vec<StoredEvent>> {

@@ -10,11 +10,16 @@ pub mod process_identity;
 pub mod registered;
 pub mod registration;
 pub mod reporting;
+pub mod resident_execution;
 pub mod supervisor;
 pub mod use_assessment;
 pub use supervisor::Supervisor;
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
+    #[error(transparent)]
+    Rpc(#[from] tonic::Status),
+    #[error(transparent)]
+    Transport(#[from] tonic::transport::Error),
     #[error(transparent)]
     Release(#[from] rx_package::release::Error),
     #[error("invalid supervisor input: {0}")]
