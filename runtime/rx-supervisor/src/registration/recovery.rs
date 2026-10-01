@@ -668,6 +668,7 @@ impl<R: Repository> Registry<R> {
             return Err(invalid("explicit resume request time required"));
         }
         self.repository.transact(|tx| {
+            transfer::require_local_authority(tx)?;
             let current = load(tx, component)?;
             if current.registration.state != RegistrationState::Accepted {
                 return Err(invalid("retired registration cannot resume"));

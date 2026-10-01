@@ -23,6 +23,7 @@ struct Consumption<'a> {
 impl<R: Repository> Registry<R> {
     pub(crate) fn ensure_new_work(&mut self, operation: &Id) -> Result<()> {
         self.repository.transact(|tx| {
+            transfer::require_local_authority(tx)?;
             if tx.get(&result_key(operation))?.is_some() {
                 return Err(StoreError::RevisionConflict(
                     "work-use/operation-already-committed; query history, never replay".into(),
@@ -40,6 +41,7 @@ impl<R: Repository> Registry<R> {
         // The receiving caller retains guard across the entire transact, including
         // SDK commit IO. Revocation cannot interleave with a successful commit.
         self.repository.transact(|tx| {
+            transfer::require_local_authority(tx)?;
             let reference = guard.check().map_err(|e| invalid(&e.to_string()))?;
             let current = load(tx, &input.subject.registration)?;
             if current.registration.state != RegistrationState::Accepted
