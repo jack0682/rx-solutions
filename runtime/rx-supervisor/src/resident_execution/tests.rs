@@ -271,3 +271,304 @@ fn clock_expiry_wrong_registry_and_changed_launch_do_not_enter_the_backend() {
             .is_err()
     );
 }
+
+fn recovery_fixture(
+    stopped: bool,
+) -> (
+    tempfile::TempDir,
+    Registry<SqliteRepository>,
+    Prepared,
+    data::Grant,
+) {
+    let dir = tempfile::tempdir().unwrap();
+    let mut registry = Registry::new(database(&dir.path().join("registration.db")));
+    let prepared = prepared(&mut registry);
+    let original = duplicate(&prepared);
+    let grant = grant(&prepared);
+    let clock: Arc<dyn Clock> = Arc::new(TestClock(Arc::new(AtomicU64::new(1))));
+    let live = LiveGrant::new(grant.clone(), &prepared, clock).unwrap();
+    let run = registry
+        .platform_run_directory(&prepared.intent.id)
+        .unwrap();
+    std::fs::create_dir_all(&run).unwrap();
+    let backend = Fake {
+        calls: Arc::new(AtomicUsize::new(0)),
+        done: Arc::new(AtomicBool::new(false)),
+        owned: BTreeSet::new(),
+    };
+    let mut manager = RegisteredSupervisor::open_platform(
+        database(&run.join("supervisor.db")),
+        backend,
+        prepared,
+        live,
+        registry,
+    )
+    .unwrap();
+    manager.tick().unwrap();
+    if stopped {
+        manager.request_stop().unwrap();
+        for _ in 0..4 {
+            manager.tick().unwrap();
+        }
+    }
+    let (store, _, _, registry) = manager.into_parts();
+    store.close().unwrap();
+    (dir, registry, original, grant)
+}
+fn original_assignment(prepared: &Prepared, grant: &data::Grant) -> data::Assignment {
+    data::Assignment {
+        intent: prepared.intent.clone(),
+        phase: data::Phase::Running,
+        content: Some(data::ContentReceipt {
+            preparation: prepared.offer.clone(),
+            basis: data::ContentBasis::EnrolledSupervisorVerifiedRelease,
+            recorded_at: grant.issued_at.clone(),
+        }),
+        grant: Some(grant.clone()),
+        observed: None,
+        stop_requested: false,
+    }
+}
+#[test]
+fn source_recovery_reads_original_terminal_evidence_without_rewriting_history() {
+    let (_dir, mut registry, prepared, grant) = recovery_fixture(true);
+    let original = original_assignment(&prepared, &grant);
+    let component = &prepared.intent.nodes[&n("main")].registration.id;
+    let before = registry.history(component).unwrap();
+    let mut peer = grant.peer.clone();
+    peer.id = id();
+    peer.peer_boot = id();
+    peer.runtime_boot = id();
+    let clock = TestClock(Arc::new(AtomicU64::new(1_000_000_000)));
+    let result = recovery::inspect(
+        original.clone(),
+        &peer,
+        duplicate(&prepared).catalog,
+        &mut registry,
+        &clock,
+    )
+    .unwrap();
+    let value = serde_json::to_value(result).unwrap();
+    assert_eq!(
+        value["nodes"]["main"]["finding"]["basis"],
+        "RECORDED_DIRECT_CHILD_EXIT"
+    );
+    assert_eq!(value["nodes"]["main"]["recorded_outcome"], "EXITED");
+    assert_eq!(value["start_window_expired"], true);
+    assert_eq!(value["original_peer"]["id"], grant.peer.id.to_string());
+    assert_eq!(value["current_peer"]["id"], peer.id.to_string());
+    assert!(
+        value["operating_permission"]
+            .as_str()
+            .unwrap()
+            .starts_with("NOT_GRANTED")
+    );
+    assert!(
+        !value["nodes"]["main"]["residuals"]
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
+    assert_eq!(registry.history(component).unwrap(), before);
+    let run = registry
+        .platform_run_directory(&original.intent.id)
+        .unwrap();
+    let mut store = database(&run.join("supervisor.db"));
+    let (_, state) = crate::supervisor::persisted_state(&mut store).unwrap();
+    assert_eq!(state.records[&n("main")].phase, Phase::Exited);
+    store.close().unwrap();
+    // No new live token is issued and the old P result was not changed by a source query.
+    assert_eq!(original.phase, data::Phase::Running);
+    assert!(original.observed.is_none());
+}
+#[test]
+fn source_recovery_keeps_cold_running_without_birth_unverifiable() {
+    let (_dir, mut registry, prepared, grant) = recovery_fixture(false);
+    let component = &prepared.intent.nodes[&n("main")].registration.id;
+    let before = registry.history(component).unwrap();
+    let result = recovery::inspect(
+        original_assignment(&prepared, &grant),
+        &grant.peer,
+        duplicate(&prepared).catalog,
+        &mut registry,
+        &TestClock(Arc::new(AtomicU64::new(1))),
+    )
+    .unwrap();
+    let value = serde_json::to_value(result).unwrap();
+    assert_eq!(value["start_window_expired"], false);
+    assert_eq!(value["nodes"]["main"]["recorded_outcome"], "RUNNING");
+    assert_eq!(
+        value["nodes"]["main"]["finding"]["outcome"]["state"],
+        "UNVERIFIABLE"
+    );
+    assert_eq!(registry.history(component).unwrap(), before);
+    let mut store = database(
+        &registry
+            .platform_run_directory(&prepared.intent.id)
+            .unwrap()
+            .join("supervisor.db"),
+    );
+    let (_, state) = crate::supervisor::persisted_state(&mut store).unwrap();
+    assert!(matches!(
+        state.records[&n("main")].phase,
+        Phase::Starting | Phase::ProcessReady
+    ));
+}
+#[test]
+fn source_recovery_refuses_changed_content_peer_journal_and_consumption() {
+    let (dir, mut registry, prepared, grant) = recovery_fixture(true);
+    let clock = TestClock(Arc::new(AtomicU64::new(1_000_000_000)));
+    let original = original_assignment(&prepared, &grant);
+    let mut content = duplicate(&prepared).catalog;
+    content
+        .programs
+        .get_mut(&n("unit-program"))
+        .unwrap()
+        .fixed_arguments
+        .push("changed".into());
+    assert!(
+        recovery::inspect(
+            original.clone(),
+            &grant.peer,
+            content,
+            &mut registry,
+            &clock
+        )
+        .is_err()
+    );
+    let mut peer = grant.peer.clone();
+    peer.registry = Digest::from_bytes([99; 32]);
+    assert!(
+        recovery::inspect(
+            original.clone(),
+            &peer,
+            duplicate(&prepared).catalog,
+            &mut registry,
+            &clock
+        )
+        .is_err()
+    );
+    let mut another = Registry::new(database(&dir.path().join("another.db")));
+    assert!(
+        recovery::inspect(
+            original.clone(),
+            &grant.peer,
+            duplicate(&prepared).catalog,
+            &mut another,
+            &clock
+        )
+        .is_err()
+    );
+    let mut changed = original.clone();
+    changed.grant.as_mut().unwrap().id = id();
+    assert!(
+        recovery::inspect(
+            changed,
+            &grant.peer,
+            duplicate(&prepared).catalog,
+            &mut registry,
+            &clock
+        )
+        .is_err()
+    );
+    let path = registry
+        .platform_run_directory(&prepared.intent.id)
+        .unwrap()
+        .join("supervisor.db");
+    let mut store = database(&path);
+    // An already-held original manager store is not silently read through another file or manager.
+    assert!(
+        recovery::inspect(
+            original.clone(),
+            &grant.peer,
+            duplicate(&prepared).catalog,
+            &mut registry,
+            &clock
+        )
+        .is_err()
+    );
+    use rx_ports::Repository;
+    store
+        .transact(|tx| {
+            let mut row = tx.get(&n("supervisor/state"))?.unwrap();
+            row.document.value["records"]["main"]["instance"] = serde_json::to_value(id()).unwrap();
+            tx.put(&row.key, Some(row.revision), &row.document)?;
+            Ok(())
+        })
+        .unwrap();
+    store.close().unwrap();
+    assert!(
+        recovery::inspect(
+            original,
+            &grant.peer,
+            duplicate(&prepared).catalog,
+            &mut registry,
+            &clock
+        )
+        .is_err()
+    );
+}
+
+#[test]
+fn original_consumed_execution_remains_investigable_after_a_new_assignment() {
+    let (_dir, mut registry, prepared, first_grant) = recovery_fixture(true);
+    let original = original_assignment(&prepared, &first_grant);
+    let mut next_intent = prepared.intent.clone();
+    next_intent.id = id();
+    next_intent.run = id();
+    for node in next_intent.nodes.values_mut() {
+        node.instance = id();
+    }
+    let next = Prepared::build(
+        next_intent,
+        &prepared.offer.peer,
+        duplicate(&prepared).catalog,
+        &mut registry,
+    )
+    .unwrap();
+    let next_run = registry.platform_run_directory(&next.intent.id).unwrap();
+    std::fs::create_dir_all(&next_run).unwrap();
+    let live = LiveGrant::new(
+        grant(&next),
+        &next,
+        Arc::new(TestClock(Arc::new(AtomicU64::new(1)))),
+    )
+    .unwrap();
+    let backend = Fake {
+        calls: Arc::new(AtomicUsize::new(0)),
+        done: Arc::new(AtomicBool::new(false)),
+        owned: BTreeSet::new(),
+    };
+    let mut manager = RegisteredSupervisor::open_platform(
+        database(&next_run.join("supervisor.db")),
+        backend,
+        next,
+        live,
+        registry,
+    )
+    .unwrap();
+    manager.tick().unwrap();
+    manager.request_stop().unwrap();
+    for _ in 0..4 {
+        manager.tick().unwrap();
+    }
+    let (store, _, _, mut registry) = manager.into_parts();
+    store.close().unwrap();
+    let component = &prepared.intent.nodes[&n("main")].registration.id;
+    let before = registry.history(component).unwrap();
+    let result = recovery::inspect(
+        original,
+        &first_grant.peer,
+        duplicate(&prepared).catalog,
+        &mut registry,
+        &TestClock(Arc::new(AtomicU64::new(1_000_000_000))),
+    )
+    .unwrap();
+    let value = serde_json::to_value(result).unwrap();
+    assert_eq!(value["assignment"], prepared.intent.id.to_string());
+    assert_eq!(
+        value["nodes"]["main"]["finding"]["basis"],
+        "RECORDED_DIRECT_CHILD_EXIT"
+    );
+    assert_eq!(registry.history(component).unwrap(), before);
+}

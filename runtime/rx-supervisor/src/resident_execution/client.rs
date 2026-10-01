@@ -108,6 +108,22 @@ impl Client {
     pub fn peer(&self) -> &data::Peer {
         &self.peer
     }
+    /// Fetch the original P assignment and inspect actual local source records without execution.
+    pub async fn investigate(
+        &mut self,
+        id: &Id,
+        catalog: Catalog,
+        registry: &mut Registry<SqliteRepository>,
+    ) -> Result<SourceInspection> {
+        let view = self.inspect(id).await?;
+        recovery::inspect(
+            view.assignment,
+            &self.peer,
+            catalog,
+            registry,
+            self.clock.as_ref(),
+        )
+    }
     pub async fn inspect(&mut self, id: &Id) -> Result<data::View> {
         let view: data::View = decode(
             self.transport

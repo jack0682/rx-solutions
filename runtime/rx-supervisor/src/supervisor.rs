@@ -56,6 +56,28 @@ fn decode(record: &rx_ports::Record) -> rx_ports::Result<State> {
     }
     Ok(state)
 }
+/// Read committed state without constructing a manager or changing lost-owner records.
+pub(crate) fn persisted_state<R: Repository>(repository: &mut R) -> Result<(Counter, State)> {
+    Ok(repository.transact(|tx| {
+        let row = tx
+            .get(&name(KEY))?
+            .ok_or_else(|| StoreError::Integrity("supervisor state missing".into()))?;
+        Ok((row.revision, decode(&row)?))
+    })?)
+}
+pub(crate) fn unconfirmed_component_stops(plan: &Plan, state: &State) -> BTreeMap<Name, String> {
+    plan.processes.iter()
+            .filter_map(|p| match p.program.as_str() {
+                "rx/dhi-pty-simulation" => Some((p, "DHI_MODEL_STOP_UNCONFIRMED; owned process exit does not erase instance-log residuals")),
+                "rx/ai-worker-l3-simulation" => Some((p, "AI_WORKER_L3_STOP_UNCONFIRMED; owned process-tree exit does not prove a foreign supervisor cannot replace the service generation")),
+                "rx/open-manipulator-l3-simulation" => Some((p, "OPEN_MANIPULATOR_L3_STOP_UNCONFIRMED; owned process-tree exit does not prove s6 cannot replace the service generation")),
+                _ => None,
+            })
+            .filter(|(p, _)| state.records[&p.id].instance.is_some()
+                && matches!(state.records[&p.id].phase, Phase::Exited | Phase::Unknown | Phase::StartFailed))
+            .map(|(p, reason)| (p.id.clone(), reason.into()))
+            .collect()
+}
 pub struct Supervisor<R, B, A> {
     repository: R,
     backend: B,
@@ -170,12 +192,7 @@ impl<R: Repository, B: Backend, A: LifecycleAuthority> Supervisor<R, B, A> {
         })
     }
     pub fn state(&mut self) -> Result<State> {
-        Ok(self.repository.transact(|tx| {
-            decode(
-                &tx.get(&name(KEY))?
-                    .ok_or_else(|| StoreError::Integrity("supervisor state missing".into()))?,
-            )
-        })?)
+        Ok(persisted_state(&mut self.repository)?.1)
     }
     /// Observe without tick/admission/start/stop or any persistent state change.
     pub(crate) fn observe_use_status(
@@ -877,17 +894,7 @@ impl<R: Repository, B: Backend, A: LifecycleAuthority> Supervisor<R, B, A> {
                 .records
                 .values()
                 .all(|r| matches!(r.phase, Phase::Exited | Phase::Skipped | Phase::StartFailed));
-        let unconfirmed_component_stops: BTreeMap<Name, String> = self.plan.processes.iter()
-            .filter_map(|p| match p.program.as_str() {
-                "rx/dhi-pty-simulation" => Some((p, "DHI_MODEL_STOP_UNCONFIRMED; owned process exit does not erase instance-log residuals")),
-                "rx/ai-worker-l3-simulation" => Some((p, "AI_WORKER_L3_STOP_UNCONFIRMED; owned process-tree exit does not prove a foreign supervisor cannot replace the service generation")),
-                "rx/open-manipulator-l3-simulation" => Some((p, "OPEN_MANIPULATOR_L3_STOP_UNCONFIRMED; owned process-tree exit does not prove s6 cannot replace the service generation")),
-                _ => None,
-            })
-            .filter(|(p, _)| state.records[&p.id].instance.is_some()
-                && matches!(state.records[&p.id].phase, Phase::Exited | Phase::Unknown | Phase::StartFailed))
-            .map(|(p, reason)| (p.id.clone(), reason.into()))
-            .collect();
+        let unconfirmed_component_stops = unconfirmed_component_stops(&self.plan, &state);
         let guarded_shutdown_confirmed = all_exited
             && unconfirmed_component_stops.is_empty()
             && self.plan.processes.iter().all(|p| {

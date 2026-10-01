@@ -54,3 +54,29 @@ and the [execution contract](https://github.com/jack0682/rx_docs/blob/develop/do
 Process execution does not establish business-work permission, physical completion
 or functional-safety qualification. New paired installer release and full default
 bundle qualification remain unfinished.
+
+## Investigating an original execution
+
+`rx-solutionsd platform-investigate CONFIG` uses the same runtime/connection
+configuration and original assignment ID. It opens a new authenticated Supervisor
+session, fetches the original P assignment, verifies the actual installed catalog,
+and locks the original registry and its derived execution journal. An active owner
+holding either store prevents this cold inspection. The command does not construct
+a process manager, start or signal a process, or rewrite the source/outbox history.
+
+The output distinguishes committed matching direct-child exit, recorded non-start,
+unconsumed pre-start records with an expired original start window, fresh Linux
+scoped birth-identity investigation, and conflicting/missing evidence. The original
+outcome, source reference, journal revision and digest are retained. A previously
+Running source record remains Running history even when a fresh investigation says
+the original process is no longer running. Missing birth evidence remains
+unverifiable; PID absence cannot backfill it. A changed clock/registry/content or
+inconsistent consumption identity is refused rather than silently repaired.
+
+This is source investigation only. It does not acknowledge pending delivery, release
+P claims, authorize resumption, confirm descendants/resource handover, or establish
+physical completion. The new session changes protocol identity; it does not adopt
+the old process. P owner reconciliation and a fresh explicitly approved assignment
+remain required follow-up work. Do not feed the serialized diagnostic back as a
+live capability. The actual source-backed construction must be used by that future
+reconciliation path.
