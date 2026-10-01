@@ -115,6 +115,11 @@ def main():
             reports=w.terminal.get('/api/v1/workflow-resolutions',catalog=model['workflow']['catalog'])
             assert reports['catalog']==model['workflow']['catalog']
             assert any(v['reference']==a['reference'] and v['workflow']==model['workflow'] and v['status']==a['report']['status'] for v in reports['reports'])
+            detailed=w.terminal.get('/api/v1/workflow-resolutions',catalog=model['workflow']['catalog'],view='details')
+            assert detailed['schema']=='rx.workflow-resolution-index.v1'
+            summary=next(v for v in detailed['reports'] if v['reference']==a['reference'])
+            assert summary['created_at']==a['created_at'] and summary['contexts']['part']==[refs['part.ECC_51-14']]
+            assert summary['overrides']=={} and any(v['reference']==refs['part.ECC_51-14'] for v in summary['definitions'])
             assert d.points(base['references']['tray.supply'],base['references']['rule.tray-slots'])['total']=='24'
             checks.append('stored reports and original requests survive lost replies/restart; old M1 definitions and pose API still work')
             try:

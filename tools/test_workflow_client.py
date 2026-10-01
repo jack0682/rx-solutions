@@ -11,7 +11,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'deployment/local-skills'))
-from workflow_client import Workflows, quantity, run, OutputExistsError, format_report
+from workflow_client import Workflows, quantity, run, OutputExistsError, format_report, readable_violation
 from runtime_client import RuntimeRejected
 
 
@@ -143,6 +143,12 @@ class WorkflowClientTests(unittest.TestCase):
         self.server.alter = lambda v: {**v, 'spec': {'schema': 'changed'}}
         with self.assertRaisesRegex(ValueError, 'save receipt differs'):
             self.client.recover(self.key)
+
+    def test_readable_constraint_message_preserves_unrecognized_text(self):
+        message = 'Force limit; worst-case left=' + json.dumps(quantity('60:N')) + ' right=' + json.dumps(quantity('35:N'))
+        self.assertEqual(readable_violation(message), 'Force limit; worst-case left=60 N, right=35 N')
+        for text in ['original error', 'bad; worst-case left={} right={}']:
+            self.assertEqual(readable_violation(text), text)
 
     def test_existing_resolve_output_is_refused_before_any_connection(self):
         output = Path(self.directory.name) / 'receipt.json'

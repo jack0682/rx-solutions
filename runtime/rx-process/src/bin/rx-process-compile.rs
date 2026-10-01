@@ -23,23 +23,48 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<_> = std::env::args().skip(1).collect();
     if args.len() != 3 {
         return Err(
-            "usage: rx-process-compile SOURCE.json BINDINGS.json NEW_OUTPUT_DIRECTORY | --bundle INPUT.json NEW_OUTPUT_DIRECTORY".into(),
+            "usage: rx-process-compile SOURCE.json BINDINGS.json NEW_OUTPUT_DIRECTORY | --bundle INPUT.json NEW_OUTPUT_DIRECTORY | --workflow INPUT.json NEW_OUTPUT_DIRECTORY".into(),
         );
     }
-    let (source, bindings, provenance) = if args[0] == "--bundle" {
-        let bundle: rx_process_contract::compile_input::CompileInput = input(Path::new(&args[1]))?;
-        let source = bundle.validate()?;
-        let mut provenance = serde_json::json!({"draft":bundle.draft,"cell":bundle.cell,"source_revision":bundle.source_revision,"binding_revision":bundle.binding_revision,"source_document_digest":bundle.source_document_digest,"bindings_digest":bundle.bindings_digest,"catalog_digest":bundle.catalog_digest});
-        if !bundle.device_sources.is_empty() {
-            provenance["device_sources"] = serde_json::to_value(&bundle.device_sources)?;
+    let mut extra = BTreeMap::new();
+    let (process, provenance) = if args[0] == "--workflow" {
+        let bundle: workflow::Input = input(Path::new(&args[1]))?;
+        let compiled = workflow::compile(&bundle)?;
+        extra.insert(
+            "workflow-source.json".to_owned(),
+            canonical::bytes(&compiled.source)?,
+        );
+        extra.insert(
+            "workflow-trace.json".to_owned(),
+            canonical::bytes(&compiled.trace)?,
+        );
+        for (digest, bytes) in compiled.assets {
+            extra.insert(format!("parameters-{digest}.json"), bytes);
         }
-        (source, bundle.bindings, Some(provenance))
+        (
+            compiled.process,
+            Some(
+                serde_json::json!({"resolution":bundle.resolution,"workflow":bundle.report.request.workflow,"slot_index":bundle.report.request.slot_index,"compile_input_digest":canonical::digest("RX-WORKFLOW-COMPILE-INPUT-v1", &bundle)?,"templates_digest":canonical::digest("RX-WORKFLOW-TEMPLATES-v1", &bundle.templates)?}),
+            ),
+        )
     } else {
-        let source: ProcessSource = input(Path::new(&args[0]))?;
-        let bindings: BTreeMap<rx_domain::types::Name, ActionBinding> = input(Path::new(&args[1]))?;
-        (source, bindings, None)
+        let (source, bindings, provenance) = if args[0] == "--bundle" {
+            let bundle: rx_process_contract::compile_input::CompileInput =
+                input(Path::new(&args[1]))?;
+            let source = bundle.validate()?;
+            let mut provenance = serde_json::json!({"draft":bundle.draft,"cell":bundle.cell,"source_revision":bundle.source_revision,"binding_revision":bundle.binding_revision,"source_document_digest":bundle.source_document_digest,"bindings_digest":bundle.bindings_digest,"catalog_digest":bundle.catalog_digest});
+            if !bundle.device_sources.is_empty() {
+                provenance["device_sources"] = serde_json::to_value(&bundle.device_sources)?;
+            }
+            (source, bundle.bindings, Some(provenance))
+        } else {
+            let source: ProcessSource = input(Path::new(&args[0]))?;
+            let bindings: BTreeMap<rx_domain::types::Name, ActionBinding> =
+                input(Path::new(&args[1]))?;
+            (source, bindings, None)
+        };
+        (compile(&source, bindings)?, provenance)
     };
-    let process = compile(&source, bindings)?;
     let resolved = canonical::bytes(&process)?;
     let xml = rx_process::bt_xml::generate(&process)?;
     let report = serde_json::to_vec_pretty(
@@ -50,16 +75,15 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     )?;
     let out = Path::new(&args[2]);
     fs::create_dir(out)?;
-    for (name, bytes) in [
-        ("resolved.json", resolved.as_slice()),
-        ("process.bt.xml", xml.as_bytes()),
-        ("compile-report.json", report.as_slice()),
-    ] {
+    extra.insert("resolved.json".into(), resolved);
+    extra.insert("process.bt.xml".into(), xml.into_bytes());
+    extra.insert("compile-report.json".into(), report);
+    for (name, bytes) in extra {
         let mut file = OpenOptions::new()
             .write(true)
             .create_new(true)
             .open(out.join(name))?;
-        file.write_all(bytes)?;
+        file.write_all(&bytes)?;
         file.sync_all()?;
     }
     println!("Compiled process artifacts. No device execution or qualification granted.");

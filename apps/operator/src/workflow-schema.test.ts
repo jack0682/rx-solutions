@@ -1,6 +1,10 @@
 import { expect, it } from 'vitest';
 import {
   parseQuantity,
+  readableViolation,
+  reportIdentityTime,
+  violationProperty,
+  workflowReportIndexSchema,
   quantityText,
   validateWorkflowReceipt,
   violationNode,
@@ -129,4 +133,42 @@ it('rejects missing command parameters, empty provenance and false concrete clai
   const noSource = structuredClone(receipt);
   noSource.report.steps[0].properties.value.origins = [];
   expect(() => workflowReceiptSchema.parse(noSource)).toThrow();
+});
+
+it('formats worst-case quantities without changing unknown messages', () => {
+  const message = `Force limit; worst-case left=${JSON.stringify(parseQuantity('60', 'N'))} right=${JSON.stringify(parseQuantity('35', 'N'))}`;
+  expect(readableViolation(message)).toBe('Force limit; worst-case left=60 N, right=35 N');
+  expect(readableViolation('Unknown original diagnostic')).toBe('Unknown original diagnostic');
+  expect(readableViolation('bad; worst-case left={} right={}')).toBe(
+    'bad; worst-case left={} right={}',
+  );
+  expect(violationProperty('nodes/pick/properties/grip_force')).toEqual({
+    node: 'pick',
+    property: 'grip_force',
+  });
+  expect(violationProperty('contexts/part')).toBeNull();
+});
+it('reads indexed saved contexts and keeps the timestamp clock explicit', () => {
+  const entry = {
+    reference: ref,
+    workflow: ref,
+    slot_index: '0',
+    status: 'BLOCKED',
+    created_at: { clock_id: 'process-clock', ticks_ns: '123' },
+    created_by: 'author',
+    contexts: { part: [ref] },
+    overrides: { pick: { force: parseQuantity('60', 'N') } },
+    definitions: [{ reference: ref, label: 'Part A' }],
+  };
+  const index = workflowReportIndexSchema.parse({
+    schema: 'rx.workflow-resolution-index.v1',
+    catalog: ref.catalog,
+    reports: [entry],
+    next: null,
+  });
+  expect(index.reports[0].contexts.part).toEqual([ref]);
+  expect(reportIdentityTime('017f22e2-79b0-7cc3-98c4-dc0c0c07398f')).toBe(
+    '2022-02-22T19:22:22.000Z',
+  );
+  expect(reportIdentityTime(ref.id)).toBeNull();
 });

@@ -259,3 +259,33 @@ report; it does not authorize execution. Text output shows fixed numbers as
 `25 N` and intervals as `20..40 N`, plus the report ID and digest. Only identical
 origin records within one property are collapsed in text; JSON provenance is
 unchanged and distinct references, paths or values remain visible.
+
+## M3 development: pinned values into the existing compiler
+
+The developer compiler accepts `rx-process-compile --workflow INPUT.json NEW_DIR`.
+The input schema is `rx.workflow-compile-input.v1`: `process`, an exact stored
+`resolution` reference, its `report`, and package `templates` keyed by
+implementation/version/primitive. Each template declares a Host, Program Intent,
+parameter type/unit/frame contracts and the maximum execution timeout. This
+initial compiler profile requires exactly one Skill per Task and rejects other
+shapes explicitly.
+
+The output includes the existing resolved process and BT XML, the process source,
+node-to-parameter trace and content-addressed parameter JSON files. Each file
+retains the original report, node, task, slot and done/failure/unknown contract.
+Compilation preserves the resolved values; it does not evaluate new expressions.
+Fixed report values, explicit units/frames, exact mappings and a matching receipt
+digest are required. The compile report also records input/template digests.
+
+This is **COMPILED_NOT_QUALIFIED**, not Preview, publication or a runtime binding.
+Input/templates remain untrusted authoring material until the server re-reads the
+pinned records and the package is verified. The current compiler precheck uses
+non-executable program/profile fixtures. Actual simulation providers, publication,
+part binding, N-part execution and UNKNOWN recovery remain M3 integration work.
+
+The report UI can now focus and highlight the property row named by a violation.
+Worst-case quantities are formatted as values with units in CLI and UI. The
+optional `view=details` report-list read projection supplies pinned contexts,
+overrides and stored clock metadata; the original list response is unchanged.
+The displayed calendar time is labeled as the UUIDv7 record-ID clock, since the
+stored `created_at` is a monotonic process clock, not a UTC timestamp.

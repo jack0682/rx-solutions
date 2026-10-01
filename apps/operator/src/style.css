@@ -2659,3 +2659,13 @@ main:has(.draft-workspace.has-document) .topbar {
     grid-template-columns: 1fr;
   }
 }
+
+.workflow-property-target {
+  outline: 2px solid var(--accent);
+  background: #edf0e7;
+  scroll-margin-block: 24px;
+}
+
+.workflow-report-detail {
+  display: block;
+}

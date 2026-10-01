@@ -213,6 +213,52 @@ export const workflowReportsSchema = z
     next: name.nullable(),
   })
   .strict();
+export const workflowReportIndexEntrySchema = z
+  .object({
+    reference: definitionRefSchema,
+    workflow: definitionRefSchema,
+    slot_index: counter,
+    status: name,
+    created_at: timeSchema,
+    created_by: name,
+    contexts: z.record(name, z.array(definitionRefSchema)),
+    overrides: z.record(name, z.record(name, quantitySchema)),
+    definitions: z.array(z.object({ reference: definitionRefSchema, label: name }).strict()),
+  })
+  .strict();
+export const workflowReportIndexSchema = z
+  .object({
+    schema: z.literal('rx.workflow-resolution-index.v1'),
+    catalog: z.uuid(),
+    reports: z.array(workflowReportIndexEntrySchema),
+    next: name.nullable(),
+  })
+  .strict();
+export type WorkflowReportIndexEntry = z.infer<typeof workflowReportIndexEntrySchema>;
+// UUIDv7 records carry their wall-clock creation time. The stored TimePoint is monotonic.
+export function reportIdentityTime(id: string): string | null {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(id))
+    return null;
+  return new Date(Number.parseInt(id.replaceAll('-', '').slice(0, 12), 16)).toISOString();
+}
+export function violationProperty(location: string): { node: string; property: string } | null {
+  const match = /^nodes\/([^/]+)\/properties\/([^/]+)$/.exec(location);
+  return match ? { node: match[1], property: match[2] } : null;
+}
+export function readableViolation(message: string): string {
+  const marker = '; worst-case left=';
+  const index = message.indexOf(marker);
+  if (index < 0) return message;
+  const values = message.slice(index + marker.length).split(' right=');
+  if (values.length !== 2) return message;
+  try {
+    const left = reportedQuantitySchema.parse(JSON.parse(values[0]));
+    const right = reportedQuantitySchema.parse(JSON.parse(values[1]));
+    return `${message.slice(0, index)}; worst-case left=${quantityText(left)} ${left.unit}, right=${quantityText(right)} ${right.unit}`;
+  } catch {
+    return message;
+  }
+}
 export type WorkflowModel = z.infer<typeof workflowModelSchema>;
 export type WorkflowReceipt = z.infer<typeof workflowReceiptSchema>;
 export type WorkflowRequest = z.infer<typeof workflowRequestSchema>;
