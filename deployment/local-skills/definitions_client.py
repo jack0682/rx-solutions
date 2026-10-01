@@ -69,6 +69,20 @@ class Definitions(RuntimeClient):
             raise ValueError("definition response differs from the requested reference")
         return value
 
+    def conflict_detail(self, command, key):
+        try:
+            view = self.terminal.get('/api/v1/definition', catalog=command['catalog'], id=command['id'])
+            definition = view['version']['definition']; current = reference(definition['reference'])
+            if current['catalog'] != command['catalog'] or current['id'] != command['id']:
+                return None
+            label = json.dumps(definition['label'], ensure_ascii=False)
+            prefix = f"{key}: current read is {label} r{current['revision']}. "
+            if command['expected'] is None:
+                return prefix + f"expected=null is create-only, but this ID already exists. Use a new ID to create, or inspect the existing definition and explicitly set expected=\"{current['revision']}\" to revise it."
+            return prefix + f"The request expected r{command['expected']}. Inspect the current definition before submitting a new revision."
+        except (OSError, ValueError, KeyError, TypeError):
+            return None
+
     def apply(self, package, imports, request_id):
         if (not isinstance(package, dict) or set(package) != {"schema", "catalog", "title", "definitions"}
                 or package["schema"] != "rx.definition-package.v1"
@@ -95,7 +109,15 @@ class Definitions(RuntimeClient):
                 body = {"request_key": str(uuid.uuid5(uuid.UUID(request_id), "definition." + stage)), "command": command}
                 save_new(root / (stage + ".request.json"), {"path": path, "body": body})
                 # Always consult the server, including replay: revoked access must not use a cached success.
-                return self.terminal.request(path, body)
+                try:
+                    return self.terminal.request(path, body)
+                except RuntimeRejected as error:
+                    if (path == '/api/v1/definitions' and error.status == 409
+                            and isinstance(error.body, dict) and error.body.get('code') == 'STALE_REVISION'):
+                        detail = self.conflict_detail(command, stage)
+                        if detail:
+                            error.args = (str(error) + "; " + detail,)
+                    raise
 
             try:
                 current = self.terminal.get("/api/v1/definition-catalog", id=catalog)
@@ -166,6 +188,7 @@ def arguments(sub):
     p.add_argument("--password-file", type=Path)
     p.add_argument("--state-dir", type=Path, default=Path.home() / ".local/share/rx-definition-client")
     p.add_argument("--references", type=Path)
+    p.add_argument("--format", choices=("json", "text"), default="json")
     commands = p.add_subparsers(dest="action", required=True)
     a = commands.add_parser("apply"); a.add_argument("package", type=Path)
     a.add_argument("--request-id"); a.add_argument("--output", type=Path)
@@ -206,4 +229,49 @@ def run(args):
             if args.rule not in refs:
                 raise ValueError("rule name missing from --references receipt")
             result = client.points(refs[args.name], refs[args.rule], args.offset, args.limit, args.latest)
-    return result
+    return result, format_report(client, result, refs) if args.format == "text" else None
+
+
+def format_report(client, result, aliases):
+    """Readable projection of server values; no value resolution or geometry in this client."""
+    if result.get('schema') == 'rx.definition-package-receipt.v1':
+        return f"Applied {len(result['applied'])} definitions. Exact references are in the package receipt."
+    names = {}
+    def name(ref):
+        key = encoded(ref)
+        if key not in names:
+            try:
+                definition = client.show(ref)['version']['definition']
+                alias = next((k for k,v in aliases.items() if v == ref), None)
+                names[key] = (alias + ' / ' if alias else '') + json.dumps(definition['label'],ensure_ascii=False)
+            except (ValueError, OSError, KeyError, TypeError):
+                names[key] = 'Name unavailable [' + ref['id'] + ']'
+        return names[key] + ' · r' + ref['revision']
+    lines = []
+    if 'version' in result:
+        d = result['version']['definition']
+        names[encoded(d['reference'])] = json.dumps(d['label'],ensure_ascii=False)
+        lines.append(name(d['reference']))
+    else:
+        lines.extend(['Subject: '+name(result['subject']), 'Rule: '+name(result['rule'])])
+    effective = result.get('effective',result.get('inputs',{}))
+    for field,spec in effective.get('fields',{}).items():
+        value = effective['values'].get(field)
+        unit = spec['specification']['unit']
+        if value:
+            rendered = json.dumps(next(iter(value['value'].values())),ensure_ascii=False)
+            lines.append(f"{field}: {rendered} {unit} ← {name(value['declared_by'])}")
+        else:
+            lines.append(f"{field}: MISSING {unit}")
+        lines.append('  Field declared by '+name(spec['declared_by']))
+        for previous in effective.get('shadowed',{}).get(field,[]):
+            rendered = json.dumps(next(iter(previous['value'].values())),ensure_ascii=False)
+            lines.append(f"  Overridden: {rendered} {unit} ← {name(previous['declared_by'])}")
+    if 'points' in result:
+        lines.extend([f"{result['total']} poses · {result['unit']} · frame {result['frame']}",
+                      'Orientation [x,y,z,w]: '+json.dumps(result['orientation_xyzw'])])
+        for point in result['points']:
+            lines.append(f"{point['index']}: indices={','.join(point['indices'])}; position={json.dumps(point['position'])}")
+        if result['next'] is not None: lines.append('Next offset: '+result['next'])
+        for issue in result['violations']: lines.append(f"{issue['location']}: {issue['code']} — {issue['message']}")
+    return '\n'.join(lines)

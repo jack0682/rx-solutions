@@ -1,3 +1,4 @@
+import { DefinitionName } from './definition-name';
 import { useEffect, useRef, useState } from 'react';
 import { api, explain } from './api';
 import {
@@ -108,8 +109,16 @@ export function DefinitionPoints({ view, dirty }: { view: DefinitionView; dirty:
             Orientation [x, y, z, w]: {page.orientation_xyzw?.join(', ') ?? 'Missing'} · unitless
           </p>
           <small>
-            Subject {page.subject.id} r{page.subject.revision} · Rule {page.rule.id} r
-            {page.rule.revision}
+            Subject{' '}
+            <DefinitionName
+              reference={page.subject}
+              names={{ [refKey(subject)]: view.version.definition.label }}
+            />{' '}
+            · Rule{' '}
+            <DefinitionName
+              reference={page.rule}
+              names={Object.fromEntries(rules.map((r) => [refKey(r.reference), r.label]))}
+            />
           </small>
           {page.violations.map((v, i) => (
             <p role="alert" key={i}>

@@ -108,5 +108,30 @@ class PackageTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,'response differs'): client.apply(package,{},request)
             self.assertEqual(server.commits,1)
 
+class DiagnosticTests(unittest.TestCase):
+    def test_create_conflict_is_explained_without_update_or_new_revision(self):
+        server = MemoryServer(); server.drop_reply = False
+        package = {'schema':'rx.definition-package.v1','catalog':server.catalog['id'],'title':'test',
+            'definitions':[{'key':'tray.sample','id':'00000000-0000-4000-8000-000000000011','label':'Sample tray','expected':None,'body':{'kind':'PROPERTY'}}]}
+        with tempfile.TemporaryDirectory() as directory:
+            client = Definitions(server, Path(directory)); original = str(uuid.uuid4())
+            receipt = client.apply(package, {}, original)
+            with self.assertRaises(RuntimeRejected) as caught:
+                client.apply(package, {}, str(uuid.uuid4()))
+            self.assertEqual(caught.exception.status,409)
+            self.assertIn('expected=null is create-only',str(caught.exception))
+            self.assertIn('Sample tray',str(caught.exception))
+            self.assertIn('r1',str(caught.exception))
+            self.assertEqual(server.commits,1)
+            self.assertEqual(client.apply(package, {}, original),receipt)
+            self.assertIsNone(package['definitions'][0]['expected'])
+
+    def test_diagnostic_read_does_not_guess_when_metadata_is_unavailable(self):
+        server = MemoryServer(); server.allowed = False
+        with tempfile.TemporaryDirectory() as directory:
+            client = Definitions(server, Path(directory))
+            command = {'catalog':server.catalog['id'],'id':'00000000-0000-4000-8000-000000000011','expected':None}
+            self.assertIsNone(client.conflict_detail(command,'tray.sample'))
+
 if __name__ == '__main__':
     unittest.main()

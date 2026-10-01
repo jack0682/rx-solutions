@@ -131,3 +131,27 @@ The API precheck creates a private temporary installation and tests real server
 storage, source pins, all dense pages, rotated data, invalid orientation, a lost
 reply after commit and process restart. It runs no devices. User acceptance of
 M1 is still required before starting M2.
+
+## Readable provenance and create conflicts
+
+Add `--format text` before `show` or `points` for named sources, for example:
+
+```sh
+rxdef --format text --references "$RX_MODEL_HOME/cell.receipt.json" show tray.supply
+```
+
+Names are read at the exact referenced revision. JSON remains the default and
+retains full UUID/revision/digest references. The UI shows pinned labels and
+revisions; hover over a name to inspect its full reference.
+
+`expected=null` requests creation only. If that ID already exists under a new
+request key, `STALE_REVISION` is intentional. The CLI/UI supplements this with a
+current authorized read and identifies the create-only conflict or expected vs
+current revision. That read is not an atomic snapshot of the earlier rejection.
+No revision is substituted automatically and no update is retried. If the read
+is unavailable, the original error remains without an invented explanation.
+
+The legacy `surface_height` declaration in M1 is not consumed by the pose rule.
+It is not a second z offset. M2 must derive slot surface position from the full
+pose and validate any separately retained measurement in the same frame/unit.
+Existing saved M1 revisions and their calculated poses remain unchanged.
