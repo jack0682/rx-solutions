@@ -7,7 +7,7 @@
     "crates/rx-domain/src/budget.rs": "6914cd58f00b65520177da2e002831ab46f726c96ce7c1734792958cf2afcd9e",
     "crates/rx-domain/src/canonical.rs": "4a421f1c9d411a287ce20f5760abbe3fd97b3d733fc6a9e2ebd6aa79a0f903d2",
     "crates/rx-domain/src/component.rs": "a8e764a3dea945621c8caf4adcf70a19dcd4154df43be6ff7cfd8c4b85a19f80",
-    "crates/rx-domain/src/component_transfer.rs": "b933edeac2dcc7951523cd04c87dc5c269658bd0ea0a5b522fcb0d5c30314d28",
+    "crates/rx-domain/src/component_transfer.rs": "47b3cb6c72889f67ec2cd393ec19778a08b809c0fc00bbbbaede40600399f3e3",
     "crates/rx-domain/src/condition.rs": "46e7f3a5e87b77bf4bc8d9c88883460f9c170c7e7bb575900b23c5634a3acd3f",
     "crates/rx-domain/src/epoch.rs": "48578b60092a875179d9ca308e849af905f8348843a6a4590cdbb60cc07b1fd3",
     "crates/rx-domain/src/fault.rs": "eb63806e7503f24ba93f4aaa022344e6be124a24a3720e3f8278ff2f5a59d4f7",
@@ -80,8 +80,8 @@
     "proto/rx/host/configuration/v1/configuration.proto": "641bd1edf2038dda0b49072d48a520798bb8a6c8c463bde2de03bae9d6babdbf",
     "proto/rx/host/qualification/v1/qualification.proto": "71c0192b3684c5a73ae1b6499f78709cb088122ed7857ed5764475bda903f744",
     "proto/rx/host/read/v1/read.proto": "66cfb6c5dde27063834398d11713006578cc83c9dfd7ec4e6f864b4f9bc7efc3",
-    "proto/rx/resident/reporting/v1/reporting.proto": "03b4353e7f012b83444a8f0fa239ae0a1e47e1ef8fd50fdac06db7cc22659878",
-    "proto/semantic_fields.json": "9d5790ece407a574ed0c6b7135d5e7830101f9c055e7b4d56a7c7cf773e6dff7",
+    "proto/rx/resident/reporting/v1/reporting.proto": "70f810ebd8dae094c9d1b46c1e4f63ae57704095a6febc41b445e9f238b6fee7",
+    "proto/semantic_fields.json": "4af1ca5046eb5be21d2dd428510b4de59c6284aad77ed25e5c9986f725cbc7dd",
     "proto/strict-wire-v1/README.md": "520758b766823eb7ebdc1a41396a5fcf5d1f570c903bd36df42573fe7b74f799",
     "proto/strict-wire-v1/probe.proto": "5642c154c6427e4ebaf33184a51c9c45caacd4d0347ac7f3e6780b957bc1576e",
     "proto/strict-wire-v1/vectors.json": "6561f18484c6d8772c63895bdad80c66640d98f313699d964e680a61d307aed1",
@@ -124,8 +124,8 @@
     "spec/host-read/v1/binding.json": "95cfdb541ad5096cceb53b6f70e6d41a0603bf738ecb5b44e9b24e31eee223d3",
     "spec/production/v1/README.md": "504901d6a015a69efb4ce5f73beebd09cb66aae4362bec2e2ce52c8ed012e316",
     "spec/production/v1/binding.json": "73e6826cf524cfd430d0937144477101b72afa2d861020dedb1f6be87cc54e1d",
-    "spec/resident-reporting/v1/README.md": "2d750a59f0b4ea7a85f3843e62050a1e35aff79d3f6da1d566e57d42188eb374",
-    "spec/resident-reporting/v1/binding.json": "d52dce539cb5e6747678c4a248ee0351d54b7cc50be31948f2c0983a848ade90"
+    "spec/resident-reporting/v1/README.md": "9d387c97ce6ed0c94d44d674ac494ab5c821f1bbac9f87946f89f2fd48bc3e9b",
+    "spec/resident-reporting/v1/binding.json": "af2c5d8fb86fc157a22d42eb7b36e444304838c5aab3312f50742cdc320d7300"
   },
   "schema": "rx.host-sdk.v1"
 }
