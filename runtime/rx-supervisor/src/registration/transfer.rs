@@ -13,6 +13,8 @@ pub struct FrozenRegistry {
     selection_index: Option<Record>,
     local_declaration_writer: &'static str,
     platform_acceptance: &'static str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    acceptance: Option<rx_domain::component_transfer::TargetAcceptance>,
     process_ownership: &'static str,
 }
 
@@ -84,6 +86,18 @@ fn contents(tx: &mut dyn Transaction) -> Result<(Vec<Record>, Option<Record>, Di
         .map_err(|e| StoreError::Integrity(e.to_string()))?;
     Ok((declarations, index, digest))
 }
+const ACCEPTANCE: &str = "rx.registration-acceptance-recorded.v1";
+fn acceptance_key(freeze: &Id) -> Name {
+    name(&format!("components/platform-acceptance/{freeze}"))
+}
+fn recorded(
+    tx: &mut dyn Transaction,
+    freeze: &Id,
+) -> Result<Option<rx_domain::component_transfer::TargetAcceptance>> {
+    tx.get(&acceptance_key(freeze))?
+        .map(|row| decode(&row, ACCEPTANCE))
+        .transpose()
+}
 fn view(tx: &mut dyn Transaction, record: FreezeRecord) -> Result<FrozenRegistry> {
     let (declarations, selection_index, digest) = contents(tx)?;
     if digest != record.declarations_digest
@@ -93,12 +107,23 @@ fn view(tx: &mut dyn Transaction, record: FreezeRecord) -> Result<FrozenRegistry
             "frozen declaration cut differs".into(),
         ));
     }
+    let acceptance = recorded(tx, &record.request.id)?;
+    if acceptance.as_ref().is_some_and(|a| a.original != record) {
+        return Err(StoreError::Integrity(
+            "stored target acceptance differs from source cut".into(),
+        ));
+    }
     Ok(FrozenRegistry {
         record,
         declarations,
         selection_index,
         local_declaration_writer: "PERMANENTLY_FROZEN",
-        platform_acceptance: "NOT_ESTABLISHED",
+        platform_acceptance: if acceptance.is_some() {
+            "RECORDED_FROM_AUTHENTICATED_PLATFORM"
+        } else {
+            "NOT_ESTABLISHED"
+        },
+        acceptance,
         process_ownership: "NOT_TRANSFERRED",
     })
 }
@@ -197,6 +222,66 @@ impl Registry<SqliteRepository> {
             .into_iter()
             .take_while(|e| e.seq <= source.record.history_head)
             .collect())
+    }
+}
+
+impl<R: rx_ports::SealedRepository> Registry<R> {
+    /// Record only an authenticated remote acceptance of this still-sealed source.
+    /// The record is historical and cannot establish current execution authority.
+    pub fn record_platform_acceptance(
+        &mut self,
+        verified: &crate::reporting::VerifiedAcceptance,
+    ) -> Result<rx_domain::component_transfer::TargetAcceptance> {
+        let expected = PREFIXES
+            .map(name)
+            .into_iter()
+            .collect::<std::collections::BTreeSet<_>>();
+        if self
+            .repository
+            .sealed_namespaces()?
+            .into_iter()
+            .collect::<std::collections::BTreeSet<_>>()
+            != expected
+        {
+            return Err(StoreError::Integrity(
+                "acceptance source fences differ".into(),
+            ));
+        }
+        let evidence = verified.view();
+        self.repository.transact(|tx| {
+            let marker = tx
+                .get(&name(FREEZE))?
+                .ok_or_else(|| StoreError::Invalid("source is not frozen".into()))?;
+            let original: FreezeRecord = decode(&marker, SCHEMA)?;
+            let source = view(tx, original.clone())?;
+            if evidence.original != original
+                || evidence.peer.installation != original.request.target_installation
+                || !source
+                    .declarations
+                    .iter()
+                    .any(|row| row.key == key(&evidence.component))
+            {
+                return Err(StoreError::Integrity(
+                    "target acceptance does not match this source".into(),
+                ));
+            }
+            if let Some(old) = source.acceptance {
+                if !old.same_decision(evidence) {
+                    return Err(StoreError::Integrity(
+                        "target acceptance changed; original evidence retained for investigation"
+                            .into(),
+                    ));
+                }
+                return Ok(old);
+            }
+            let row = tx.put(
+                &acceptance_key(&original.request.id),
+                None,
+                &document(ACCEPTANCE, evidence)?,
+            )?;
+            tx.append_control(&fresh_id(), &row, &row.document)?;
+            Ok(evidence.clone())
+        })
     }
 }
 

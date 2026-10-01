@@ -4,6 +4,8 @@ use rx_protocol::resident_reporting as wire;
 use serde::{Serialize, de::DeserializeOwned};
 use sha2::Digest as _;
 use std::time::Duration;
+mod acceptance;
+pub use acceptance::VerifiedAcceptance;
 pub mod outbox;
 pub mod resident;
 

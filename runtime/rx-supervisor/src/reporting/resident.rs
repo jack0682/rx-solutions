@@ -64,7 +64,7 @@ fn read(path: &Path) -> Result<Vec<u8>> {
     }
     Ok(bytes)
 }
-fn connection(path: &Path) -> Result<Connection> {
+pub fn connection(path: &Path) -> Result<Connection> {
     let value: ConnectionFile = canonical::decode_json(&read(path)?)?;
     if value.schema != "rx.resident-report-connection.v1" {
         return Err("reporting connection schema".into());
