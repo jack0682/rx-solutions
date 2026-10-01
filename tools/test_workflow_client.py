@@ -7,9 +7,11 @@ import sys
 import tempfile
 import unittest
 import uuid
+from types import SimpleNamespace
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'deployment/local-skills'))
-from workflow_client import Workflows, quantity
+from workflow_client import Workflows, quantity, run, OutputExistsError, format_report
 from runtime_client import RuntimeRejected
 
 
@@ -141,6 +143,46 @@ class WorkflowClientTests(unittest.TestCase):
         self.server.alter = lambda v: {**v, 'spec': {'schema': 'changed'}}
         with self.assertRaisesRegex(ValueError, 'save receipt differs'):
             self.client.recover(self.key)
+
+    def test_existing_resolve_output_is_refused_before_any_connection(self):
+        output = Path(self.directory.name) / 'receipt.json'
+        output.write_text('preserve this receipt')
+        directory = Path(self.directory.name) / 'directory'
+        directory.mkdir()
+        symlink = Path(self.directory.name) / 'dangling'
+        symlink.symlink_to(Path(self.directory.name) / 'missing')
+        for destination in (output, directory, symlink):
+            with self.subTest(destination=destination), patch('workflow_client.LocalAuthoring') as local, patch('workflow_client.Terminal') as terminal:
+                with self.assertRaisesRegex(OutputExistsError, 'No server request was sent'):
+                    run(SimpleNamespace(action='resolve', output=destination))
+                local.assert_not_called()
+                terminal.assert_not_called()
+        self.assertEqual(output.read_text(), 'preserve this receipt')
+        self.assertEqual(self.server.calls, [])
+
+    def test_text_keeps_distinct_origins_and_formats_fixed_values(self):
+        origin = {'kind': 'CONTEXT', 'reference': self.request['workflow'],
+                  'path': 'part/force', 'value': quantity('25:N')}
+        changed = copy.deepcopy(origin)
+        changed['value'] = quantity('30:N')
+        value = {'value': quantity('25:N'), 'frame': None,
+                 'origins': [origin, copy.deepcopy(origin), changed]}
+        receipt = {'reference': ref(str(uuid.uuid4())), 'report': {
+            'request': self.request, 'status': 'RESOLVED_NOT_QUALIFIED', 'definitions': [],
+            'steps': [{'node': 'pick', 'label': 'Pick', 'properties': {
+                'force': value,
+                'bounded': {**value, 'value': quantity('20..40:N'), 'origins': []},
+                'false': {**value, 'value': quantity('false:unitless'), 'origins': []}}}],
+            'violations': []}}
+        before = copy.deepcopy(receipt)
+        text = format_report(receipt)
+        self.assertIn('force: 25 N', text)
+        self.assertIn('bounded: 20..40 N', text)
+        self.assertIn('false: false unitless', text)
+        self.assertIn('Resolution: ' + receipt['reference']['id'], text)
+        self.assertEqual(text.count('part/force = 25 N'), 1)
+        self.assertEqual(text.count('part/force = 30 N'), 1)
+        self.assertEqual(receipt, before)
 
     def test_explicit_units_false_zero_ranges_and_nonfinite_inputs(self):
         self.assertEqual(quantity('false:unitless')['data'], {'kind': 'BOOLEAN', 'value': False})

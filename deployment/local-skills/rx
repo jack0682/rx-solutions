@@ -194,17 +194,22 @@ def main():
         sub.add_parser(name)
     from definitions_client import arguments as definition_arguments, run as definition_run
     definition_arguments(sub)
-    from workflow_client import arguments as workflow_arguments, run as workflow_run
+    from workflow_client import arguments as workflow_arguments, run as workflow_run, OutputExistsError
     workflow_arguments(sub)
     args = parser.parse_args()
     if args.command == "workflow":
         try:
             result, rendered = workflow_run(args)
+        except OutputExistsError as exc:
+            print("RX workflow: " + str(exc), file=sys.stderr)
+            sys.exit(1)
         except (ValueError, OSError, KeyError, TypeError) as exc:
             print("RX workflow: " + str(exc) + ". Original requests remain under " + str(args.state_dir.absolute()), file=sys.stderr)
             sys.exit(1)
         print(rendered if rendered is not None else json.dumps(result, indent=2))
-        if "report" in result and not result["report"]["valid"]: sys.exit(2)
+        if "report" in result:
+            if not result["report"]["valid"]: sys.exit(2)
+            if not result["report"]["concrete"]: sys.exit(3)
         return
     if args.command == "definitions":
         try:
