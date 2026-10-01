@@ -190,6 +190,15 @@ impl<R: Repository> Outbox<R> {
                 || r.component_revision != allowed.component_revision || r.report.source != latest.source) {
                 return Err(invalid("head source differs"));
             }
+            if row.pending.as_ref().is_some_and(|p| p.peer.store_generation != peer.store_generation)
+                || row.accepted.as_ref().is_some_and(|r| r.reporter.store_generation != peer.store_generation) {
+                return Err(invalid("store generation changed; explicit store reconciliation required"));
+            }
+            if let Some(previous) = &row.accepted
+                && head.receipt.as_ref().is_none_or(|r| r.report.sequence < previous.report.sequence
+                    || (r.report.sequence == previous.report.sequence && r != previous)) {
+                return Err(invalid("server history regressed; explicit store reconciliation required"));
+            }
             let mut history = None;
             if let Some(pending) = &row.pending {
                 if pending.peer == *peer && pending.scope.id == allowed.id {
@@ -203,10 +212,6 @@ impl<R: Repository> Outbox<R> {
                 history = Some(serde_json::json!({"pending":pending,"finding":if recovered.is_some(){"ACCEPTED_RECEIPT_RECOVERED"}else{"PRIOR_DELIVERY_UNRESOLVED"},"head":head}));
                 if recovered.is_none() { row.unresolved_deliveries = row.unresolved_deliveries.increment().map_err(|e| invalid(&e.to_string()))?; }
                 row.pending = None;
-            }
-            if let Some(previous) = &row.accepted
-                && head.receipt.as_ref().is_none_or(|r| r.report.sequence < previous.report.sequence) {
-                return Err(invalid("server history regressed; explicit store reconciliation required"));
             }
             let accepted_changed = row.accepted != head.receipt;
             row.accepted = head.receipt.clone();

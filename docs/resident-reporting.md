@@ -64,8 +64,8 @@ its source identities and historical receipts. Revoked scopes cannot branch.
 The new worker reads the scoped P head. An identical receipt can recover a lost
 acknowledgement. Otherwise an old pending request is archived as
 PRIOR_DELIVERY_UNRESOLVED, never marked successful by a new report. A new snapshot
-uses the lineage's next sequence. If a known accepted head regressed, reporting
-requires explicit store reconciliation. Neither continuation nor a stored PID
+uses the lineage's next sequence. If a known accepted head regressed, a same-sequence receipt changed, or the store
+generation changed, reporting requires explicit store reconciliation. Neither continuation nor a stored PID
 adopts a process or changes the outcome of a physical operation.
 
 Library callers may use `Client`, `Outbox` and `Resident` directly. Only actual

@@ -304,3 +304,40 @@ fn unsent_prior_run_is_discoverable_after_reopen_without_current_run_input() {
     outbox.acknowledge(&pending, receipt(&pending)).unwrap();
     assert_eq!(outbox.retained(128).unwrap(), (vec![], 0));
 }
+
+#[test]
+fn same_sequence_different_receipt_and_restored_store_require_reconciliation() {
+    let (_dir, mut outbox, peer, scope, execution) = context();
+    outbox.observe(execution.clone()).unwrap();
+    let pending = outbox
+        .prepare(&peer, &scope, &head(&scope, &execution, None))
+        .unwrap()
+        .unwrap();
+    let accepted = receipt(&pending);
+    outbox.acknowledge(&pending, accepted.clone()).unwrap();
+    let mut different = accepted.clone();
+    different.id = id();
+    assert!(
+        outbox
+            .prepare(&peer, &scope, &head(&scope, &execution, Some(different)))
+            .is_err()
+    );
+    let restored = Peer {
+        id: id(),
+        store_generation: id(),
+        ..peer
+    };
+    let mut next = scope.0.clone();
+    next.id = id();
+    next.reporter_session = restored.id.clone();
+    next.continuation = Some(Continuation {
+        previous_scope: scope.0.id.clone(),
+        root_scope: scope.0.id,
+    });
+    let next = VerifiedScope(next);
+    assert!(
+        outbox
+            .prepare(&restored, &next, &head(&next, &execution, Some(accepted)))
+            .is_err()
+    );
+}
