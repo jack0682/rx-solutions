@@ -101,3 +101,23 @@ catalog/returned profile; use that exact profile for Host bindings.
 This package describes a SIMULATION Python program and its input/environment pins.
 SDK wheel transport, server-side environment installation, dynamic data and physical
 qualification are not supplied by package assembly. See the [Host loader](../rx-host/PYTHON_SKILL.md).
+
+## A fixed Python program library
+
+`python-library-assemble LIBRARY ENVIRONMENT RECIPE NEW_CANDIDATE` uses the same
+DEVICE_REFERENCE signature, asset verification and review pipeline. The new
+`rx.python-skill-library.v1` input has installation/host/cell, one prepared
+absolute environment path and digest, and a `programs` map. Each entry contains
+an exact `input` object and finite Program `intent`. The initial bound is 16
+entries and 64 KiB per input. All entries target one declared device; duplicate
+Intents and mismatched input/environment references are refused.
+
+A common normalized profile digest covers the whole library. Every program/input
+asset enters the signed manifest, and inspection reassembles every file from the
+signed originals. A valid signature on inconsistent operations is still refused.
+Host configuration selects `PYTHON_SKILL_LIBRARY_PACKAGE` with the same
+`directory`, `manifest_digest` and pinned `policy` fields as a single Python
+package. The complete configured Intent set must equal the library's set.
+The library is simulation-only and one native Host retains shared uncertainty and
+support custody. This is bounded fixed-input selection, not arbitrary runtime
+parameter admission or permission to omit qualification.

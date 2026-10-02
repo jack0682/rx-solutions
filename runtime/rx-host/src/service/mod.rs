@@ -7,6 +7,8 @@ mod guarded_status;
 pub mod jtc_package;
 pub mod maintenance;
 #[cfg(unix)]
+pub mod python_library;
+#[cfg(unix)]
 pub mod python_package;
 #[cfg(unix)]
 pub mod python_skill;
@@ -84,6 +86,11 @@ impl<N: NativeAdapter, C: Clock> Drop for AdmissionOwner<N, C> {
 pub enum NativeInstallation {
     #[cfg(unix)]
     PythonSkill {
+        registration_digest: Digest,
+        environment_digest: Digest,
+    },
+    #[cfg(unix)]
+    PythonSkillLibrary {
         registration_digest: Digest,
         environment_digest: Digest,
     },
@@ -297,6 +304,15 @@ pub fn initialize_with<C: Clock + Clone + 'static, F: AdapterFactory<C>>(
     result
 }
 fn validate_installation_material(loaded: &Loaded) -> Result<()> {
+    #[cfg(unix)]
+    if let Backend::PythonSkillLibraryPackage { .. } = &loaded.config.backend {
+        let (_, library) = python_library::load(&loaded.config.backend)?;
+        if library.installation != loaded.config.installation {
+            return Err("Python library installation differs from Host".into());
+        }
+        library.validate_bindings(&loaded.bindings)?;
+    }
+
     #[cfg(unix)]
     if let Backend::PythonSkillSimulation { .. } | Backend::PythonSkillPackage { .. } =
         &loaded.config.backend

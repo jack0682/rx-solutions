@@ -74,6 +74,13 @@ impl<C: Clock + Clone + 'static> AdapterFactory<C> for Builtin {
     fn validate(&self, backend: &Backend, bindings: &[Binding]) -> Result<()> {
         match backend {
             #[cfg(unix)]
+            Backend::PythonSkillLibraryPackage { .. } => {
+                let (_, library) = python_library::load(backend)?;
+                library.validate_bindings(bindings)?;
+                python_skill::release()?;
+                Ok(())
+            }
+            #[cfg(unix)]
             Backend::PythonSkillSimulation { .. } | Backend::PythonSkillPackage { .. } => {
                 let (_, registration) = python_skill::load(backend)?;
                 registration.validate_bindings(bindings)?;
@@ -105,6 +112,15 @@ impl<C: Clock + Clone + 'static> AdapterFactory<C> for Builtin {
         data: &Path,
     ) -> Result<Option<NativeInstallation>> {
         match backend {
+            #[cfg(unix)]
+            Backend::PythonSkillLibraryPackage { .. } => {
+                let (registration_digest, library) = python_library::load(backend)?;
+                std::fs::create_dir(data.join("native-python"))?;
+                Ok(Some(NativeInstallation::PythonSkillLibrary {
+                    registration_digest,
+                    environment_digest: library.environment_digest,
+                }))
+            }
             #[cfg(unix)]
             Backend::PythonSkillSimulation { .. } | Backend::PythonSkillPackage { .. } => {
                 let (registration_digest, registration) = python_skill::load(backend)?;
@@ -148,6 +164,36 @@ impl<C: Clock + Clone + 'static> AdapterFactory<C> for Builtin {
         let descriptor = read_installation(data)?;
         let native_root = native_storage_root(data, &descriptor)?;
         match backend {
+            #[cfg(unix)]
+            Backend::PythonSkillLibraryPackage { .. } => {
+                let (digest, library) = python_library::load(backend)?;
+                let Some(NativeInstallation::PythonSkillLibrary {
+                    registration_digest,
+                    environment_digest,
+                }) = descriptor.native
+                else {
+                    return Err("Python library native installation identity missing".into());
+                };
+                if digest != registration_digest
+                    || library.environment_digest != environment_digest
+                    || library.installation != descriptor.installation
+                {
+                    return Err("Python library changed after Host initialization".into());
+                }
+                let support = crate::simulation::FileDevice::open(
+                    native_root.join("python-support"),
+                    clock.clone(),
+                )?;
+                Ok(BuiltinAdapter::Python(Box::new(
+                    crate::python_skill::PythonSkill::open_library(
+                        python_skill::release()?,
+                        library.programs(),
+                        native_root.join("native-python"),
+                        support,
+                        clock,
+                    )?,
+                )))
+            }
             #[cfg(unix)]
             Backend::PythonSkillSimulation { .. } | Backend::PythonSkillPackage { .. } => {
                 let (digest, registration) = python_skill::load(backend)?;

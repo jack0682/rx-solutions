@@ -40,7 +40,7 @@ pub struct Program {
 }
 pub struct PythonSkill<N, C> {
     release: ReleasePython,
-    program: Program,
+    programs: BTreeMap<Digest, Program>,
     state: PathBuf,
     support: N,
     clock: C,
@@ -111,18 +111,36 @@ impl<N: NativeAdapter, C: Clock> PythonSkill<N, C> {
         support: N,
         clock: C,
     ) -> Result<Self> {
+        Self::open_library(release, vec![program], state, support, clock)
+    }
+    /// One native owner and one uncertainty set across all explicitly pinned programs.
+    pub fn open_library(
+        release: ReleasePython,
+        programs: Vec<Program>,
+        state: PathBuf,
+        support: N,
+        clock: C,
+    ) -> Result<Self> {
         if support.environment() != Environment::Simulation
             || !state.is_absolute()
             || state.is_symlink()
             || !state.is_dir()
-            || program.intent.execution_timeout_ms.0 > 60000
+            || programs.is_empty()
+            || programs.len() > 16
         {
             return Err(HostError::Invalid(
                 "Python SDK adapter requires an owned simulation journal and bounded execution"
                     .into(),
             ));
         }
-        validate_program(&program)?;
+        let mut selected = BTreeMap::new();
+        for program in programs {
+            validate_program(&program)?;
+            let digest = program.intent.digest().map_err(unknown)?;
+            if selected.insert(digest, program).is_some() {
+                return Err(HostError::Invalid("duplicate Python program Intent".into()));
+            }
+        }
         pinned(&release.executable, release.executable_digest)?;
         pinned(&release.runner, release.runner_digest)?;
         pinned(
@@ -144,7 +162,7 @@ impl<N: NativeAdapter, C: Clock> PythonSkill<N, C> {
         fs::create_dir_all(state.join("captures")).map_err(unknown)?;
         Ok(Self {
             release,
-            program,
+            programs: selected,
             state,
             support,
             clock,
@@ -299,7 +317,9 @@ impl<N: NativeAdapter, C: Clock> NativeAdapter for PythonSkill<N, C> {
         self.support.observe_sources(cell, sources)
     }
     fn guard(&self, intent: &Intent, now: &TimePoint) -> Result<Guard> {
-        if intent.digest().map_err(unknown)? != self.program.intent.digest().map_err(unknown)?
+        if !self
+            .programs
+            .contains_key(&intent.digest().map_err(unknown)?)
             || !self.uncertain.is_empty()
         {
             return Err(HostError::Guard);
@@ -340,9 +360,13 @@ impl<N: NativeAdapter, C: Clock> NativeAdapter for PythonSkill<N, C> {
         let os_now = rustix::time::clock_gettime(clock_id);
         let deadline = (os_now.tv_sec as u64 * 1_000_000_000 + os_now.tv_nsec as u64)
             .saturating_add(context.expires_at.ticks_ns.0 - now.ticks_ns.0);
+        let program = self
+            .programs
+            .get(&intent.digest().map_err(unknown)?)
+            .ok_or(HostError::Guard)?;
         let request = json!({"schema":"rx.python-host-request.v1","operation":operation,"invocation":invocation,
-            "intent_digest":intent.digest().map_err(unknown)?,"environment":self.program.environment,
-            "environment_digest":self.program.environment_digest,"input":self.program.input,
+            "intent_digest":intent.digest().map_err(unknown)?,"environment":program.environment,
+            "environment_digest":program.environment_digest,"input":program.input,
             "device_session":context.device_session,"dispatch_deadline_ns":deadline.to_string(),"dispatch_clock":dispatch_clock});
         self.uncertain.insert(operation.clone());
         let value = self.call(
@@ -366,13 +390,15 @@ impl<N: NativeAdapter, C: Clock> NativeAdapter for PythonSkill<N, C> {
             &format!("{operation}/request.json"),
         )?)
         .map_err(unknown)?;
-        if request["input"] != self.program.input
-            || request["environment"] != self.program.environment.to_string_lossy().as_ref()
+        let digest: Digest = serde_json::from_value(request["intent_digest"].clone())
+            .map_err(|_| HostError::Conflict)?;
+        let program = self.programs.get(&digest).ok_or(HostError::Conflict)?;
+        if request["input"] != program.input
+            || request["environment"] != program.environment.to_string_lossy().as_ref()
             || request["operation"] != operation.as_str()
             || request["invocation"] != invocation.as_str()
-            || request["environment_digest"] != self.program.environment_digest.to_string()
-            || request["intent_digest"]
-                != self.program.intent.digest().map_err(unknown)?.to_string()
+            || request["environment_digest"] != program.environment_digest.to_string()
+            || request["intent_digest"] != program.intent.digest().map_err(unknown)?.to_string()
         {
             return Err(HostError::Conflict);
         }

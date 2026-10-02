@@ -1396,6 +1396,7 @@ dependencies = [
  "rx-melsec-mc",
  "rx-package",
  "rx-ports",
+ "rx-process",
  "rx-process-contract",
  "rx-protocol",
  "rx-service-status",
