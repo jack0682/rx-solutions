@@ -26,6 +26,8 @@ pub fn validator_digest() -> Digest {
             rx_host::service::jtc_package::driver(),
             #[cfg(unix)]
             rx_host::service::python_package::driver(),
+            #[cfg(unix)]
+            rx_host::service::python_library::driver(),
         ),
     )
     .expect("fixed validator identity")

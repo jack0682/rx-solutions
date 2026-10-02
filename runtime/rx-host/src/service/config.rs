@@ -59,6 +59,12 @@ pub enum Backend {
         manifest_digest: Digest,
         policy: PinnedFile,
     },
+    #[cfg(unix)]
+    PythonSkillLibraryPackage {
+        directory: PathBuf,
+        manifest_digest: Digest,
+        policy: PinnedFile,
+    },
     JtcPackage {
         directory: PathBuf,
         manifest_digest: Digest,

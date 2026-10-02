@@ -299,3 +299,129 @@ fn sign_python_fixture_message() {
     file.sync_all().unwrap();
     std::fs::write(output.with_extension("public.json"),canonical::bytes(&serde_json::json!({"verifying_key":Digest::from_bytes(key.verifying_key().to_bytes())})).unwrap()).unwrap();
 }
+
+#[test]
+fn library_is_one_signed_package_with_complete_operations_and_original_reassembly() {
+    use rx_host::service::python_library::{Entry, Library};
+    let (first, environment, recipe) = inputs();
+    let mut second = first.clone();
+    second.input = serde_json::json!({"value": 8});
+    let Body::Program(goal) = &mut second.intent.body else {
+        unreachable!()
+    };
+    goal.parameter_set = artifact(
+        &canonical::bytes(&second.input).unwrap(),
+        "rx.python-input.v1",
+    );
+    let library = Library {
+        schema: n("rx.python-skill-library.v1"),
+        installation: first.installation.clone(),
+        host: first.host.clone(),
+        cell: first.cell.clone(),
+        environment: first.environment.clone(),
+        environment_digest: first.environment_digest,
+        programs: BTreeMap::from([
+            (
+                n("first"),
+                Entry {
+                    input: first.input,
+                    intent: first.intent,
+                },
+            ),
+            (
+                n("second"),
+                Entry {
+                    input: second.input,
+                    intent: second.intent,
+                },
+            ),
+        ]),
+    };
+    let candidate = python::assemble_library(&library, &environment, &recipe).unwrap();
+    let cli = tempfile::tempdir().unwrap();
+    let library_file = cli.path().join("library.json");
+    let environment_file = cli.path().join("environment.json");
+    let recipe_file = cli.path().join("recipe.json");
+    std::fs::write(&library_file, canonical::bytes(&library).unwrap()).unwrap();
+    std::fs::write(&environment_file, &environment).unwrap();
+    std::fs::write(&recipe_file, canonical::bytes(&recipe).unwrap()).unwrap();
+    let cli_output = cli.path().join("candidate");
+    let result = std::process::Command::new(env!("CARGO_BIN_EXE_rx-device-package"))
+        .arg("python-library-assemble")
+        .arg(&library_file)
+        .arg(&environment_file)
+        .arg(&recipe_file)
+        .arg(&cli_output)
+        .output()
+        .unwrap();
+    assert!(
+        result.status.success(),
+        "{}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+    assert_eq!(
+        directory::candidate(&cli_output).unwrap().digest().unwrap(),
+        candidate.digest().unwrap()
+    );
+
+    assert_eq!(candidate.manifest().assets.len(), 3);
+    let (verification, key) = policy(&candidate);
+    let package = candidate
+        .verify(&signature(&candidate, &key), &verification)
+        .unwrap();
+    let Device::PythonLibrary(profile) = decode_verified_any(&package).unwrap() else {
+        panic!("library");
+    };
+    assert_eq!(profile.programs.len(), 2);
+    assert!(
+        profile
+            .programs
+            .values()
+            .all(|entry| entry.intent.profile_digest == profile.profile_digest().unwrap())
+    );
+    let root = tempfile::tempdir().unwrap();
+    directory::publish(&candidate, None, &root.path().join("candidate")).unwrap();
+    assert_eq!(
+        directory::candidate(&root.path().join("candidate"))
+            .unwrap()
+            .digest()
+            .unwrap(),
+        candidate.digest().unwrap()
+    );
+    let mut changed = library.clone();
+    changed.programs.get_mut(&n("second")).unwrap().input = serde_json::json!({"value":9});
+    assert!(python::assemble_library(&changed, &environment, &recipe).is_err());
+    let mut duplicate = library.clone();
+    duplicate
+        .programs
+        .insert(n("alias"), duplicate.programs[&n("first")].clone());
+    assert!(python::assemble_library(&duplicate, &environment, &recipe).is_err());
+    let mut files = candidate.files().clone();
+    let file = PackagePath::new("operations.json").unwrap();
+    files.insert(file.clone(), b"{}".to_vec());
+    let mut manifest = candidate.manifest().clone();
+    let entry = manifest
+        .files
+        .iter_mut()
+        .find(|entry| entry.path == file)
+        .unwrap();
+    entry.sha256 = content_digest(b"{}");
+    entry.size_bytes = Counter(2);
+    let signature = SignatureEnvelope {
+        key: n("test/key"),
+        signature: key
+            .sign(&signing_message(&manifest, &n("test/key")).unwrap())
+            .to_bytes()
+            .iter()
+            .map(|b| format!("{b:02x}"))
+            .collect(),
+    };
+    let inconsistent = verify_package(
+        &manifest_bytes(&manifest).unwrap(),
+        &canonical::bytes(&signature).unwrap(),
+        files,
+        &verification,
+    )
+    .unwrap();
+    assert!(decode_verified_any(&inconsistent).is_err());
+}

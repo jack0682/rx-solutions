@@ -40,6 +40,11 @@ fn signed_package(backend: &Backend) -> Option<(&std::path::Path, Digest)> {
             directory,
             manifest_digest,
             ..
+        }
+        | Backend::PythonSkillLibraryPackage {
+            directory,
+            manifest_digest,
+            ..
         } => Some((directory, *manifest_digest)),
         _ => None,
     }

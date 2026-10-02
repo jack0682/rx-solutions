@@ -34,8 +34,12 @@ struct Fixture {
     caller: Caller,
     binding: Binding,
     intent: Intent,
+    intents: Vec<Intent>,
 }
 fn fixture(delay: bool) -> Fixture {
+    fixture_programs(delay, 1)
+}
+fn fixture_programs(delay: bool, count: usize) -> Fixture {
     let directory = tempfile::tempdir().unwrap();
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
@@ -101,27 +105,45 @@ print(json.dumps({'environment':built,'python':str(Path(sys.executable).resolve(
     let state = directory.path().join("python-journal");
     std::fs::create_dir(&state).unwrap();
     let runner = root.join("deployment/local-skills/host_runner.py");
-    let adapter = PythonSkill::open(
-        ReleasePython {
-            executable_digest: hash(&executable),
-            executable,
-            runner_digest: hash(&runner),
-            verifier_digest: hash(&runner.with_file_name("python_environment.py")),
-            runner,
-        },
-        Program {
-            environment,
+    let release = ReleasePython {
+        executable_digest: hash(&executable),
+        executable,
+        runner_digest: hash(&runner),
+        verifier_digest: hash(&runner.with_file_name("python_environment.py")),
+        runner,
+    };
+    let mut programs = vec![];
+    let mut intents = vec![];
+    for index in 0..count {
+        let input = if index == 0 {
+            serde_json::from_slice(&std::fs::read(&input_path).unwrap()).unwrap()
+        } else {
+            serde_json::json!({"path": directory.path().join(format!("effects-{index}"))})
+        };
+        let mut selected = intent.clone();
+        let Body::Program(goal) = &mut selected.body else {
+            unreachable!()
+        };
+        let bytes = rx_domain::canonical::bytes(&input).unwrap();
+        goal.parameter_set.sha256 = rx_package::content_digest(&bytes);
+        goal.parameter_set.size_bytes = Counter(bytes.len() as u64);
+        intents.push(selected.clone());
+        programs.push(Program {
+            environment: environment.clone(),
             environment_digest: serde_json::from_value(
                 setup["environment"]["environment_digest"].clone(),
             )
             .unwrap(),
-            input: serde_json::from_slice(&std::fs::read(input_path).unwrap()).unwrap(),
-            intent: intent.clone(),
-        },
-        state,
-        FileDevice::open(directory.path().join("support"), c.clone()).unwrap(),
-        c.clone(),
-    )
+            input,
+            intent: selected,
+        });
+    }
+    let support = FileDevice::open(directory.path().join("support"), c.clone()).unwrap();
+    let adapter = if count == 1 {
+        PythonSkill::open(release, programs.pop().unwrap(), state, support, c.clone())
+    } else {
+        PythonSkill::open_library(release, programs, state, support, c.clone())
+    }
     .unwrap();
     let artifact = |n| ArtifactRef {
         sha256: Digest::from_bytes([n; 32]),
@@ -136,7 +158,7 @@ print(json.dumps({'environment':built,'python':str(Path(sys.executable).resolve(
         envelope: artifact(4),
         qualification: id(),
         qualification_revision: Counter(1),
-        allowed_intents: vec![intent.clone()],
+        allowed_intents: intents.clone(),
         scope_ids: vec![name("scope/main")],
         condition_ids: vec![name("sim/ready")],
         environment: Environment::Simulation,
@@ -161,9 +183,13 @@ print(json.dumps({'environment':built,'python':str(Path(sys.executable).resolve(
         caller,
         binding,
         intent,
+        intents,
     }
 }
 fn request(f: &Fixture) -> Request {
+    request_for(f, &f.intent, 1)
+}
+fn request_for(f: &Fixture, intent: &Intent, fence: u64) -> Request {
     let scopes = BTreeMap::from([(name("scope/main"), Counter(1))]);
     f.host.bind_platform(f.caller.clone()).unwrap();
     f.host
@@ -181,16 +207,16 @@ fn request(f: &Fixture) -> Request {
         .acquire_grant(
             &f.caller,
             id(),
-            f.intent.resource_set.clone(),
-            Counter(1),
+            intent.resource_set.clone(),
+            Counter(fence),
             Counter(10_000_000_000),
         )
         .unwrap();
     let operation = id();
-    let digest = f.intent.digest().unwrap();
+    let digest = intent.digest().unwrap();
     Request {
         operation: operation.clone(),
-        intent: f.intent.clone(),
+        intent: intent.clone(),
         digest,
         grant: grant.id.clone(),
         permit: Permit {
@@ -316,4 +342,77 @@ fn altered_python_environment_is_refused_before_sdk_effect() {
             .is_err()
     );
     assert!(!f.effects.exists());
+}
+
+#[test]
+fn library_dispatches_distinct_pinned_inputs_and_preserves_original_lookup() {
+    let f = fixture_programs(false, 2);
+    let first = request_for(&f, &f.intents[0], 1);
+    let pending = f.host.prepare(&f.caller, first.clone()).unwrap();
+    assert!(!f.effects.exists());
+    f.host
+        .authorize(
+            &f.caller,
+            first.clone(),
+            pending.invocation.as_ref().unwrap(),
+        )
+        .unwrap();
+    let second = request_for(&f, &f.intents[1], 2);
+    let pending = f.host.prepare(&f.caller, second.clone()).unwrap();
+    f.host
+        .authorize(
+            &f.caller,
+            second.clone(),
+            pending.invocation.as_ref().unwrap(),
+        )
+        .unwrap();
+    assert_eq!(std::fs::read_to_string(&f.effects).unwrap(), "effect\n");
+    assert_eq!(
+        std::fs::read_to_string(f._directory.path().join("effects-1")).unwrap(),
+        "effect\n"
+    );
+    assert_eq!(
+        f.host.reconcile(&f.caller, &first.operation).unwrap().state,
+        ReceiptState::ResultCaptured
+    );
+    assert_eq!(
+        f.host
+            .reconcile(&f.caller, &second.operation)
+            .unwrap()
+            .state,
+        ReceiptState::ResultCaptured
+    );
+    assert_eq!(std::fs::read_to_string(&f.effects).unwrap(), "effect\n");
+}
+#[test]
+fn one_uncertain_library_program_blocks_the_shared_resource_for_other_programs() {
+    let f = fixture_programs(true, 2);
+    let first = request_for(&f, &f.intents[0], 1);
+    let pending = f.host.prepare(&f.caller, first.clone()).unwrap();
+    assert!(
+        f.host
+            .authorize(
+                &f.caller,
+                first.clone(),
+                pending.invocation.as_ref().unwrap()
+            )
+            .is_err()
+    );
+    assert!(
+        f.host
+            .acquire_grant(
+                &f.caller,
+                id(),
+                f.intents[1].resource_set.clone(),
+                Counter(2),
+                Counter(10_000_000_000)
+            )
+            .is_err()
+    );
+    assert!(!f._directory.path().join("effects-1").exists());
+    assert!(
+        f.host
+            .handover_observations(&f.caller, &first.operation)
+            .is_err()
+    );
 }

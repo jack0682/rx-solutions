@@ -26,6 +26,14 @@ fn run() -> AnyResult<()> {
             let mut f=OpenOptions::new().write(true).create_new(true).open(&a[3])?;f.write_all(&canonical::bytes(&request)?)?;f.sync_all()?;output(serde_json::json!({"status":"DEVICE_REPORT_SIGNATURE_REQUIRED","report_digest":report.digest()?}))
         },
         #[cfg(unix)]
+        Some("python-library-assemble") if a.len()==5=>{
+            let library:rx_host::service::python_library::Library=policy::read(Path::new(&a[1]))?;
+            let environment=std::fs::read(&a[2])?;let recipe:Recipe=policy::read(Path::new(&a[3]))?;
+            let candidate=python::assemble_library(&library,&environment,&recipe)?;
+            directory::publish(&candidate,None,Path::new(&a[4]))?;
+            output(serde_json::json!({"status":"UNSIGNED_CANDIDATE","manifest_digest":candidate.digest()?,"activation_authorized":false}))
+        },
+        #[cfg(unix)]
         Some("python-assemble") if a.len()==5=>{
             let registration:rx_host::service::python_skill::Registration=policy::read(Path::new(&a[1]))?;
             let environment=std::fs::read(&a[2])?;let recipe:Recipe=policy::read(Path::new(&a[3]))?;
@@ -66,6 +74,8 @@ fn run() -> AnyResult<()> {
             let input:policy::Policy=policy::read(Path::new(&a[2]))?;let package=rx_package::directory::verify_directory(Path::new(&a[1]),&load_policy(&input)?)?;
             let mut value=match decode_verified_any(&package)? {
                 #[cfg(unix)]
+                Device::PythonLibrary(profile)=>serde_json::json!({"profile_digest":profile.profile_digest()?,"installation":profile.installation,"cell":profile.cell,"environment":"SIMULATION","profile":profile,"physical_qualification":false}),
+                #[cfg(unix)]
                 Device::Python(profile)=>serde_json::json!({"profile_digest":profile.intent.profile_digest,"installation":profile.installation,"cell":profile.cell,"environment":"SIMULATION","profile":profile,"physical_qualification":false}),
 
                 Device::Melsec(device)=>{
@@ -80,7 +90,7 @@ fn run() -> AnyResult<()> {
             value["status"]=serde_json::json!("CONTENT_VERIFIED_NOT_QUALIFIED");value["manifest_digest"]=serde_json::to_value(package.digest())?;value["activation_authorized"]=serde_json::json!(false);
             output(value)
         },
-        _=>Err("usage: rx-device-package python-assemble REGISTRATION ENVIRONMENT RECIPE OUT | validator-identity | review PACKAGE POLICY REQUEST OUT | review-signing-request REPORT KEY_ID OUT_FILE | driver-identity [jtc] | template-digest TEMPLATE | assemble TEMPLATE SITE RECIPE OUT | request CANDIDATE KEY_ID OUT_FILE | seal CANDIDATE SIGNATURE POLICY OUT | verify PACKAGE POLICY | inspect PACKAGE POLICY".into()),
+        _=>Err("usage: rx-device-package python-library-assemble LIBRARY ENVIRONMENT RECIPE OUT | python-assemble REGISTRATION ENVIRONMENT RECIPE OUT | validator-identity | review PACKAGE POLICY REQUEST OUT | review-signing-request REPORT KEY_ID OUT_FILE | driver-identity [jtc] | template-digest TEMPLATE | assemble TEMPLATE SITE RECIPE OUT | request CANDIDATE KEY_ID OUT_FILE | seal CANDIDATE SIGNATURE POLICY OUT | verify PACKAGE POLICY | inspect PACKAGE POLICY".into()),
     }
 }
 fn main() {

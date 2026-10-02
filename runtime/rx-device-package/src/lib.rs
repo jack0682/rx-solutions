@@ -204,6 +204,18 @@ pub fn from_files(mut files: BTreeMap<PackagePath, Vec<u8>>) -> Result<Candidate
                 &recipe,
             )?
         }
+        #[cfg(unix)]
+        Some("rx.python-skill-library-assembly.v1") => {
+            let library = serde_json::from_value(source["library"].clone())
+                .map_err(|e| Error::Invalid(e.to_string()))?;
+            python::assemble_library(
+                &library,
+                files
+                    .get(&path("environment.json"))
+                    .ok_or_else(|| Error::Invalid("library environment absent".into()))?,
+                &recipe,
+            )?
+        }
         _ => return Err(Error::Invalid("unsupported device assembly schema".into())),
     };
     if manifest != manifest_bytes(rebuilt.manifest())? || files != *rebuilt.files() {
@@ -221,11 +233,24 @@ pub fn decode_verified(
 }
 pub enum Device {
     #[cfg(unix)]
+    PythonLibrary(rx_host::service::python_library::Library),
+    #[cfg(unix)]
     Python(rx_host::service::python_skill::Registration),
     Melsec(rx_host::service::device_package::LoadedDevice),
     Jtc(rx_host::service::jtc_package::LoadedDevice),
 }
 pub fn decode_verified_any(package: &VerifiedPackage) -> Result<Device> {
+    #[cfg(unix)]
+    if package
+        .file(&path("authoring/assembly.json"))
+        .and_then(|raw| serde_json::from_slice::<serde_json::Value>(raw).ok())
+        .is_some_and(|v| v["schema"] == "rx.python-skill-library-assembly.v1")
+    {
+        return rx_host::service::python_library::decode(package)
+            .map(Device::PythonLibrary)
+            .map_err(|e| Error::Invalid(e.to_string()));
+    }
+
     let EntryPoint::DeviceReference { adapter, .. } = &package.manifest().entry else {
         return Err(Error::Invalid("device reference required".into()));
     };
