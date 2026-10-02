@@ -1,5 +1,6 @@
 //! Durable per-node request handling. P remains the only operation/authority writer.
 mod checkpoint;
+mod execution_v2;
 mod lifecycle;
 mod production;
 use crate::{
@@ -41,6 +42,7 @@ pub enum Outcome {
     },
 }
 pub struct Worker<R> {
+    execution_v2: bool,
     client: Client,
     journal: Journal<R>,
     #[cfg(feature = "test-harness")]
@@ -68,6 +70,7 @@ impl<R: Repository> Worker<R> {
             return Err(Error::Invalid("client and journal scopes differ".into()));
         }
         Ok(Self {
+            execution_v2: false,
             client,
             journal,
             #[cfg(feature = "test-harness")]

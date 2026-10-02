@@ -1,4 +1,5 @@
 //! One assigned run/visit service. P still owns starts, parts, outcomes and restart authority.
+mod execution_v2;
 use crate::{
     Error, ValidatedSnapshot,
     clock::Clock,
@@ -47,6 +48,7 @@ impl PlannerFactory for PinnedPlanner {
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum CoordinationMode {
     ManualVisit,
+    SerialExecutionV2,
     #[default]
     SerialProduction,
 }
@@ -214,6 +216,9 @@ impl<R: Repository, F: PlannerFactory> RunService<R, F> {
         options: Options,
     ) -> Result<Self, Error> {
         options.validate()?;
+        if options.coordination == CoordinationMode::SerialExecutionV2 {
+            worker.select_execution_v2();
+        }
         if visit.0 == 0 {
             return Err(Error::Invalid("positive visit required".into()));
         }
@@ -369,6 +374,9 @@ impl<R: Repository, F: PlannerFactory> RunService<R, F> {
         }
     }
     async fn cycle(&mut self) -> Result<Option<StopReason>, Error> {
+        if self.options.coordination == CoordinationMode::SerialExecutionV2 {
+            return self.execution_cycle().await;
+        }
         if self.engine.is_none() && !self.planner_lifecycle.result().is_confirmed() {
             // A cancelled spawn or serial retirement may already have consumed the
             // local EngineProcess. Its absence cannot authorize another planner.

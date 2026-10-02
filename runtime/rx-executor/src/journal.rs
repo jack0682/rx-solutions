@@ -1,4 +1,5 @@
 //! S-owned request journal. A saved request is never a P admission or native result.
+pub mod execution_v2;
 mod lifecycle;
 pub mod recovery;
 use crate::frame::Identity;
@@ -78,6 +79,8 @@ pub struct ControlIdentity {
     deny_unknown_fields
 )]
 pub enum Body {
+    BeginExecutionPart(Box<execution_v2::Begin>),
+    SubmitExecutionNode(Box<execution_v2::Submit>),
     BeginPart {
         cell: Name,
         run: Id,
@@ -126,6 +129,8 @@ pub enum Body {
 impl Body {
     pub fn stage(&self) -> Stage {
         match self {
+            Self::BeginExecutionPart(_) => Stage::BeginPart,
+            Self::SubmitExecutionNode(_) => Stage::SubmitOperation,
             Self::BeginPart { .. } => Stage::BeginPart,
             Self::CompletePart { .. } => Stage::CompletePart,
             Self::CommitCheckpoint { target, .. } => Stage::checkpoint(target.action),
@@ -143,6 +148,8 @@ impl Body {
             return invalid("logical action differs");
         }
         match self {
+            Self::BeginExecutionPart(v) => v.validate(scope, logical)?,
+            Self::SubmitExecutionNode(v) => v.validate(scope, logical)?,
             Self::BeginPart {
                 cell,
                 run,
@@ -254,6 +261,8 @@ impl Body {
     }
     pub(crate) fn semantic_digest(&self) -> Result<Digest> {
         match self {
+            Self::BeginExecutionPart(v) => v.semantic_digest(),
+            Self::SubmitExecutionNode(v) => v.semantic_digest(),
             Self::BeginPart {
                 cell,
                 run,
@@ -317,6 +326,8 @@ pub struct Admission {
     deny_unknown_fields
 )]
 pub enum Response {
+    ExecutionPart(Box<rx_process_contract::execution_v2::executor::Part>),
+    ExecutionAdmission(Box<rx_process_contract::execution_v2::executor::Admission>),
     Part(rx_process_contract::production::Part),
     ReconciliationAccepted {
         operation: Id,
@@ -488,6 +499,12 @@ impl<R: Repository> Journal<R> {
         }
         let body_digest = digest("RX-E-REQUEST-BODY-v1", &body)?;
         self.repository.transact(|tx| {
+            if matches!(
+                body,
+                Body::BeginExecutionPart(_) | Body::SubmitExecutionNode(_)
+            ) {
+                tx.require_workflow_execution_reader()?;
+            }
             let previous = current(tx, &logical, &self.scope)?;
             let generation = if let Some(old) = &previous {
                 if old.context == context && old.body_digest == body_digest {
@@ -667,6 +684,12 @@ impl<R: Repository> Journal<R> {
             }
             if let Some(entry) = current(tx, &observation.logical, &self.scope)? {
                 match (&entry.body, &observation.target) {
+                    (Body::BeginExecutionPart(b),ObservedTarget::Part {value}) if b.run==value.run && b.ordinal==value.ordinal => {
+                        if let Resolution::Reply {response}=&entry.resolution && let Response::ExecutionPart(old)=response.as_ref() && old.binding.part!=value.id {return Err(StoreError::Integrity("v2 observed Part differs".into()));}
+                    }
+                    (Body::SubmitExecutionNode(b),ObservedTarget::Operation {activation,operation,intent_digest}) if b.intent_digest==*intent_digest => {
+                        if let Resolution::Reply {response}=&entry.resolution && let Response::ExecutionAdmission(old)=response.as_ref() && (old.activation!=*activation || old.operation.id()!=operation) {return Err(StoreError::Integrity("v2 observed operation differs".into()));}
+                    }
                     (Body::BeginPart {..},ObservedTarget::Part {value})=>{
                         if let Resolution::Reply {response}=&entry.resolution && let Response::Part(old)=response.as_ref() && old.id!=value.id{return Err(StoreError::Integrity("acknowledged part identity changed".into()));}
                     }
@@ -832,6 +855,18 @@ impl<R: Repository> Journal<R> {
             let before = bytes(&entry)?;
             update(&mut entry)?;
             validate_entry(&self.scope, &entry)?;
+            if let Resolution::Reply {response}=&entry.resolution
+                && let Response::ExecutionPart(reply)=response.as_ref()
+                && let Some(row)=tx.get(&key("executor-observed",&entry.logical)?)? {
+                let observed:Observation=decode(&row,"rx.executor-observation.v1")?;
+                if !matches!(observed.target,ObservedTarget::Part {value} if value.id==reply.binding.part && value.run==reply.binding.run && value.ordinal==reply.binding.ordinal) {return Err(StoreError::Integrity("late v2 Part reply differs".into()));}
+            }
+            if let Resolution::Reply {response}=&entry.resolution
+                && let Response::ExecutionAdmission(reply)=response.as_ref()
+                && let Some(row)=tx.get(&key("executor-observed",&entry.logical)?)? {
+                let observed:Observation=decode(&row,"rx.executor-observation.v1")?;
+                if !matches!(observed.target,ObservedTarget::Operation {activation,operation,intent_digest} if activation==reply.activation && operation==*reply.operation.id() && intent_digest==reply.operation.intent_digest()) {return Err(StoreError::Integrity("late v2 operation reply differs".into()));}
+            }
             if let Resolution::Reply { response } = &entry.resolution
                 && let Response::Part(reply) = response.as_ref()
                 && let Some(row) = tx.get(&key("executor-observed", &entry.logical)?)? {
@@ -916,6 +951,8 @@ fn validate_entry(scope: &Scope, entry: &Entry) -> Result<()> {
 }
 fn validate_response(body: &Body, response: &Response) -> Result<()> {
     match (body, response) {
+        (Body::BeginExecutionPart(b), Response::ExecutionPart(v)) => execution_v2::part_reply(b, v),
+        (Body::SubmitExecutionNode(b), Response::ExecutionAdmission(v)) => b.reply(v),
         (Body::BeginPart { run, ordinal, .. }, Response::Part(value))
             if *run == value.run
                 && *ordinal == value.ordinal
