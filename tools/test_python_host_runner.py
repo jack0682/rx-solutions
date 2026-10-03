@@ -75,6 +75,19 @@ class RunnerTests(unittest.TestCase):
                 if child.poll() is None:child.kill();child.wait(timeout=5)
                 child.stdout.close();child.stderr.close()
 
+    def test_v2_correlation_comes_from_owned_request_not_input_and_replay_preserves_it(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root=Path(temp);state,r=self.setup_skill(root,'import os\ndef main(inputs):\n return {"operation":os.environ["RX_HOST_OPERATION_ID"],"invocation":os.environ["RX_HOST_INVOCATION_ID"],"inputs":inputs}\n')
+            r['input']['operation']='caller-supplied-not-authority'
+            raw=json.dumps(r)
+            result=subprocess.run([sys.executable,'-I','-S','-B',str(RUNNER),'execute-entered',str(state)],
+                input=raw,text=True,capture_output=True,timeout=20)
+            self.assertEqual(result.returncode,0,result.stderr)
+            entry,done=[json.loads(row) for row in result.stdout.splitlines()]
+            self.assertEqual(done['output'],{'operation':r['operation'],'invocation':r['invocation'],'inputs':r['input']})
+            self.assertEqual(entry['operation'],r['operation'])
+            self.assertEqual(self.call('execute-entered',state,r),done)
+
     def test_sigkill_after_sdk_effect_never_replays_unknown(self):
         with tempfile.TemporaryDirectory() as temp:
             root=Path(temp);state,r=self.setup_skill(root,'from rx_fixture_sdk import record\nimport time\ndef main(inputs):\n record(inputs["path"])\n time.sleep(60)\n return {}\n')

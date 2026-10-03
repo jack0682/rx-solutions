@@ -19,8 +19,13 @@ python3 deployment/local-skills/rx execution \
   inspect P_RUN_UUID --reports
 ```
 
-`run` reserves one Part, binds the selected actual object, obtains the explicit v2
-start context, and submits the existing v2 Start. P repeats admission checks. It
+`run` reserves one Run for the ordered `--object` arguments. An optional `--count`
+must match their number; one object preserves the original one-Part command.
+The CLI binds the first actual object, obtains the explicit v2 start context,
+and submits the existing v2 Start. While waiting, it supplies the next object only
+after P reports the preceding Part CONFIRMED_COMPLETED. P rechecks current authority
+and references for every binding/admission. If the CLI exits, the existing Executor
+waits for the next object; repeat the original command/request ID to continue. P repeats admission checks. It
 never falls back to legacy Start. Keep the printed request UUID: after a lost reply,
 repeat the same command and UUID with a new output path or without `--output`.
 The saved request cannot be replaced by another publication or object. Creating a
@@ -66,5 +71,21 @@ verified envelope; its profile only pins environment and program artifacts. The
 [common contract](https://github.com/jack0682/rx_docs/blob/2f5526e40a458b7bffb7af0b6ba6d9ce22e0e4c0/docs/contracts/workflow-execution/v2/host-input-membership.md)
 owns input/binding/membership semantics, including for future external providers.
 
-This checkpoint does not establish N-Part operation or UNKNOWN reconciliation;
-those remain separate user-run checkpoints.
+For CP2, supply three distinct object references in ordinal order:
+
+```sh
+python3 deployment/local-skills/rx execution \
+  --connection /absolute/operator.json --state-dir /absolute/request-journal \
+  run /absolute/publication.json --count 3 \
+  --object /absolute/object-1.json --object /absolute/object-2.json \
+  --object /absolute/object-3.json --request-id CANONICAL_UUID --wait-seconds 180
+```
+
+The execution-v2 runner supplies RX_HOST_OPERATION_ID and RX_HOST_INVOCATION_ID
+from its existing private request solely for log correlation. They are not approved
+parameters or admission/recovery authority. The S2 SIM effects log records them
+before returning, so each effect can be joined to the product Run's operation and
+invocation records. Parameter bytes and main(inputs) remain unchanged. A repeated
+effect remains visible; this logging does not suppress it or certify completion.
+
+UNKNOWN reconciliation remains CP3 and is not implemented by this checkpoint.

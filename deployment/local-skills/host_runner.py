@@ -131,6 +131,10 @@ def handle(action, state, request, request_sha256=None):
         try:
             if dispatch_now(request) >= int(request["dispatch_deadline_ns"]):
                 raise TimeoutError("Host dispatch deadline elapsed")
+            if action == "execute-entered":
+                # Correlation only: never input parameters, admission or recovery authority.
+                os.environ["RX_HOST_OPERATION_ID"] = request["operation"]
+                os.environ["RX_HOST_INVOCATION_ID"] = request["invocation"]
             sys.path.append(str(paths[0]))  # No .pth or site customization processing.
             with contextlib.redirect_stdout(sys.stderr):
                 namespace = {"__name__": "rx_skill", "__file__": str(environment / "skill.py")}
