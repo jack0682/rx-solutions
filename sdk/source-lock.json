@@ -51,7 +51,7 @@
     "crates/rx-process-contract/src/execution_v2.rs": "c1331a083fc61025b783b33ad1053eb6c21f60719e858e9e4e895624e8ae732e",
     "crates/rx-process-contract/src/execution_v2/executor.rs": "02ed17e925ed6edca0e8c01659fae52f3c2a4bb07fabfc1491b08e29338d7e64",
     "crates/rx-process-contract/src/execution_v2/host_configuration.rs": "a75ed6ab86162359f4c5b9f42061824566fcf056b05e3d42c47441d6dd350f46",
-    "crates/rx-process-contract/src/execution_v2/host_inputs.rs": "d4c9a6599ff4002f06493fe1685a6d627f1adb423a9ecb369a8378a76e0db6de",
+    "crates/rx-process-contract/src/execution_v2/host_inputs.rs": "78547f9e135312e830045b74f8ca158a05319376cb5041a65cc52d94a0aa07ad",
     "crates/rx-process-contract/src/execution_v2/host_qualification.rs": "18f1484b0114c75fe287af45295880cf59691a9cde6638c43c59a030b9c18ec9",
     "crates/rx-process-contract/src/execution_v2/materialize.rs": "e438a54de80b31d9242d10bcfa367053886f1a4970251f367a9f3249c9697dbb",
     "crates/rx-process-contract/src/execution_v2/operation.rs": "8dd55a26707b437f7bc97f4bd30843b00d0df5a3e067edbabb5d331f34081c0d",
@@ -145,13 +145,13 @@
     "spec/host-configuration/v1/README.md": "7b0d09173cb0c0251b808a2724ce7a9ba6c47c90d70ea3cca889ec1344daab04",
     "spec/host-configuration/v1/binding.json": "905aea88c5ab57df24d671cb0110358f8d8b0a510db1f2be3885f93505f7d6a0",
     "spec/host-configuration/v2/README.md": "678595dc38ab22dafdef44ca48000f735e9ec9db1ee4ea04f7559543d2fa27eb",
-    "spec/host-configuration/v2/binding.json": "df52c961161aa760c744f426fb931684ff88dd03106e03a51e851e6269cb179a",
-    "spec/host-execution/v2/README.md": "c6a1adbe78b64e04463db138c0ee2951da3f34acfbf20148fb16b510fa999b0f",
-    "spec/host-execution/v2/binding.json": "be2b52925cf11784d65e5084ba0bf5c1ca08b4240c95950faf49127e27a3034e",
+    "spec/host-configuration/v2/binding.json": "111f79b91a88b63de6ea54fed4bbee5cd1399ee4f4c350429467da01f3283c83",
+    "spec/host-execution/v2/README.md": "e88686d684b7b6f6a5b38ce033e05bea4b7fbaba7faf6557acf25f161b8f0af5",
+    "spec/host-execution/v2/binding.json": "0314b0a6d7be1e14f81028707ab0571099901101c64e16945e03f36cd1ef966c",
     "spec/host-qualification/v1/README.md": "948dd66b94eb1f147056acbdca8cf615f26aeb1a6e0310978432cbc826c3737a",
     "spec/host-qualification/v1/binding.json": "61b5cd0b0dc5e2b119259594f8143408aa7eb5b18c592c4bed4b899c49ec226e",
     "spec/host-qualification/v2/README.md": "9309967da7dfb6fd5556caeae327c69d7ffa159347f0531a222b163c37208ccd",
-    "spec/host-qualification/v2/binding.json": "be541dfab31f392f77cf361478c5aa66ad167a223cc5ed51384464284ae1649b",
+    "spec/host-qualification/v2/binding.json": "8c9720035e78c4898d22ff5962b2198245e7b3ff1d288505b77279663bb5d84d",
     "spec/host-read/v1/README.md": "e4487a9796708c75ab99926dedfd7640efaaabcf0264ed21e37abb24c7d23b2e",
     "spec/host-read/v1/binding.json": "95cfdb541ad5096cceb53b6f70e6d41a0603bf738ecb5b44e9b24e31eee223d3",
     "spec/production/v1/README.md": "504901d6a015a69efb4ce5f73beebd09cb66aae4362bec2e2ce52c8ed012e316",
@@ -161,7 +161,7 @@
     "spec/resident-reporting/v1/README.md": "9d387c97ce6ed0c94d44d674ac494ab5c821f1bbac9f87946f89f2fd48bc3e9b",
     "spec/resident-reporting/v1/binding.json": "af2c5d8fb86fc157a22d42eb7b36e444304838c5aab3312f50742cdc320d7300",
     "spec/workflow-execution/v2/README.md": "d4d9c64743bf5600857ca887034cacd87e47c7418e5b75f4d09dd4607cefcd31",
-    "spec/workflow-execution/v2/binding.json": "1b19e9d756580ea9a834624b44d30aa4beb1e717823e2b7567b7e4fec7c899cf"
+    "spec/workflow-execution/v2/binding.json": "bb74f6b0285e6a73732e2fb6670a7a0dbbdd5b9666b4a86f39504a4196693fd6"
   },
   "schema": "rx.host-sdk.v1"
 }

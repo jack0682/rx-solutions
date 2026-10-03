@@ -22,7 +22,34 @@ pub struct NativeDispatch {
     pub device_session: Id,
     pub expires_at: rx_domain::types::TimePoint,
 }
+pub enum NativeSubmission {
+    Captured(NativeCapture),
+    Entered(rx_process_contract::execution_v2::host_inputs::NativeEntry),
+}
+pub struct NativeCompletion {
+    pub operation: Id,
+    pub invocation: Id,
+    pub capture: NativeCapture,
+}
 pub trait NativeAdapter: Send {
+    /// Called under the existing command gate. Entered requires profile-verified evidence.
+    fn begin_with_context(
+        &mut self,
+        op: &Id,
+        inv: &Id,
+        intent: &Intent,
+        context: &NativeDispatch,
+    ) -> Result<NativeSubmission> {
+        self.submit_with_context(op, inv, intent, context)
+            .map(NativeSubmission::Captured)
+    }
+    /// Nonblocking observation of already entered calls; never submits native work.
+    fn completed(&mut self) -> Result<Vec<NativeCompletion>> {
+        Ok(vec![])
+    }
+    /// Called only after the original capture is committed through the Host writer.
+    fn acknowledge_completion(&mut self, _operation: &Id) {}
+
     /// Called only after Host admission is closed. May begin passive bridge shutdown once support is proven.
     fn prepare_shutdown(&mut self, _resources: &[rx_domain::types::Name]) -> Result<()> {
         Ok(())

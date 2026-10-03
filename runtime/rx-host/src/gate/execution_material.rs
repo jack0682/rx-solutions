@@ -141,7 +141,8 @@ impl<N: NativeAdapter, C: Clock, H: BoundaryHook> Host<N, C, H> {
                 .get(&meta_key)?
                 .ok_or(rx_ports::StoreError::Integrity("Host meta missing".into()))?;
             let mut meta: HostMeta = decode(&row, "rx.host.meta.v1")?;
-            meta.execution_reader = Some(Counter(2));
+            meta.execution_reader =
+                Some(meta.execution_reader.unwrap_or(Counter(2)).max(Counter(2)));
             tx.put(
                 &meta_key,
                 Some(row.revision),

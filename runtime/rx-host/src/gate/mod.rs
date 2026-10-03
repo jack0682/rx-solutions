@@ -121,7 +121,10 @@ impl<N: NativeAdapter, C: Clock, H: BoundaryHook> Host<N, C, H> {
                 .get(&name("host/meta"))?
                 .ok_or(rx_ports::StoreError::Integrity("Host meta missing".into()))?;
             let meta: HostMeta = decode(&meta_row, "rx.host.meta.v1")?;
-            if meta.execution_reader.is_some_and(|v| v != Counter(2)) {
+            if meta
+                .execution_reader
+                .is_some_and(|v| v != Counter(2) && v != Counter(3))
+            {
                 return Err(rx_ports::StoreError::Integrity(
                     "unsupported Host execution reader".into(),
                 ));
@@ -171,9 +174,39 @@ impl<N: NativeAdapter, C: Clock, H: BoundaryHook> Host<N, C, H> {
         })
     }
     fn lock(&self) -> Result<MutexGuard<'_, Core<N>>> {
-        self.core
+        let mut core = self
+            .core
             .lock()
-            .map_err(|_| HostError::NativeUnknown("command gate faulted".into()))
+            .map_err(|_| HostError::NativeUnknown("command gate faulted".into()))?;
+        for completed in core.native.completed()? {
+            let row = core
+                .store
+                .transact(|tx| tx.get(&key("delivery", &completed.operation)))?
+                .ok_or(HostError::NotFound)?;
+            let mut record: DeliveryRecord = decode(&row, "rx.host.delivery.v1")?;
+            // An entry-receipt store fault leaves SEND_ENTERED uncertain and inspectable.
+            // Completion observation must not promote a missing committed entry proof.
+            if record.state == ReceiptState::SendEntered {
+                continue;
+            }
+            if record.invocation.as_ref() != Some(&completed.invocation)
+                || record.device_session != completed.capture.device_session
+                || !matches!(
+                    record.state,
+                    ReceiptState::NativeAccepted | ReceiptState::ResultCaptured
+                )
+            {
+                return Err(HostError::Conflict);
+            }
+            if record.state != ReceiptState::ResultCaptured
+                && let Err(error) = persist_capture(&mut core, &mut record, completed.capture)
+            {
+                self.protection.react(ProtectionIncident::StoreFault);
+                return Err(error);
+            }
+            core.native.acknowledge_completion(&completed.operation);
+        }
+        Ok(core)
     }
     pub(crate) fn bind_service_boot(&self, attempt: &Id) -> Result<()> {
         let mut core = self.lock()?;

@@ -190,6 +190,19 @@ impl<N: NativeAdapter, C: Clock, H: BoundaryHook> Host<N, C, H> {
                     &(request.permit.id.clone(), request.operation.clone()),
                 )?,
             )?;
+            if input.is_some() {
+                // Fence older readers before any new completion obligation can exist.
+                let meta_row = tx
+                    .get(&name("host/meta"))?
+                    .ok_or(rx_ports::StoreError::Integrity("Host meta missing".into()))?;
+                let mut meta: HostMeta = decode(&meta_row, "rx.host.meta.v1")?;
+                meta.execution_reader = Some(Counter(3));
+                tx.put(
+                    &name("host/meta"),
+                    Some(meta_row.revision),
+                    &doc("rx.host.meta.v1", &meta)?,
+                )?;
+            }
             record_delivery(tx, &mut record, Some(row.revision))
         }) {
             self.protection.react(ProtectionIncident::StoreFault);
@@ -216,13 +229,44 @@ impl<N: NativeAdapter, C: Clock, H: BoundaryHook> Host<N, C, H> {
                 request.permit.expires_at.clone()
             },
         };
-        let capture = core.native.submit_with_context(
+        let submission = core.native.begin_with_context(
             &record.operation,
             invocation,
             &record.intent,
             &context,
         )?;
         self.hooks.after_native_entry();
+        let capture = match submission {
+            NativeSubmission::Captured(capture) => capture,
+            NativeSubmission::Entered(entry) => {
+                entry.validate().map_err(invalid)?;
+                if context.execution.is_none()
+                    || entry.operation != record.operation
+                    || entry.invocation != *invocation
+                    || entry.intent_digest != record.digest
+                    || entry.profile_digest != record.intent.profile_digest
+                    || entry.device_session != record.device_session
+                {
+                    return Err(HostError::Conflict);
+                }
+                if let Err(error) = core.store.transact(|tx| {
+                    tx.put(
+                        &key("native-entry", &record.operation),
+                        None,
+                        &doc("rx.host.native-entry.v2", &entry)?,
+                    )?;
+                    let row = tx
+                        .get(&key("delivery", &record.operation))?
+                        .ok_or(rx_ports::StoreError::Integrity("delivery missing".into()))?;
+                    record.state = ReceiptState::NativeAccepted;
+                    record_delivery(tx, &mut record, Some(row.revision))
+                }) {
+                    self.protection.react(ProtectionIncident::StoreFault);
+                    return Err(error.into());
+                }
+                return Ok(record);
+            }
+        };
         if let Err(error) = persist_capture(&mut core, &mut record, capture) {
             if matches!(error, HostError::Store(_)) {
                 self.protection.react(ProtectionIncident::StoreFault);

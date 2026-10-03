@@ -9,6 +9,8 @@ use std::sync::atomic::{AtomicU64, Ordering};
 struct Spy {
     inner: FileDevice<ManualClock>,
     calls: Arc<AtomicU64>,
+    released: Arc<AtomicU64>,
+    pending: Option<NativeCompletion>,
 }
 impl NativeAdapter for Spy {
     fn environment(&self) -> Environment {
@@ -30,7 +32,7 @@ impl NativeAdapter for Spy {
         self.inner.guard(i, n)
     }
     fn can_handover(&self, r: &[Name]) -> bool {
-        self.inner.can_handover(r)
+        self.pending.is_none() && self.inner.can_handover(r)
     }
     fn handover_snapshot(&self, r: &[Name]) -> Result<LocalHandover> {
         self.inner.handover_snapshot(r)
@@ -48,6 +50,46 @@ impl NativeAdapter for Spy {
         assert_eq!(c.execution.as_ref().unwrap().binding.operation, *o);
         self.calls.fetch_add(1, Ordering::SeqCst);
         self.inner.submit(o, v, i)
+    }
+    fn begin_with_context(
+        &mut self,
+        o: &Id,
+        v: &Id,
+        i: &rx_domain::intent::Intent,
+        c: &NativeDispatch,
+    ) -> Result<NativeSubmission> {
+        let capture = self.submit_with_context(o, v, i, c)?;
+        self.pending = Some(NativeCompletion {
+            operation: o.clone(),
+            invocation: v.clone(),
+            capture,
+        });
+        let payload = b"profile-specific-entry".to_vec();
+        Ok(NativeSubmission::Entered(v2::host_inputs::NativeEntry {
+            operation: o.clone(),
+            invocation: v.clone(),
+            intent_digest: i.digest().unwrap(),
+            device_session: c.device_session.clone(),
+            profile_digest: i.profile_digest,
+            evidence: artifact("test/native-entry", &payload),
+            payload,
+        }))
+    }
+    fn completed(&mut self) -> Result<Vec<NativeCompletion>> {
+        Ok(self
+            .pending
+            .as_ref()
+            .filter(|_| self.released.load(Ordering::SeqCst) != 0)
+            .map(|p| NativeCompletion {
+                operation: p.operation.clone(),
+                invocation: p.invocation.clone(),
+                capture: p.capture.clone(),
+            })
+            .into_iter()
+            .collect())
+    }
+    fn acknowledge_completion(&mut self, _: &Id) {
+        self.pending = None;
     }
     fn lookup(&mut self, o: &Id, v: &Id) -> Result<Option<NativeCapture>> {
         self.inner.lookup(o, v)
@@ -104,9 +146,12 @@ fn host_uses_its_acknowledged_domain_and_rejects_consistently_rehashed_foreign_i
         ticks: Arc::new(AtomicU64::new(1000)),
     };
     let calls = Arc::new(AtomicU64::new(0));
+    let released = Arc::new(AtomicU64::new(0));
     let native = Spy {
         inner: FileDevice::open(dir.path().join("device"), clock.clone()).unwrap(),
         calls: calls.clone(),
+        released: released.clone(),
+        pending: None,
     };
     let action = policy.templates.values().next().unwrap();
     let cell = name("cell/execution");
@@ -479,7 +524,41 @@ fn host_uses_its_acknowledged_domain_and_rejects_consistently_rehashed_foreign_i
             bound.binding.digest().unwrap(),
         )
         .unwrap();
-    assert_eq!(captured.state, ReceiptState::ResultCaptured);
+    assert_eq!(captured.state, ReceiptState::NativeAccepted);
+    assert_eq!(host.journals().unwrap().execution_reader, Some(Counter(3)));
+    assert!(
+        !host
+            .lock()
+            .unwrap()
+            .native
+            .can_handover(&action.intent.resource_set)
+    );
+    for _ in 0..3 {
+        assert_eq!(
+            host.inspect_cell(&caller, &cell)
+                .unwrap()
+                .pending_operations,
+            vec![operation.clone()]
+        );
+    }
+    released.store(1, Ordering::SeqCst);
+    assert!(
+        host.inspect_cell(&caller, &cell)
+            .unwrap()
+            .pending_operations
+            .is_empty()
+    );
+    assert!(host.lock().unwrap().native.pending.is_none());
+    assert_eq!(
+        host.reconcile(&caller, &operation).unwrap().state,
+        ReceiptState::ResultCaptured
+    );
+    assert!(
+        host.lock()
+            .unwrap()
+            .native
+            .can_handover(&action.intent.resource_set)
+    );
     assert_eq!(calls.load(Ordering::SeqCst), 1);
     assert_eq!(
         host.execution_binding(&caller, &operation, bound.binding.digest().unwrap())

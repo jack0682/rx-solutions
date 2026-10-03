@@ -83,7 +83,7 @@ def dispatch_now(request):
     return time.monotonic_ns()
 
 
-def handle(action, state, request):
+def handle(action, state, request, request_sha256=None):
     validate(request)
     state = Path(state)
     if not state.is_absolute() or state.is_symlink() or not state.is_dir():
@@ -92,7 +92,7 @@ def handle(action, state, request):
     if root.is_symlink(): raise ValueError("execution journal symlink refused")
     if action == "lookup":
         return stored(root, request)  # Read only: never loads the SDK or writes a marker.
-    if action != "execute": raise ValueError("unsupported Python Host action")
+    if action not in ("execute", "execute-entered"): raise ValueError("unsupported Python Host action")
     root.mkdir(mode=0o700, exist_ok=True)
     lock = os.open(root / "owner.lock", os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
     try:
@@ -119,6 +119,15 @@ def handle(action, state, request):
             raise ValueError("Host dispatch deadline elapsed before SDK import")
         # The fully synced marker precedes module import, which itself may call an SDK.
         publish(root / "request.json", request)
+        if action == "execute-entered":
+            if not isinstance(request_sha256, str) or len(request_sha256) != 64:
+                raise ValueError("exact request byte digest required")
+            if dispatch_now(request) >= int(request["dispatch_deadline_ns"]):
+                raise TimeoutError("entry deadline elapsed")
+            entry = {key: request[key] for key in ("operation", "invocation", "intent_digest", "environment_digest", "device_session")}
+            entry.update(schema="rx.python-native-entry.v2", request_sha256=request_sha256)
+            publish(root / "entry.json", entry)
+            print(json.dumps(entry, separators=(",", ":")), flush=True)
         try:
             if dispatch_now(request) >= int(request["dispatch_deadline_ns"]):
                 raise TimeoutError("Host dispatch deadline elapsed")
@@ -143,7 +152,7 @@ if __name__ == "__main__":
     try:
         raw = sys.stdin.buffer.read(131073)
         if len(raw) > 131072: raise ValueError("request too large")
-        value = handle(sys.argv[1], sys.argv[2], json.loads(raw))
+        value = handle(sys.argv[1], sys.argv[2], json.loads(raw), hashlib.sha256(raw).hexdigest())
         print(json.dumps(value, allow_nan=False, separators=(",", ":")), flush=True)
     except (ValueError, OSError, KeyError) as exc:
         print("Python Host boundary: " + str(exc), file=sys.stderr)

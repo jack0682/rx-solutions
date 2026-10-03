@@ -20,6 +20,22 @@ macro_rules! delegate {
     };
 }
 impl<C: Clock> NativeAdapter for BuiltinAdapter<C> {
+    fn begin_with_context(
+        &mut self,
+        op: &Id,
+        inv: &Id,
+        intent: &Intent,
+        ctx: &NativeDispatch,
+    ) -> crate::Result<NativeSubmission> {
+        delegate!(self, begin_with_context(op, inv, intent, ctx))
+    }
+    fn completed(&mut self) -> crate::Result<Vec<NativeCompletion>> {
+        delegate!(self, completed())
+    }
+    fn acknowledge_completion(&mut self, op: &Id) {
+        delegate!(self, acknowledge_completion(op))
+    }
+
     fn submit_with_context(
         &mut self,
         op: &Id,
