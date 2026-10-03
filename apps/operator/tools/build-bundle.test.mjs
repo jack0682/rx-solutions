@@ -17,7 +17,7 @@ test('manifest is reproducible, ordered, exact-size and excludes itself', async 
   const first = await buildBundle(root);
   assert.deepEqual(await buildBundle(root), first);
   const manifest = JSON.parse(await fs.readFile(path.join(root, 'operator-bundle.json')));
-  assert.equal(manifest.schema, 'rx.operator-ui-bundle.v1');
+  assert.equal(manifest.schema, 'rx.operator-ui-bundle.v2');
   assert.deepEqual(manifest.files.map(f => f.path), ['assets/app.js', 'index.html']);
   assert.equal(manifest.files[0].size_bytes, String(Buffer.byteLength('console.log("RX");')));
   await fs.appendFile(path.join(root, 'assets/app.js'), '\n');

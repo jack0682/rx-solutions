@@ -278,9 +278,9 @@ impl Snapshot {
         let version: i64 = connection
             .query_row("PRAGMA user_version", [], |r| r.get(0))
             .map_err(failed)?;
-        if version != 6 {
+        if !matches!(version, 6 | 10) {
             return Err(failed(
-                "recovery inspection requires exact existing SQLite schema 6; no migration",
+                "recovery inspection requires existing SQLite schema 6 or execution-v2 reader 10; no migration",
             ));
         }
         let integrity: String = connection

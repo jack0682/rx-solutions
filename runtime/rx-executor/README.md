@@ -22,3 +22,7 @@ The [Run/visit execution service and retained stop intent](SERVICE_LIFECYCLE.md)
 [Serial material coordination](PRODUCTION_COORDINATOR.md) is connected as the service's default mode. P validates material admission/completion, and original IDs and budget consumption are preserved through response loss. ManualVisit remains available through separate configuration.
 
 [Offline recovery inspection](RECOVERY_INSPECT.md), which neither creates/changes existing service journals nor connects to the network, is available through `cell recovery-inspect CONFIG`. It preserves original PENDING/ATTENTION, attachment and request records without current P queries or operating resumption.
+
+[Explicit execution v2](EXECUTION_V2.md) connects negotiated Part/node requests and
+Part-specific snapshots to the durable worker under `SERIAL_EXECUTION_V2`. Its
+integration-evidence limits are recorded separately from the v1 coordinator.

@@ -1,4 +1,5 @@
 mod assignment;
+pub mod execution_v2;
 mod preparation;
 mod production;
 pub use assignment::ValidatedAssignment;
@@ -72,6 +73,8 @@ pub struct PeerPin {
     pub definition: Digest,
 }
 pub struct Client {
+    execution: rx_protocol::execution_v2::execution_control_service_client::ExecutionControlServiceClient<Channel>,
+    execution_session: Option<rx_process_contract::execution_v2::executor::Session>,
     pin: PeerPin,
     clock: Arc<dyn crate::clock::Clock>,
     session: base::Session,
@@ -210,6 +213,8 @@ impl Client {
             return Err(invalid("cell negotiation mismatch"));
         }
         Ok(Self {
+            execution: rx_protocol::execution_v2::execution_control_service_client::ExecutionControlServiceClient::new(channel.clone()).max_decoding_message_size(limit),
+            execution_session: None,
             pin,
             clock,
             session,
@@ -529,6 +534,8 @@ impl Client {
             expected_revision: revision.map(|r| r.0),
         };
         match body {
+            Body::BeginExecutionPart(b) => self.emit_execution_part(key, b).await,
+            Body::SubmitExecutionNode(b) => self.emit_execution_node(key, b).await,
             Body::BeginPart {
                 cell: cell_id,
                 run,
