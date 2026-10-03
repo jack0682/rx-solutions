@@ -68,7 +68,7 @@ impl Default for CellOptions {
     }
 }
 impl CellOptions {
-    fn validated(&self) -> Result<Options> {
+    fn validated(&self, execution_v2: bool) -> Result<Options> {
         if !(10..=1000).contains(&self.poll_ms)
             || !(100..=60000).contains(&self.communication_grace_ms)
             || !(100..=60000).contains(&self.stop_timeout_ms)
@@ -76,7 +76,11 @@ impl CellOptions {
             return Err("executor cell timing options out of range".into());
         }
         Ok(Options {
-            coordination: CoordinationMode::SerialProduction,
+            coordination: if execution_v2 {
+                CoordinationMode::SerialExecutionV2
+            } else {
+                CoordinationMode::SerialProduction
+            },
             poll_ms: self.poll_ms,
             communication_grace_ms: self.communication_grace_ms,
             stop_timeout_ms: self.stop_timeout_ms,
@@ -87,12 +91,17 @@ impl CellOptions {
 #[serde(deny_unknown_fields)]
 struct CellConfig {
     schema: Name,
+    #[serde(default, skip_serializing_if = "is_false")]
+    execution_v2: bool,
     service_root: PathBuf,
     expected_service: Identity,
     platform: Platform,
     engine: PinnedFile,
     #[serde(default)]
     options: CellOptions,
+}
+fn is_false(value: &bool) -> bool {
+    !value
 }
 impl CellConfig {
     fn read(path: &Path) -> Result<Self> {
@@ -116,7 +125,7 @@ impl CellConfig {
             return Err("executor cell deployment configuration invalid".into());
         }
         tonic::transport::Endpoint::from_shared(value.platform.uri.clone())?;
-        value.options.validated()?;
+        value.options.validated(value.execution_v2)?;
         Ok(value)
     }
     fn normalize_root(&mut self) -> Result<()> {
@@ -269,15 +278,20 @@ pub(super) async fn run(path: &Path) -> Result<bool> {
     let outcome = async {
         #[cfg(feature = "test-harness")]
         super::linux::before_connect_probe()?;
-        let client = tokio::select! {
+        let mut client = tokio::select! {
             biased;
             _=shutdown.changed()=>return Err::<bool, Box<dyn std::error::Error>>("executor cell startup interrupted before connection completed".into()),
             connected=Client::connect(endpoint, pin, clock.clone())=>connected?,
         };
+        if config.execution_v2 {
+            // Declare the installed protocol before P can admit its first Run. No Start
+            // or execution authority is acquired, and a failed v2 declaration has no fallback.
+            client.negotiate_execution().await?;
+        }
         let service = CellService::new(
             client, journal, config.service_root.clone(),
             PinnedPlanner(Executable { path: config.engine.path.clone(), sha256: config.engine.sha256 }),
-            clock, config.options.validated()?,
+            clock, config.options.validated(config.execution_v2)?,
         )?;
         if let Some(guarded) = &mut guarded {
             guarded.publish(GuardedState::Ready).await.map_err(std::io::Error::other)?;

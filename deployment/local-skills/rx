@@ -196,7 +196,18 @@ def main():
     definition_arguments(sub)
     from workflow_client import arguments as workflow_arguments, run as workflow_run, OutputExistsError
     workflow_arguments(sub)
+    from execution_client import arguments as execution_arguments, run as execution_run
+    execution_arguments(sub)
     args = parser.parse_args()
+    if args.command == "execution":
+        try:
+            result = execution_run(args)
+        except (ValueError, OSError, KeyError, TypeError) as exc:
+            print("RX execution: " + str(exc) + ". Original requests remain under " + str(args.state_dir.absolute()), file=sys.stderr)
+            sys.exit(1)
+        print(json.dumps(result, indent=2))
+        if args.action in ("run", "start") and result["result"]["run"]["value"]["state"] != "COMPLETED": sys.exit(2)
+        return
     if args.command == "workflow":
         try:
             result, rendered = workflow_run(args)

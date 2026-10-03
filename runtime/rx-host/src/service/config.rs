@@ -48,6 +48,12 @@ impl PinnedFile {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "SCREAMING_SNAKE_CASE", deny_unknown_fields)]
 pub enum Backend {
+    #[cfg(unix)]
+    PythonExecutionPackage {
+        directory: PathBuf,
+        manifest_digest: Digest,
+        policy: PinnedFile,
+    },
     FileSimulation,
     #[cfg(unix)]
     PythonSkillSimulation {
@@ -99,6 +105,8 @@ pub struct Publication {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Configuration {
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub execution_materials: Vec<super::execution_material::Material>,
     pub schema: Name,
     pub installation: Id,
     pub release_digest: Digest,
@@ -127,7 +135,8 @@ impl Loaded {
             return Err("startup file type/size".into());
         }
         let config: Configuration = canonical::decode_json(&std::fs::read(path)?)?;
-        if config.schema.as_str() != "rx.host-startup.v1"
+        if config.execution_materials.len() > 64
+            || config.schema.as_str() != "rx.host-startup.v1"
             || !config.data_directory.is_absolute()
             || !config.runtime_directory.is_absolute()
             || config.data_directory.starts_with(&config.runtime_directory)

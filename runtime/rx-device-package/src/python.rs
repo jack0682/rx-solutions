@@ -30,6 +30,16 @@ pub fn assemble_library(
         .map_err(|e| Error::Invalid(e.to_string()))?;
     assemble_files(environment, recipe, files, assets)
 }
+pub fn assemble_execution(
+    assembly: &rx_host::service::python_execution_package::Assembly,
+    environment: &[u8],
+    recipe: &Recipe,
+) -> Result<Candidate> {
+    let (_, _, files, assets) =
+        rx_host::service::python_execution_package::documents(assembly, environment)
+            .map_err(|e| Error::Invalid(e.to_string()))?;
+    assemble_files(environment, recipe, files, assets)
+}
 fn assemble_files(
     environment: &[u8],
     recipe: &Recipe,

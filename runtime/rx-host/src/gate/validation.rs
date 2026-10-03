@@ -9,7 +9,12 @@ pub(super) fn validate_scopes(binding: &Binding, scopes: &BTreeMap<Name, Counter
     Ok(())
 }
 
-pub(super) fn validate_identity<N>(core: &mut Core<N>, r: &Request) -> Result<()> {
+pub(super) fn validate_identity<N>(
+    core: &mut Core<N>,
+    r: &Request,
+    approved: Option<Digest>,
+) -> Result<()> {
+    let registered = approved.unwrap_or(r.digest);
     let qualified = qualification::current_target(core, &r.permit.cell)?;
     let b = core
         .bindings
@@ -31,7 +36,7 @@ pub(super) fn validate_identity<N>(core: &mut Core<N>, r: &Request) -> Result<()
                 .as_ref()
                 .map_or(b.qualification_revision, |q| q.qualification_revision)
         || qualified.as_ref().is_some_and(|q| {
-            !q.allowed_intents.contains(&r.digest)
+            !q.allowed_intents.contains(&registered)
                 || !q.purposes.iter().any(|p| {
                     p.as_str()
                         == match r.permit.purpose {
@@ -44,7 +49,7 @@ pub(super) fn validate_identity<N>(core: &mut Core<N>, r: &Request) -> Result<()
         || !b
             .allowed_intents
             .iter()
-            .any(|i| i.digest().ok() == Some(r.digest))
+            .any(|i| i.digest().ok() == Some(registered))
     {
         return Err(HostError::Conflict);
     }
@@ -73,6 +78,7 @@ pub(super) fn validate_current<N: NativeAdapter>(
     caller: &Caller,
     r: &Request,
     now: &TimePoint,
+    input: Option<&BoundInput>,
 ) -> Result<Guard> {
     require_admission(core)?;
     if r.permit.host_boot != core.boot
@@ -130,7 +136,7 @@ pub(super) fn validate_current<N: NativeAdapter>(
     if r.permit.conditions != required {
         return Err(HostError::Guard);
     }
-    let guard = core.native.guard(&r.intent, now)?;
+    let guard = core.native.guard_with_input(&r.intent, now, input)?;
     if qualification::device_session(core, &r.permit.cell)?
         .is_some_and(|session| session != guard.device_session)
     {

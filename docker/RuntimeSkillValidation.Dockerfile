@@ -1,3 +1,5 @@
+# Refresh source mtimes before using Cargo caches: copied historical mtimes can otherwise
+# reuse stale workspace binaries while the emitted source inventory describes new files.
 # Actual P/Host/Executor binaries for a device-free integration acceptance image.
 # This is not the complete distribution image or a physical deployment profile.
 FROM rust:1.98.1-bookworm@sha256:9a73a5088750b4c95158ab26629c854c3d6fc4b173cb7bc8079ad252d8ed7bfa AS p-build
@@ -8,6 +10,7 @@ COPY --from=platform_source /proto ./proto
 COPY --from=platform_source /spec ./spec
 RUN --mount=type=cache,id=rx-runtime-skill-p-registry,target=/usr/local/cargo/registry \
     --mount=type=cache,id=rx-runtime-skill-p-target,target=/source/target \
+    find /source -path /source/target -prune -o -type f -exec touch {} + && \
     cargo build --release --locked -p rx-platformd && mkdir /out && cp target/release/rx-platformd target/release/rx-package-store /out/
 RUN find /source -type f -not -path '/source/target/*' -print0 | sort -z | xargs -0 sha256sum > /out/source.sha256
 
@@ -24,6 +27,7 @@ COPY interfaces ./interfaces
 COPY deployment/local-skills/host_runner.py deployment/local-skills/python_environment.py ./deployment/local-skills/
 RUN --mount=type=cache,id=rx-runtime-skill-s-registry,target=/usr/local/cargo/registry \
     --mount=type=cache,id=rx-runtime-skill-s-target,target=/source/target \
+    find /source -path /source/target -prune -o -type f -exec touch {} + && \
     cargo build --release --locked -p rx-host -p rx-executor -p rx-process-package -p rx-device-package && mkdir /out && cp target/release/rx-hostd target/release/rx-executor-service target/release/rx-process-package target/release/rx-device-package /out/
 RUN --mount=type=cache,id=rx-runtime-skill-s-registry,target=/usr/local/cargo/registry \
     --mount=type=cache,id=rx-runtime-skill-s-target,target=/source/target \
@@ -50,7 +54,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends libstdc++6 libz
 COPY --from=s-build /out/ /opt/rx/bin/
 COPY --from=bt-build /build/rx-bt-engine /opt/rx/bin/
 COPY LICENSE NOTICE /opt/rx/
-COPY deployment/local-skills/rx deployment/local-skills/runtime_client.py deployment/local-skills/image_identity.py deployment/local-skills/python_environment.py deployment/local-skills/definitions_client.py deployment/local-skills/workflow_client.py /opt/rx/client/
+COPY deployment/local-skills/rx deployment/local-skills/runtime_client.py deployment/local-skills/image_identity.py deployment/local-skills/python_environment.py deployment/local-skills/definitions_client.py deployment/local-skills/workflow_client.py deployment/local-skills/execution_client.py /opt/rx/client/
 COPY deployment/local-skills/host_runner.py deployment/local-skills/python_environment.py /opt/rx/python/
 RUN cp /usr/local/bin/python3.12 /opt/rx/python/python && python3 -c 'import hashlib,json,pathlib; p=pathlib.Path("/opt/rx/python"); (p/"release.json").write_text(json.dumps({"schema":"rx.python-host-release.v1","interpreter_sha256":hashlib.sha256((p/"python").read_bytes()).hexdigest()}))'
 USER 10001:10001

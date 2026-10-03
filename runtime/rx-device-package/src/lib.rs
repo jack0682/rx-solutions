@@ -192,6 +192,17 @@ pub fn from_files(mut files: BTreeMap<PackagePath, Vec<u8>>) -> Result<Candidate
             jtc::assemble(&a.template, &a.site, &recipe)?
         }
         #[cfg(unix)]
+        Some("rx.python-execution-assembly.v2") => {
+            let a = canonical::decode_json(assembly).map_err(|e| Error::Invalid(e.to_string()))?;
+            python::assemble_execution(
+                &a,
+                files
+                    .get(&path("environment.json"))
+                    .ok_or_else(|| Error::Invalid("Python environment absent".into()))?,
+                &recipe,
+            )?
+        }
+        #[cfg(unix)]
         Some("rx.python-skill-assembly.v1") => {
             let registration: rx_host::service::python_skill::Registration =
                 serde_json::from_value(source["registration"].clone())
@@ -233,6 +244,8 @@ pub fn decode_verified(
 }
 pub enum Device {
     #[cfg(unix)]
+    PythonExecution(rx_host::service::python_execution_package::Checked),
+    #[cfg(unix)]
     PythonLibrary(rx_host::service::python_library::Library),
     #[cfg(unix)]
     Python(rx_host::service::python_skill::Registration),
@@ -240,6 +253,17 @@ pub enum Device {
     Jtc(rx_host::service::jtc_package::LoadedDevice),
 }
 pub fn decode_verified_any(package: &VerifiedPackage) -> Result<Device> {
+    #[cfg(unix)]
+    if package
+        .file(&path("authoring/assembly.json"))
+        .and_then(|raw| serde_json::from_slice::<serde_json::Value>(raw).ok())
+        .is_some_and(|v| v["schema"] == "rx.python-execution-assembly.v2")
+    {
+        return rx_host::service::python_execution_package::decode(package)
+            .map(Device::PythonExecution)
+            .map_err(|e| Error::Invalid(e.to_string()));
+    }
+
     #[cfg(unix)]
     if package
         .file(&path("authoring/assembly.json"))

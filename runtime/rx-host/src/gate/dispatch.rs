@@ -2,10 +2,27 @@ use super::*;
 
 impl<N: NativeAdapter, C: Clock, H: BoundaryHook> Host<N, C, H> {
     pub fn prepare(&self, caller: &Caller, request: Request) -> Result<DeliveryRecord> {
+        self.prepare_with_input(caller, request, None)
+    }
+    pub fn prepare_execution(
+        &self,
+        caller: &Caller,
+        request: Request,
+        input: BoundInput,
+    ) -> Result<DeliveryRecord> {
+        self.prepare_with_input(caller, request, Some(input))
+    }
+    fn prepare_with_input(
+        &self,
+        caller: &Caller,
+        request: Request,
+        input: Option<BoundInput>,
+    ) -> Result<DeliveryRecord> {
         let mut core = self.lock()?;
         authorized(&core, caller)?;
         require_admission(&core)?;
-        validate_identity(&mut core, &request)?;
+        let approved = execution::approved_intent(&mut core, &request, input.as_ref())?;
+        validate_identity(&mut core, &request, approved)?;
         if let Some(row) = core
             .store
             .transact(|tx| tx.get(&key("void", &request.operation)))?
@@ -22,11 +39,12 @@ impl<N: NativeAdapter, C: Clock, H: BoundaryHook> Host<N, C, H> {
         {
             let record: DeliveryRecord = decode(&row, "rx.host.delivery.v1")?;
             same_operation(&record, &request)?;
+            execution::same_input(&mut core, &request.operation, input.as_ref())?;
             if record.state != ReceiptState::Prepared || record.permit == request.permit.id {
                 return Ok(record);
             }
             let now = self.clock.now();
-            let guard = validate_current(&mut core, caller, &request, &now)?;
+            let guard = validate_current(&mut core, caller, &request, &now, input.as_ref())?;
             let mut rebound = record;
             let retired = rebound.permit.clone();
             rebound.permit = request.permit.id.clone();
@@ -60,7 +78,7 @@ impl<N: NativeAdapter, C: Clock, H: BoundaryHook> Host<N, C, H> {
             return Ok(rebound);
         }
         let now = self.clock.now();
-        let guard = validate_current(&mut core, caller, &request, &now)?;
+        let guard = validate_current(&mut core, caller, &request, &now, input.as_ref())?;
         let duration = request
             .intent
             .prepare_validity_ms
@@ -91,8 +109,10 @@ impl<N: NativeAdapter, C: Clock, H: BoundaryHook> Host<N, C, H> {
             permit_digest: canonical::digest("RX-HOST-PERMIT-v1", &request.permit)
                 .map_err(invalid)?,
         };
-        core.store
-            .transact(|tx| record_delivery(tx, &mut record, None))?;
+        core.store.transact(|tx| {
+            execution::store_input(tx, &record.operation, input.as_ref())?;
+            record_delivery(tx, &mut record, None)
+        })?;
         Ok(record)
     }
     pub fn authorize(
@@ -101,10 +121,39 @@ impl<N: NativeAdapter, C: Clock, H: BoundaryHook> Host<N, C, H> {
         request: Request,
         invocation: &Id,
     ) -> Result<DeliveryRecord> {
+        self.authorize_with_binding(caller, request, invocation, None)
+    }
+    pub fn authorize_execution(
+        &self,
+        caller: &Caller,
+        request: Request,
+        invocation: &Id,
+        binding: Digest,
+    ) -> Result<DeliveryRecord> {
+        self.authorize_with_binding(caller, request, invocation, Some(binding))
+    }
+    fn authorize_with_binding(
+        &self,
+        caller: &Caller,
+        request: Request,
+        invocation: &Id,
+        binding: Option<Digest>,
+    ) -> Result<DeliveryRecord> {
         let mut core = self.lock()?;
         authorized(&core, caller)?;
         require_admission(&core)?;
-        validate_identity(&mut core, &request)?;
+        let input = execution::saved_input(&mut core, &request.operation)?;
+        if input
+            .as_ref()
+            .map(|i| i.binding.digest())
+            .transpose()
+            .map_err(invalid)?
+            != binding
+        {
+            return Err(HostError::Conflict);
+        }
+        let approved = execution::approved_intent(&mut core, &request, input.as_ref())?;
+        validate_identity(&mut core, &request, approved)?;
         let row = core
             .store
             .transact(|tx| tx.get(&key("delivery", &request.operation)))?
@@ -121,7 +170,7 @@ impl<N: NativeAdapter, C: Clock, H: BoundaryHook> Host<N, C, H> {
         if record.prepared_boot != core.boot || !before(&now, &record.prepare_until) {
             return Err(HostError::Stale);
         }
-        let guard = validate_current(&mut core, caller, &request, &now)?;
+        let guard = validate_current(&mut core, caller, &request, &now, input.as_ref())?;
         if guard.device_session != record.device_session {
             return Err(HostError::Stale);
         }
@@ -148,11 +197,18 @@ impl<N: NativeAdapter, C: Clock, H: BoundaryHook> Host<N, C, H> {
         }
         self.hooks.after_send_commit();
         // Still under the same gate: no handover/fence can interleave with submission.
-        let guard = validate_current(&mut core, caller, &request, &self.clock.now())?;
+        let guard = validate_current(
+            &mut core,
+            caller,
+            &request,
+            &self.clock.now(),
+            input.as_ref(),
+        )?;
         if guard.device_session != record.device_session {
             return Err(HostError::Stale);
         }
         let context = NativeDispatch {
+            execution: input,
             device_session: guard.device_session.clone(),
             expires_at: if guard.valid_until.ticks_ns < request.permit.expires_at.ticks_ns {
                 guard.valid_until

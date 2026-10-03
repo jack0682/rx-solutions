@@ -39,6 +39,7 @@ pub struct Program {
     pub intent: Intent,
 }
 pub struct PythonSkill<N, C> {
+    execution: Option<crate::python_execution::Profile>,
     release: ReleasePython,
     programs: BTreeMap<Digest, Program>,
     state: PathBuf,
@@ -121,11 +122,31 @@ impl<N: NativeAdapter, C: Clock> PythonSkill<N, C> {
         support: N,
         clock: C,
     ) -> Result<Self> {
+        Self::open_inner(release, programs, None, state, support, clock)
+    }
+    pub fn open_execution(
+        release: ReleasePython,
+        profile: crate::python_execution::Profile,
+        state: PathBuf,
+        support: N,
+        clock: C,
+    ) -> Result<Self> {
+        profile.validate()?;
+        Self::open_inner(release, vec![], Some(profile), state, support, clock)
+    }
+    fn open_inner(
+        release: ReleasePython,
+        programs: Vec<Program>,
+        execution: Option<crate::python_execution::Profile>,
+        state: PathBuf,
+        support: N,
+        clock: C,
+    ) -> Result<Self> {
         if support.environment() != Environment::Simulation
             || !state.is_absolute()
             || state.is_symlink()
             || !state.is_dir()
-            || programs.is_empty()
+            || (programs.is_empty() != execution.is_some())
             || programs.len() > 16
         {
             return Err(HostError::Invalid(
@@ -161,6 +182,7 @@ impl<N: NativeAdapter, C: Clock> PythonSkill<N, C> {
         }
         fs::create_dir_all(state.join("captures")).map_err(unknown)?;
         Ok(Self {
+            execution,
             release,
             programs: selected,
             state,
@@ -326,6 +348,24 @@ impl<N: NativeAdapter, C: Clock> NativeAdapter for PythonSkill<N, C> {
         }
         self.support.guard(intent, now)
     }
+    fn guard_with_input(
+        &self,
+        intent: &Intent,
+        now: &TimePoint,
+        input: Option<&BoundInput>,
+    ) -> Result<Guard> {
+        let Some(input) = input else {
+            return self.guard(intent, now);
+        };
+        self.execution
+            .as_ref()
+            .ok_or(HostError::Guard)?
+            .program(intent, input)?;
+        if !self.uncertain.is_empty() {
+            return Err(HostError::Guard);
+        }
+        self.support.guard(intent, now)
+    }
     fn can_handover(&self, resources: &[Name]) -> bool {
         self.uncertain.is_empty() && self.support.can_handover(resources)
     }
@@ -346,7 +386,7 @@ impl<N: NativeAdapter, C: Clock> NativeAdapter for PythonSkill<N, C> {
         context: &NativeDispatch,
     ) -> Result<NativeCapture> {
         let now = self.clock.now();
-        let guard = self.guard(intent, &now)?;
+        let guard = self.guard_with_input(intent, &now, context.execution.as_ref())?;
         if guard.device_session != context.device_session
             || now.clock_id != context.expires_at.clock_id
             || now.ticks_ns >= context.expires_at.ticks_ns
@@ -360,10 +400,26 @@ impl<N: NativeAdapter, C: Clock> NativeAdapter for PythonSkill<N, C> {
         let os_now = rustix::time::clock_gettime(clock_id);
         let deadline = (os_now.tv_sec as u64 * 1_000_000_000 + os_now.tv_nsec as u64)
             .saturating_add(context.expires_at.ticks_ns.0 - now.ticks_ns.0);
-        let program = self
-            .programs
-            .get(&intent.digest().map_err(unknown)?)
-            .ok_or(HostError::Guard)?;
+        let bound = if let Some(input) = &context.execution {
+            if input.binding.operation != *operation {
+                return Err(HostError::Conflict);
+            }
+            Some(
+                self.execution
+                    .as_ref()
+                    .ok_or(HostError::Guard)?
+                    .program(intent, input)?,
+            )
+        } else {
+            None
+        };
+        let program = match &bound {
+            Some(program) => program,
+            None => self
+                .programs
+                .get(&intent.digest().map_err(unknown)?)
+                .ok_or(HostError::Guard)?,
+        };
         let request = json!({"schema":"rx.python-host-request.v1","operation":operation,"invocation":invocation,
             "intent_digest":intent.digest().map_err(unknown)?,"environment":program.environment,
             "environment_digest":program.environment_digest,"input":program.input,
@@ -381,6 +437,36 @@ impl<N: NativeAdapter, C: Clock> NativeAdapter for PythonSkill<N, C> {
         Ok(capture)
     }
     fn lookup(&mut self, operation: &Id, invocation: &Id) -> Result<Option<NativeCapture>> {
+        self.lookup_program(operation, invocation, None)
+    }
+    fn lookup_with_input(
+        &mut self,
+        operation: &Id,
+        invocation: &Id,
+        intent: &Intent,
+        input: Option<&BoundInput>,
+    ) -> Result<Option<NativeCapture>> {
+        let Some(input) = input else {
+            return self.lookup(operation, invocation);
+        };
+        if input.binding.operation != *operation {
+            return Err(HostError::Conflict);
+        }
+        let program = self
+            .execution
+            .as_ref()
+            .ok_or(HostError::Guard)?
+            .program(intent, input)?;
+        self.lookup_program(operation, invocation, Some(&program))
+    }
+}
+impl<N: NativeAdapter, C: Clock> PythonSkill<N, C> {
+    fn lookup_program(
+        &mut self,
+        operation: &Id,
+        invocation: &Id,
+        bound: Option<&Program>,
+    ) -> Result<Option<NativeCapture>> {
         let path = self.state.join(operation.as_str()).join("request.json");
         if !path.exists() {
             return Ok(None);
@@ -392,7 +478,9 @@ impl<N: NativeAdapter, C: Clock> NativeAdapter for PythonSkill<N, C> {
         .map_err(unknown)?;
         let digest: Digest = serde_json::from_value(request["intent_digest"].clone())
             .map_err(|_| HostError::Conflict)?;
-        let program = self.programs.get(&digest).ok_or(HostError::Conflict)?;
+        let program = bound
+            .or_else(|| self.programs.get(&digest))
+            .ok_or(HostError::Conflict)?;
         if request["input"] != program.input
             || request["environment"] != program.environment.to_string_lossy().as_ref()
             || request["operation"] != operation.as_str()

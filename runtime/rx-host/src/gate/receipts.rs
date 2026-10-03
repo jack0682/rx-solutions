@@ -206,11 +206,17 @@ impl<N: NativeAdapter, C: Clock, H: BoundaryHook> Host<N, C, H> {
             .transact(|tx| tx.get(&key("delivery", operation)))?
             .ok_or(HostError::NotFound)?;
         let mut record: DeliveryRecord = decode(&row, "rx.host.delivery.v1")?;
+        let input = execution::saved_input(&mut core, &record.operation)?;
         if matches!(
             record.state,
             ReceiptState::SendEntered | ReceiptState::NativeAccepted
         ) && let Some(invocation) = &record.invocation
-            && let Some(capture) = core.native.lookup(&record.operation, invocation)?
+            && let Some(capture) = core.native.lookup_with_input(
+                &record.operation,
+                invocation,
+                &record.intent,
+                input.as_ref(),
+            )?
         {
             persist_capture(&mut core, &mut record, capture)?;
         }

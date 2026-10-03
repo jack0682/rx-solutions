@@ -445,6 +445,7 @@ fn host_dispatch_context_survives_native_journal_and_rejects_expiry_or_generatio
         let dir = root.path().join("native");
         let identity = Jtc::<Fake, ManualClock, Auth>::initialize(&dir, &p).unwrap();
         let context = NativeDispatch {
+            execution: None,
             device_session: a.state.lock().unwrap().controller_session.clone(),
             expires_at: TimePoint {
                 clock_id: c.clock_id.clone(),

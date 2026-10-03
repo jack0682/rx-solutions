@@ -4,7 +4,9 @@ This unreleased bridge calls an already configured P/Host/Executor installation.
 It uses the existing P Run and operation ledger. It does not submit a LOCAL_SIM
 Python skill, install the runtime, or register arbitrary device skills.
 
-The current input mode is `BOUND_CONFIGURATION`: the approved process, recipe,
+This legacy facade uses input mode `BOUND_CONFIGURATION`. For explicit published
+workflow inputs (`PUBLISHED_SELECTION_V2`), use [EXECUTION.md](EXECUTION.md).
+In the legacy mode, the approved process, recipe,
 site and envelope are fixed by the installed configuration. Only the material
 count is supplied at invocation. Catalog visibility does not grant start permission.
 P independently evaluates start admission, current roles, qualification and resources.

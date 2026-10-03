@@ -425,3 +425,120 @@ fn library_is_one_signed_package_with_complete_operations_and_original_reassembl
     .unwrap();
     assert!(decode_verified_any(&inconsistent).is_err());
 }
+
+#[test]
+fn execution_package_preserves_common_templates_and_python_only_pins() {
+    use rx_host::{python_execution::Profile, service::python_execution_package::Assembly};
+    use rx_process_contract::execution_v2 as v2;
+    let (registration, environment, recipe) = inputs();
+    let fixture: v2::Policy = canonical::decode_json(include_bytes!(
+        "../../rx-host/tests/fixtures/execution-v2/policy.json"
+    ))
+    .unwrap();
+    let Body::Program(goal) = &registration.intent.body else {
+        unreachable!()
+    };
+    let assembly = Assembly {
+        schema: n("rx.python-execution-assembly.v2"),
+        profile: Profile {
+            schema: n("rx.python-execution-profile.v2"),
+            environment: registration.environment.clone(),
+            environment_digest: registration.environment_digest,
+            program: goal.program.clone(),
+        },
+        catalog: v2::TemplateCatalog {
+            schema: n(v2::TEMPLATE_CATALOG_SCHEMA),
+            installation: registration.installation.clone(),
+            cell: registration.cell.clone(),
+            environment: rx_process_contract::device_catalog::Environment::Simulation,
+            documents: BTreeMap::new(),
+            templates: BTreeMap::from([(
+                n("node"),
+                v2::TemplateDeclaration {
+                    action: rx_process_contract::ActionBinding {
+                        host: registration.host.clone(),
+                        intent: registration.intent.clone(),
+                    },
+                    contract: fixture.node_contracts[&n("node")].clone(),
+                },
+            )]),
+        },
+    };
+    let candidate = python::assemble_execution(&assembly, &environment, &recipe).unwrap();
+    assert_eq!(candidate.files().len(), 8);
+    let (verification, key) = policy(&candidate);
+    let signed = candidate
+        .verify(&signature(&candidate, &key), &verification)
+        .unwrap();
+    let Device::PythonExecution(checked) = decode_verified_any(&signed).unwrap() else {
+        panic!("v2 profile")
+    };
+    assert_eq!(checked.templates.catalog().templates.len(), 1);
+    assert_eq!(checked.profile.program, assembly.profile.program);
+    assert_eq!(
+        checked.templates.catalog().templates[&n("node")]
+            .action
+            .intent
+            .profile_digest,
+        checked.templates.catalog().documents[&n("profile")]
+            .artifact
+            .sha256
+    );
+    let profile: serde_json::Value = canonical::decode_json(
+        signed
+            .file(&PackagePath::new("profile.json").unwrap())
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(profile.as_object().unwrap().len(), 4);
+    assert!(profile.get("parameters").is_none());
+    let root = tempfile::tempdir().unwrap();
+    directory::publish(&candidate, None, &root.path().join("candidate")).unwrap();
+    assert_eq!(
+        directory::candidate(&root.path().join("candidate"))
+            .unwrap()
+            .digest()
+            .unwrap(),
+        candidate.digest().unwrap()
+    );
+    for (name, bytes) in [
+        ("assembly.json", canonical::bytes(&assembly).unwrap()),
+        ("environment.json", environment.clone()),
+        ("recipe.json", canonical::bytes(&recipe).unwrap()),
+    ] {
+        std::fs::write(root.path().join(name), bytes).unwrap();
+    }
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_rx-device-package"))
+        .arg("python-execution-assemble")
+        .arg(root.path().join("assembly.json"))
+        .arg(root.path().join("environment.json"))
+        .arg(root.path().join("recipe.json"))
+        .arg(root.path().join("cli-candidate"))
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(
+        directory::candidate(&root.path().join("cli-candidate"))
+            .unwrap()
+            .digest()
+            .unwrap(),
+        candidate.digest().unwrap()
+    );
+    let mut changed = assembly.clone();
+    changed.profile.program.sha256 = Digest::from_bytes([9; 32]);
+    assert!(python::assemble_execution(&changed, &environment, &recipe).is_err());
+    let mut changed = assembly;
+    changed
+        .catalog
+        .templates
+        .get_mut(&n("node"))
+        .unwrap()
+        .action
+        .intent
+        .completion_rule = n("unsupported");
+    assert!(python::assemble_execution(&changed, &environment, &recipe).is_err());
+}
