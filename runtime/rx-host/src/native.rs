@@ -1,5 +1,6 @@
 use crate::model::*;
 use rx_domain::{intent::Intent, types::Id};
+pub use rx_process_contract::execution_v2::host_inputs::BoundInput;
 use std::sync::Arc;
 
 /// Must not share the Host gate or depend on a successful database transaction.
@@ -17,10 +18,38 @@ pub struct NativeShutdown {
 }
 #[derive(Clone, Debug)]
 pub struct NativeDispatch {
+    pub execution: Option<BoundInput>,
     pub device_session: Id,
     pub expires_at: rx_domain::types::TimePoint,
 }
+pub enum NativeSubmission {
+    Captured(NativeCapture),
+    Entered(rx_process_contract::execution_v2::host_inputs::NativeEntry),
+}
+pub struct NativeCompletion {
+    pub operation: Id,
+    pub invocation: Id,
+    pub capture: NativeCapture,
+}
 pub trait NativeAdapter: Send {
+    /// Called under the existing command gate. Entered requires profile-verified evidence.
+    fn begin_with_context(
+        &mut self,
+        op: &Id,
+        inv: &Id,
+        intent: &Intent,
+        context: &NativeDispatch,
+    ) -> Result<NativeSubmission> {
+        self.submit_with_context(op, inv, intent, context)
+            .map(NativeSubmission::Captured)
+    }
+    /// Nonblocking observation of already entered calls; never submits native work.
+    fn completed(&mut self) -> Result<Vec<NativeCompletion>> {
+        Ok(vec![])
+    }
+    /// Called only after the original capture is committed through the Host writer.
+    fn acknowledge_completion(&mut self, _operation: &Id) {}
+
     /// Called only after Host admission is closed. May begin passive bridge shutdown once support is proven.
     fn prepare_shutdown(&mut self, _resources: &[rx_domain::types::Name]) -> Result<()> {
         Ok(())
@@ -40,6 +69,19 @@ pub trait NativeAdapter: Send {
         Err(HostError::Guard)
     }
     fn guard(&self, intent: &Intent, now: &rx_domain::types::TimePoint) -> Result<Guard>;
+    /// Common v2 input handoff. Unsupported providers must not ignore selected input bytes.
+    fn guard_with_input(
+        &self,
+        intent: &Intent,
+        now: &rx_domain::types::TimePoint,
+        input: Option<&BoundInput>,
+    ) -> Result<Guard> {
+        if input.is_some() {
+            return Err(HostError::Guard);
+        }
+        self.guard(intent, now)
+    }
+
     /// Confirms no residual native command and required physical support/handover.
     fn can_handover(&self, resources: &[rx_domain::types::Name]) -> bool;
     /// Fresh physical/current-state evidence. Unsupported bindings must not synthesize it.
@@ -55,15 +97,27 @@ pub trait NativeAdapter: Send {
         op: &Id,
         inv: &Id,
         intent: &Intent,
-        _context: &NativeDispatch,
+        context: &NativeDispatch,
     ) -> Result<NativeCapture> {
-        if self.environment() == Environment::Physical {
+        if context.execution.is_some() || self.environment() == Environment::Physical {
             return Err(HostError::Guard);
         }
         self.submit(op, inv, intent)
     }
     /// Read-only lookup; it must not re-submit the original command.
     fn lookup(&mut self, operation: &Id, invocation: &Id) -> Result<Option<NativeCapture>>;
+    fn lookup_with_input(
+        &mut self,
+        operation: &Id,
+        invocation: &Id,
+        _intent: &Intent,
+        input: Option<&BoundInput>,
+    ) -> Result<Option<NativeCapture>> {
+        if input.is_some() {
+            return Err(HostError::Guard);
+        }
+        self.lookup(operation, invocation)
+    }
 }
 /// Tests can stop a real process at the two non-atomic database/native boundaries.
 /// No hook is configured from an external request.

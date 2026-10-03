@@ -1,10 +1,13 @@
 //! mTLS adapter for the frozen Host contract. It never serves platform business mutations.
 mod cell_host;
 mod configuration;
+mod configuration_v2;
+mod execution_v2;
 mod host_read;
 mod host_service;
 mod mapping;
 mod qualification;
+mod qualification_v2;
 mod session;
 use crate::{Host, model::*, native::NativeAdapter};
 pub(crate) use mapping::evidence_view;
@@ -112,6 +115,9 @@ impl<N: NativeAdapter + 'static, C: Clock + 'static> RpcHost<N, C> {
                     .client_ca_root(Certificate::from_pem(tls.client_ca_pem))
                     .client_auth_optional(false),
             )?
+            .add_service(rx_protocol::host_execution_configuration::host_execution_configuration_service_server::HostExecutionConfigurationServiceServer::new(self.clone()).max_decoding_message_size(1_048_576).max_encoding_message_size(1_048_576))
+            .add_service(rx_protocol::host_execution_qualification::host_execution_qualification_service_server::HostExecutionQualificationServiceServer::new(self.clone()).max_decoding_message_size(1_048_576).max_encoding_message_size(1_048_576))
+            .add_service(rx_protocol::host_execution::host_execution_service_server::HostExecutionServiceServer::new(self.clone()).max_decoding_message_size(1_048_576).max_encoding_message_size(1_048_576))
             .add_service(
                 base::session_service_server::SessionServiceServer::new(self.clone())
                     .max_decoding_message_size(1_048_576)

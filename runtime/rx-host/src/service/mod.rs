@@ -2,10 +2,12 @@
 pub mod binding_change;
 pub mod config;
 pub mod device_package;
+pub mod execution_material;
 mod factory;
 mod guarded_status;
 pub mod jtc_package;
 pub mod maintenance;
+pub mod python_execution_package;
 #[cfg(unix)]
 pub mod python_library;
 #[cfg(unix)]
@@ -30,6 +32,12 @@ pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + S
 /// Opening must be passive and safe to drop before any admitted lifecycle operation.
 pub trait AdapterFactory<C: Clock>: Send + Sync {
     type Adapter: NativeAdapter + 'static;
+    fn execution_templates(
+        &self,
+        _backend: &Backend,
+    ) -> Result<Vec<crate::execution_package::Templates>> {
+        Ok(vec![])
+    }
     fn validate(&self, backend: &Backend, bindings: &[Binding]) -> Result<()>;
     /// Create passive native metadata inside the unexposed installation staging directory.
     fn initialize_metadata(
@@ -84,6 +92,11 @@ impl<N: NativeAdapter, C: Clock> Drop for AdmissionOwner<N, C> {
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "SCREAMING_SNAKE_CASE", deny_unknown_fields)]
 pub enum NativeInstallation {
+    #[cfg(unix)]
+    PythonExecution {
+        registration_digest: Digest,
+        environment_digest: Digest,
+    },
     #[cfg(unix)]
     PythonSkill {
         registration_digest: Digest,
@@ -267,6 +280,7 @@ pub fn initialize_with<C: Clock + Clone + 'static, F: AdapterFactory<C>>(
             clock,
             loaded.bindings.clone(),
         )?;
+        install_execution_resources(&host, loaded, factory)?;
         let journals = host.journals()?;
         drop(host);
         let native = factory.initialize_metadata(&loaded.config.backend, &stage)?;
@@ -550,13 +564,14 @@ pub async fn run_with<C: Clock + Clone + Send + Sync + 'static, F: AdapterFactor
         loaded.config.data_directory.join("host.db"),
         native,
         clock.clone(),
-        loaded.bindings,
+        loaded.bindings.clone(),
     )?);
     let mut admission_owner = AdmissionOwner {
         host: host.clone(),
         graceful: false,
     };
     let _ = guarded_target.set(host.clone());
+    install_execution_resources(host.as_ref(), &loaded, &factory)?;
     host.bind_service_boot(&startup_attempt)?;
     // Once Host owns the adapter, reporter failure must retain that ownership until
     // the existing cooperative stop loop obtains the final safe_to_drop proof.
@@ -828,6 +843,24 @@ fn guarded_final_state(view: &Status, service_error: bool) -> GuardedState {
                     .is_some_and(|s| !s.pending_operations.is_empty()),
         }
     }
+}
+
+fn install_execution_resources<N: NativeAdapter, C: Clock, F: AdapterFactory<C>>(
+    host: &Host<N, C>,
+    loaded: &Loaded,
+    factory: &F,
+) -> Result<()> {
+    let templates = factory.execution_templates(&loaded.config.backend)?;
+    if !loaded.config.execution_materials.is_empty() && templates.is_empty() {
+        return Err("native provider has no execution-v2 template support".into());
+    }
+    for package in templates {
+        host.install_execution_package(package)?;
+    }
+    for material in &loaded.config.execution_materials {
+        host.install_execution_material(material.verify()?)?;
+    }
+    Ok(())
 }
 
 #[cfg(test)]

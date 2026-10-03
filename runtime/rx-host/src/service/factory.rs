@@ -20,6 +20,22 @@ macro_rules! delegate {
     };
 }
 impl<C: Clock> NativeAdapter for BuiltinAdapter<C> {
+    fn begin_with_context(
+        &mut self,
+        op: &Id,
+        inv: &Id,
+        intent: &Intent,
+        ctx: &NativeDispatch,
+    ) -> crate::Result<NativeSubmission> {
+        delegate!(self, begin_with_context(op, inv, intent, ctx))
+    }
+    fn completed(&mut self) -> crate::Result<Vec<NativeCompletion>> {
+        delegate!(self, completed())
+    }
+    fn acknowledge_completion(&mut self, op: &Id) {
+        delegate!(self, acknowledge_completion(op))
+    }
+
     fn submit_with_context(
         &mut self,
         op: &Id,
@@ -48,6 +64,26 @@ impl<C: Clock> NativeAdapter for BuiltinAdapter<C> {
     fn guard(&self, intent: &Intent, now: &TimePoint) -> crate::Result<Guard> {
         delegate!(self, guard(intent, now))
     }
+    fn guard_with_input(
+        &self,
+        intent: &Intent,
+        now: &TimePoint,
+        input: Option<&BoundInput>,
+    ) -> crate::Result<Guard> {
+        delegate!(self, guard_with_input(intent, now, input))
+    }
+    fn lookup_with_input(
+        &mut self,
+        operation: &Id,
+        invocation: &Id,
+        intent: &Intent,
+        input: Option<&BoundInput>,
+    ) -> crate::Result<Option<NativeCapture>> {
+        delegate!(
+            self,
+            lookup_with_input(operation, invocation, intent, input)
+        )
+    }
     fn can_handover(&self, resources: &[Name]) -> bool {
         delegate!(self, can_handover(resources))
     }
@@ -71,8 +107,27 @@ impl<C: Clock> NativeAdapter for BuiltinAdapter<C> {
 }
 impl<C: Clock + Clone + 'static> AdapterFactory<C> for Builtin {
     type Adapter = BuiltinAdapter<C>;
+    fn execution_templates(
+        &self,
+        backend: &Backend,
+    ) -> Result<Vec<crate::execution_package::Templates>> {
+        #[cfg(unix)]
+        if matches!(backend, Backend::PythonExecutionPackage { .. }) {
+            return Ok(vec![python_execution_package::load(backend)?.1.templates]);
+        }
+        Ok(vec![])
+    }
     fn validate(&self, backend: &Backend, bindings: &[Binding]) -> Result<()> {
         match backend {
+            #[cfg(unix)]
+            Backend::PythonExecutionPackage { .. } => {
+                python_execution_package::load(backend)?
+                    .1
+                    .validate_bindings(bindings)?;
+                python_skill::release()?;
+                Ok(())
+            }
+
             #[cfg(unix)]
             Backend::PythonSkillLibraryPackage { .. } => {
                 let (_, library) = python_library::load(backend)?;
@@ -112,6 +167,16 @@ impl<C: Clock + Clone + 'static> AdapterFactory<C> for Builtin {
         data: &Path,
     ) -> Result<Option<NativeInstallation>> {
         match backend {
+            #[cfg(unix)]
+            Backend::PythonExecutionPackage { .. } => {
+                let (registration_digest, p) = python_execution_package::load(backend)?;
+                std::fs::create_dir(data.join("native-python"))?;
+                Ok(Some(NativeInstallation::PythonExecution {
+                    registration_digest,
+                    environment_digest: p.profile.environment_digest,
+                }))
+            }
+
             #[cfg(unix)]
             Backend::PythonSkillLibraryPackage { .. } => {
                 let (registration_digest, library) = python_library::load(backend)?;
@@ -164,6 +229,34 @@ impl<C: Clock + Clone + 'static> AdapterFactory<C> for Builtin {
         let descriptor = read_installation(data)?;
         let native_root = native_storage_root(data, &descriptor)?;
         match backend {
+            #[cfg(unix)]
+            Backend::PythonExecutionPackage { .. } => {
+                let (registration_digest, p) = python_execution_package::load(backend)?;
+                let Some(NativeInstallation::PythonExecution {
+                    registration_digest: stored,
+                    environment_digest,
+                }) = descriptor.native
+                else {
+                    return Err("Python execution installation metadata missing".into());
+                };
+                if stored != registration_digest
+                    || environment_digest != p.profile.environment_digest
+                {
+                    return Err("Python execution installation differs".into());
+                }
+                Ok(BuiltinAdapter::Python(Box::new(
+                    crate::python_skill::PythonSkill::open_execution(
+                        python_skill::release()?,
+                        p.profile,
+                        native_root.join("native-python"),
+                        crate::simulation::FileDevice::open(
+                            native_root.join("device"),
+                            clock.clone(),
+                        )?,
+                        clock,
+                    )?,
+                )))
+            }
             #[cfg(unix)]
             Backend::PythonSkillLibraryPackage { .. } => {
                 let (digest, library) = python_library::load(backend)?;

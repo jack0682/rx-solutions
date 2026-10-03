@@ -16,6 +16,9 @@ pub struct Host<N, C, H = NoHooks> {
     accepting: Arc<std::sync::atomic::AtomicBool>,
 }
 struct Core<N> {
+    execution_packages: BTreeMap<Digest, crate::execution_package::Templates>,
+    execution_domains:
+        BTreeMap<Digest, Arc<rx_process_contract::execution_v2::host_inputs::VerifiedDomain>>,
     store: SqliteRepository,
     native: N,
     boot: Id,
@@ -37,6 +40,8 @@ impl<N: NativeAdapter, C: Clock> Host<N, C, NoHooks> {
 
 pub(crate) mod configuration;
 mod dispatch;
+mod execution;
+mod execution_material;
 mod grants;
 mod publication;
 mod qualification;
@@ -104,12 +109,25 @@ impl<N: NativeAdapter, C: Clock, H: BoundaryHook> Host<N, C, H> {
                     &doc(
                         "rx.host.meta.v1",
                         &HostMeta {
+                            execution_reader: None,
                             delivery_journal: id(),
                             evidence_journal: id(),
                             delivery_seq: Counter(0),
                         },
                     )?,
                 )?;
+            }
+            let meta_row = tx
+                .get(&name("host/meta"))?
+                .ok_or(rx_ports::StoreError::Integrity("Host meta missing".into()))?;
+            let meta: HostMeta = decode(&meta_row, "rx.host.meta.v1")?;
+            if meta
+                .execution_reader
+                .is_some_and(|v| v != Counter(2) && v != Counter(3))
+            {
+                return Err(rx_ports::StoreError::Integrity(
+                    "unsupported Host execution reader".into(),
+                ));
             }
             for binding in bindings.values() {
                 let k = key("cell", &binding.cell);
@@ -139,6 +157,8 @@ impl<N: NativeAdapter, C: Clock, H: BoundaryHook> Host<N, C, H> {
         let accepting = Arc::new(std::sync::atomic::AtomicBool::new(true));
         Ok(Self {
             core: Mutex::new(Core {
+                execution_packages: BTreeMap::new(),
+                execution_domains: BTreeMap::new(),
                 store,
                 native,
                 boot: id(),
@@ -154,9 +174,39 @@ impl<N: NativeAdapter, C: Clock, H: BoundaryHook> Host<N, C, H> {
         })
     }
     fn lock(&self) -> Result<MutexGuard<'_, Core<N>>> {
-        self.core
+        let mut core = self
+            .core
             .lock()
-            .map_err(|_| HostError::NativeUnknown("command gate faulted".into()))
+            .map_err(|_| HostError::NativeUnknown("command gate faulted".into()))?;
+        for completed in core.native.completed()? {
+            let row = core
+                .store
+                .transact(|tx| tx.get(&key("delivery", &completed.operation)))?
+                .ok_or(HostError::NotFound)?;
+            let mut record: DeliveryRecord = decode(&row, "rx.host.delivery.v1")?;
+            // An entry-receipt store fault leaves SEND_ENTERED uncertain and inspectable.
+            // Completion observation must not promote a missing committed entry proof.
+            if record.state == ReceiptState::SendEntered {
+                continue;
+            }
+            if record.invocation.as_ref() != Some(&completed.invocation)
+                || record.device_session != completed.capture.device_session
+                || !matches!(
+                    record.state,
+                    ReceiptState::NativeAccepted | ReceiptState::ResultCaptured
+                )
+            {
+                return Err(HostError::Conflict);
+            }
+            if record.state != ReceiptState::ResultCaptured
+                && let Err(error) = persist_capture(&mut core, &mut record, completed.capture)
+            {
+                self.protection.react(ProtectionIncident::StoreFault);
+                return Err(error);
+            }
+            core.native.acknowledge_completion(&completed.operation);
+        }
+        Ok(core)
     }
     pub(crate) fn bind_service_boot(&self, attempt: &Id) -> Result<()> {
         let mut core = self.lock()?;
@@ -315,3 +365,6 @@ fn require_admission<N>(core: &Core<N>) -> Result<()> {
     }
     Ok(())
 }
+
+#[cfg(test)]
+mod execution_tests;

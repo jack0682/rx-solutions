@@ -21,9 +21,19 @@ use std::{
     },
     path::{Path, PathBuf},
     process::{Command, Stdio},
-    sync::Arc,
+    sync::{Arc, mpsc},
     time::{Duration, Instant},
 };
+
+mod owned;
+use owned::OwnedCall;
+
+struct Pending {
+    invocation: Id,
+    request: Value,
+    receiver: mpsc::Receiver<std::result::Result<Value, String>>,
+    result: Option<std::result::Result<Value, String>>,
+}
 
 pub struct ReleasePython {
     pub executable: PathBuf,
@@ -39,12 +49,14 @@ pub struct Program {
     pub intent: Intent,
 }
 pub struct PythonSkill<N, C> {
+    execution: Option<crate::python_execution::Profile>,
     release: ReleasePython,
     programs: BTreeMap<Digest, Program>,
     state: PathBuf,
     support: N,
     clock: C,
     uncertain: BTreeSet<Id>,
+    pending: BTreeMap<Id, Pending>,
 }
 fn unknown(e: impl std::fmt::Display) -> HostError {
     HostError::NativeUnknown(e.to_string())
@@ -121,11 +133,31 @@ impl<N: NativeAdapter, C: Clock> PythonSkill<N, C> {
         support: N,
         clock: C,
     ) -> Result<Self> {
+        Self::open_inner(release, programs, None, state, support, clock)
+    }
+    pub fn open_execution(
+        release: ReleasePython,
+        profile: crate::python_execution::Profile,
+        state: PathBuf,
+        support: N,
+        clock: C,
+    ) -> Result<Self> {
+        profile.validate()?;
+        Self::open_inner(release, vec![], Some(profile), state, support, clock)
+    }
+    fn open_inner(
+        release: ReleasePython,
+        programs: Vec<Program>,
+        execution: Option<crate::python_execution::Profile>,
+        state: PathBuf,
+        support: N,
+        clock: C,
+    ) -> Result<Self> {
         if support.environment() != Environment::Simulation
             || !state.is_absolute()
             || state.is_symlink()
             || !state.is_dir()
-            || programs.is_empty()
+            || (programs.is_empty() != execution.is_some())
             || programs.len() > 16
         {
             return Err(HostError::Invalid(
@@ -161,89 +193,74 @@ impl<N: NativeAdapter, C: Clock> PythonSkill<N, C> {
         }
         fs::create_dir_all(state.join("captures")).map_err(unknown)?;
         Ok(Self {
+            execution,
             release,
             programs: selected,
             state,
             support,
             clock,
             uncertain,
+            pending: BTreeMap::new(),
         })
     }
+    fn dispatch_request(
+        &self,
+        operation: &Id,
+        invocation: &Id,
+        intent: &Intent,
+        context: &NativeDispatch,
+    ) -> Result<Value> {
+        let now = self.clock.now();
+        let guard = self.guard_with_input(intent, &now, context.execution.as_ref())?;
+        if guard.device_session != context.device_session
+            || now.clock_id != context.expires_at.clock_id
+            || now.ticks_ns >= context.expires_at.ticks_ns
+        {
+            return Err(HostError::Stale);
+        }
+        #[cfg(target_os = "linux")]
+        let (dispatch_clock, clock_id) = ("BOOTTIME", rustix::time::ClockId::Boottime);
+        #[cfg(not(target_os = "linux"))]
+        let (dispatch_clock, clock_id) = ("MONOTONIC", rustix::time::ClockId::Monotonic);
+        let os_now = rustix::time::clock_gettime(clock_id);
+        let deadline = (os_now.tv_sec as u64 * 1_000_000_000 + os_now.tv_nsec as u64)
+            .saturating_add(context.expires_at.ticks_ns.0 - now.ticks_ns.0);
+        let bound = if let Some(input) = &context.execution {
+            if input.binding.operation != *operation {
+                return Err(HostError::Conflict);
+            }
+            Some(
+                self.execution
+                    .as_ref()
+                    .ok_or(HostError::Guard)?
+                    .program(intent, input)?,
+            )
+        } else {
+            None
+        };
+        let program = match &bound {
+            Some(program) => program,
+            None => self
+                .programs
+                .get(&intent.digest().map_err(unknown)?)
+                .ok_or(HostError::Guard)?,
+        };
+        Ok(
+            json!({"schema":"rx.python-host-request.v1","operation":operation,"invocation":invocation,
+            "intent_digest":intent.digest().map_err(unknown)?,"environment":program.environment,
+            "environment_digest":program.environment_digest,"input":program.input,
+            "device_session":context.device_session,"dispatch_deadline_ns":deadline.to_string(),"dispatch_clock":dispatch_clock}),
+        )
+    }
     fn call(&self, action: &str, request: &Value, timeout: Duration) -> Result<Value> {
-        pinned(&self.release.executable, self.release.executable_digest)?;
-        pinned(&self.release.runner, self.release.runner_digest)?;
-        pinned(
-            &self.release.runner.with_file_name("python_environment.py"),
-            self.release.verifier_digest,
-        )?;
-        let (mut channel, peer) = UnixStream::pair().map_err(unknown)?;
-        let stdout = peer.try_clone().map_err(unknown)?;
-        let deadline = Instant::now() + timeout;
-        channel.set_write_timeout(Some(timeout)).map_err(unknown)?;
-        let mut child = Command::new(&self.release.executable)
-            .args(["-I", "-S", "-B"])
-            .arg(&self.release.runner)
-            .arg(action)
-            .arg(&self.state)
-            .env_clear()
-            .stdin(Stdio::from(OwnedFd::from(peer)))
-            .stdout(Stdio::from(OwnedFd::from(stdout)))
-            .stderr(Stdio::null())
-            .process_group(0)
-            .spawn()
-            .map_err(unknown)?;
-        let group = rustix::process::Pid::from_raw(child.id() as i32).ok_or(HostError::Guard)?;
-        let mut reaped = false;
-        let result = (|| {
-            channel
-                .write_all(&canonical::bytes(request).map_err(unknown)?)
-                .map_err(unknown)?;
-            channel.shutdown(Shutdown::Write).map_err(unknown)?;
-            let mut output = Vec::new();
-            let mut buffer = [0u8; 8192];
-            loop {
-                channel
-                    .set_read_timeout(Some(
-                        deadline
-                            .checked_duration_since(Instant::now())
-                            .ok_or_else(|| unknown("Python execution deadline"))?,
-                    ))
-                    .map_err(unknown)?;
-                let count = channel.read(&mut buffer).map_err(unknown)?;
-                if count == 0 {
-                    break;
-                }
-                output.extend_from_slice(&buffer[..count]);
-                if output.len() > 131072 {
-                    return Err(unknown("Python reply exceeds bound"));
-                }
-            }
-            loop {
-                if let Some(status) = child.try_wait().map_err(unknown)? {
-                    reaped = true;
-                    if !status.success() {
-                        return Err(unknown("Python helper exited without confirmed receipt"));
-                    }
-                    break;
-                }
-                if Instant::now() >= deadline {
-                    return Err(unknown("Python process exit deadline"));
-                }
-                std::thread::sleep(Duration::from_millis(2));
-            }
-            canonical::decode_json::<Value>(&output).map_err(unknown)
-        })();
-        // Only this freshly owned group is signaled. Process death is not physical stop evidence.
-        if !reaped {
-            // Retain the unreaped leader PID while signaling its group; never signal a recycled PID.
-            let _ = rustix::process::kill_process_group(group, rustix::process::Signal::KILL);
-            let _ = child.kill();
-            let _ = child.wait();
-        }
-        if rustix::process::test_kill_process_group(group).is_ok() {
-            return Err(unknown("Python process group custody remains unresolved"));
-        }
-        result
+        OwnedCall::start(
+            &self.release,
+            &self.state,
+            action,
+            &canonical::bytes(request).map_err(unknown)?,
+            timeout,
+        )?
+        .finish()
     }
     fn capture(
         &self,
@@ -326,6 +343,24 @@ impl<N: NativeAdapter, C: Clock> NativeAdapter for PythonSkill<N, C> {
         }
         self.support.guard(intent, now)
     }
+    fn guard_with_input(
+        &self,
+        intent: &Intent,
+        now: &TimePoint,
+        input: Option<&BoundInput>,
+    ) -> Result<Guard> {
+        let Some(input) = input else {
+            return self.guard(intent, now);
+        };
+        self.execution
+            .as_ref()
+            .ok_or(HostError::Guard)?
+            .program(intent, input)?;
+        if !self.uncertain.is_empty() {
+            return Err(HostError::Guard);
+        }
+        self.support.guard(intent, now)
+    }
     fn can_handover(&self, resources: &[Name]) -> bool {
         self.uncertain.is_empty() && self.support.can_handover(resources)
     }
@@ -345,29 +380,7 @@ impl<N: NativeAdapter, C: Clock> NativeAdapter for PythonSkill<N, C> {
         intent: &Intent,
         context: &NativeDispatch,
     ) -> Result<NativeCapture> {
-        let now = self.clock.now();
-        let guard = self.guard(intent, &now)?;
-        if guard.device_session != context.device_session
-            || now.clock_id != context.expires_at.clock_id
-            || now.ticks_ns >= context.expires_at.ticks_ns
-        {
-            return Err(HostError::Stale);
-        }
-        #[cfg(target_os = "linux")]
-        let (dispatch_clock, clock_id) = ("BOOTTIME", rustix::time::ClockId::Boottime);
-        #[cfg(not(target_os = "linux"))]
-        let (dispatch_clock, clock_id) = ("MONOTONIC", rustix::time::ClockId::Monotonic);
-        let os_now = rustix::time::clock_gettime(clock_id);
-        let deadline = (os_now.tv_sec as u64 * 1_000_000_000 + os_now.tv_nsec as u64)
-            .saturating_add(context.expires_at.ticks_ns.0 - now.ticks_ns.0);
-        let program = self
-            .programs
-            .get(&intent.digest().map_err(unknown)?)
-            .ok_or(HostError::Guard)?;
-        let request = json!({"schema":"rx.python-host-request.v1","operation":operation,"invocation":invocation,
-            "intent_digest":intent.digest().map_err(unknown)?,"environment":program.environment,
-            "environment_digest":program.environment_digest,"input":program.input,
-            "device_session":context.device_session,"dispatch_deadline_ns":deadline.to_string(),"dispatch_clock":dispatch_clock});
+        let request = self.dispatch_request(operation, invocation, intent, context)?;
         self.uncertain.insert(operation.clone());
         let value = self.call(
             "execute",
@@ -380,7 +393,163 @@ impl<N: NativeAdapter, C: Clock> NativeAdapter for PythonSkill<N, C> {
         self.uncertain.remove(operation);
         Ok(capture)
     }
+    fn begin_with_context(
+        &mut self,
+        operation: &Id,
+        invocation: &Id,
+        intent: &Intent,
+        context: &NativeDispatch,
+    ) -> Result<NativeSubmission> {
+        if context.execution.is_none() {
+            return self
+                .submit_with_context(operation, invocation, intent, context)
+                .map(NativeSubmission::Captured);
+        }
+        let request = self.dispatch_request(operation, invocation, intent, context)?;
+        let bytes = canonical::bytes(&request).map_err(unknown)?;
+        self.uncertain.insert(operation.clone());
+        let mut call = OwnedCall::start(
+            &self.release,
+            &self.state,
+            "execute-entered",
+            &bytes,
+            Duration::from_millis(intent.execution_timeout_ms.0),
+        )?;
+        let now = self.clock.now();
+        if now.clock_id != context.expires_at.clock_id
+            || now.ticks_ns >= context.expires_at.ticks_ns
+        {
+            return Err(HostError::Stale);
+        }
+        let entry = call.entry(Duration::from_nanos(
+            context.expires_at.ticks_ns.0 - now.ticks_ns.0,
+        ))?;
+        if entry.as_object().map(|v| v.len()) != Some(7)
+            || entry["schema"] != "rx.python-native-entry.v2"
+            || entry["request_sha256"] != rx_package::content_digest(&bytes).to_string()
+        {
+            return Err(HostError::Conflict);
+        }
+        for key in [
+            "operation",
+            "invocation",
+            "intent_digest",
+            "environment_digest",
+            "device_session",
+        ] {
+            if entry[key] != request[key] {
+                return Err(HostError::Conflict);
+            }
+        }
+        let confirmed = self.clock.now();
+        if confirmed.clock_id != context.expires_at.clock_id
+            || confirmed.ticks_ns >= context.expires_at.ticks_ns
+        {
+            return Err(HostError::Stale);
+        }
+        let payload = canonical::bytes(&entry).map_err(unknown)?;
+        let proof = rx_process_contract::execution_v2::host_inputs::NativeEntry {
+            operation: operation.clone(),
+            invocation: invocation.clone(),
+            intent_digest: intent.digest().map_err(unknown)?,
+            profile_digest: intent.profile_digest,
+            device_session: context.device_session.clone(),
+            evidence: ArtifactRef {
+                schema_id: Name::new("rx.python-native-entry.v2").map_err(unknown)?,
+                sha256: rx_package::content_digest(&payload),
+                size_bytes: Counter(payload.len() as u64),
+            },
+            payload,
+        };
+        proof.validate().map_err(unknown)?;
+        let (sender, receiver) = mpsc::channel();
+        // This waiter only observes the same owned child; it has no submit capability.
+        std::thread::Builder::new()
+            .name("rx-python-completion".into())
+            .spawn(move || {
+                let _ = sender.send(call.finish().map_err(|error| error.to_string()));
+            })
+            .map_err(unknown)?;
+        self.pending.insert(
+            operation.clone(),
+            Pending {
+                invocation: invocation.clone(),
+                request,
+                receiver,
+                result: None,
+            },
+        );
+        Ok(NativeSubmission::Entered(proof))
+    }
+    fn completed(&mut self) -> Result<Vec<NativeCompletion>> {
+        let mut ready = Vec::new();
+        for (operation, pending) in &mut self.pending {
+            if pending.result.is_none() {
+                match pending.receiver.try_recv() {
+                    Ok(result) => pending.result = Some(result),
+                    Err(mpsc::TryRecvError::Empty) => (),
+                    Err(mpsc::TryRecvError::Disconnected) => {
+                        pending.result = Some(Err("Python completion custody lost".into()))
+                    }
+                }
+            }
+            if let Some(Ok(value)) = &pending.result {
+                ready.push((
+                    operation.clone(),
+                    pending.invocation.clone(),
+                    pending.request.clone(),
+                    value.clone(),
+                ));
+            }
+        }
+        let mut captures = Vec::new();
+        for (operation, invocation, request, value) in ready {
+            if let Some(capture) = self.capture(&operation, &invocation, &request, value)? {
+                captures.push(NativeCompletion {
+                    operation,
+                    invocation,
+                    capture,
+                });
+            }
+        }
+        Ok(captures)
+    }
+    fn acknowledge_completion(&mut self, operation: &Id) {
+        if self.pending.remove(operation).is_some() {
+            self.uncertain.remove(operation);
+        }
+    }
     fn lookup(&mut self, operation: &Id, invocation: &Id) -> Result<Option<NativeCapture>> {
+        self.lookup_program(operation, invocation, None)
+    }
+    fn lookup_with_input(
+        &mut self,
+        operation: &Id,
+        invocation: &Id,
+        intent: &Intent,
+        input: Option<&BoundInput>,
+    ) -> Result<Option<NativeCapture>> {
+        let Some(input) = input else {
+            return self.lookup(operation, invocation);
+        };
+        if input.binding.operation != *operation {
+            return Err(HostError::Conflict);
+        }
+        let program = self
+            .execution
+            .as_ref()
+            .ok_or(HostError::Guard)?
+            .program(intent, input)?;
+        self.lookup_program(operation, invocation, Some(&program))
+    }
+}
+impl<N: NativeAdapter, C: Clock> PythonSkill<N, C> {
+    fn lookup_program(
+        &mut self,
+        operation: &Id,
+        invocation: &Id,
+        bound: Option<&Program>,
+    ) -> Result<Option<NativeCapture>> {
         let path = self.state.join(operation.as_str()).join("request.json");
         if !path.exists() {
             return Ok(None);
@@ -392,7 +561,9 @@ impl<N: NativeAdapter, C: Clock> NativeAdapter for PythonSkill<N, C> {
         .map_err(unknown)?;
         let digest: Digest = serde_json::from_value(request["intent_digest"].clone())
             .map_err(|_| HostError::Conflict)?;
-        let program = self.programs.get(&digest).ok_or(HostError::Conflict)?;
+        let program = bound
+            .or_else(|| self.programs.get(&digest))
+            .ok_or(HostError::Conflict)?;
         if request["input"] != program.input
             || request["environment"] != program.environment.to_string_lossy().as_ref()
             || request["operation"] != operation.as_str()
