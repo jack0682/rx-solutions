@@ -65,7 +65,7 @@ class ExecutionClient(RuntimeClient):
         save_new(output/'host-material.json', chunks)
         return {'preview':ref, 'material':str(output/'host-material.json'), 'qualified':False}
 
-    def start(self, run, request_id, wait_seconds):
+    def start(self, run, request_id, wait_seconds, on_status=None):
         run = str(uuid.UUID(run))
         bound = self.terminal.get(BASE+'runs', run=run)
         if bound['run'] != run: raise ValueError('Run binding differs')
@@ -96,17 +96,26 @@ class ExecutionClient(RuntimeClient):
         deadline = time.monotonic()+wait_seconds
         while True:
             result = self.inspect(run)
+            if on_status is not None and result['run']['value']['state'] == 'EXECUTING':
+                on_status(result)
             if result['run']['value']['state'] not in ('PREPARED','EXECUTING') or time.monotonic() >= deadline:
                 return {'schema':'rx.execution-cli-receipt.v2', 'environment':result['binding']['environment'],
                         'workflow':result['binding']['name'], 'request_id':request_id,
                         'binding':bound, 'start_attempt':attempt['id'], 'result':result}
             time.sleep(.2)
 
-    def run_one(self, publication, object_ref, request_id, wait_seconds):
-        reference(publication['reference']); reference(object_ref)
+    def run_parts(self, publication, objects, request_id, wait_seconds):
+        reference(publication['reference'])
+        if not 1 <= len(objects) <= 2400:
+            raise ValueError('One to 2400 ordered objects required')
+        for obj in objects: reference(obj)
+        if len({(obj['catalog'], obj['id']) for obj in objects}) != len(objects):
+            raise ValueError('Each Part requires a distinct actual object')
+        # Preserve CP1's one-Part journal and derived request identities.
+        selection = {'object':objects[0]} if len(objects) == 1 else {'objects':objects}
         with self.journal(request_id) as root:
             save_new(root/'run-one.json', {'connection':self.terminal.fingerprint,
-                     'publication':publication, 'object':object_ref})
+                     'publication':publication, **selection})
             create_path = root/'create.json'
             if not create_path.exists():
                 cell = self.terminal.get('/api/v1/cell', id=publication['cell'])
@@ -114,13 +123,22 @@ class ExecutionClient(RuntimeClient):
                 if cfg.get('execution', {}).get('publication') != publication['reference']:
                     raise ValueError('selected publication is not the installed cell version')
                 save_new(create_path, {'cell':publication['cell'], 'publication':publication['reference'],
-                         'expected_cell':cell['revision'], 'count':'1'})
+                         'expected_cell':cell['revision'], 'count':str(len(objects))})
             create = json.loads(create_path.read_bytes())
         child = lambda stage: str(uuid.uuid5(uuid.UUID(request_id), 'rx.execution.'+stage))
         created = self.command('create-run', create, child('create'))
         run = created['binding']['run']
-        self.command('bind-object', {'run':run, 'ordinal':'1', 'object':object_ref}, child('object'))
-        receipt = self.start(run, child('start'), wait_seconds)
+        def bind(ordinal):
+            identity = 'object' if len(objects) == 1 else 'object/'+str(ordinal)
+            self.command('bind-object', {'run':run, 'ordinal':str(ordinal),
+                         'object':objects[ordinal-1]}, child(identity))
+        bind(1)
+        def next_object(result):
+            parts = sorted((p['value'] for p in result['parts']), key=lambda p:int(p['ordinal']))
+            if parts and parts[-1]['disposition'] == 'CONFIRMED_COMPLETED':
+                ordinal = int(parts[-1]['ordinal'])+1
+                if ordinal <= len(objects): bind(ordinal)
+        receipt = self.start(run, child('start'), wait_seconds, next_object)
         receipt['request_id'] = request_id
         receipt['approved_reports'] = self.approved_reports(receipt['binding'], receipt['result'])
         return receipt
@@ -167,8 +185,9 @@ def arguments(sub):
     a = commands.add_parser('export'); a.add_argument('preview', type=Path); a.add_argument('directory', type=Path)
     a = commands.add_parser('start'); a.add_argument('run'); a.add_argument('--request-id')
     a.add_argument('--wait-seconds', type=int, default=60); a.add_argument('--output', type=Path)
-    a = commands.add_parser('run', help='Run one Part of an installed published workflow')
-    a.add_argument('publication', type=Path); a.add_argument('--object', type=Path, required=True)
+    a = commands.add_parser('run', help='Run ordered Parts of an installed published workflow')
+    a.add_argument('publication', type=Path); a.add_argument('--object', type=Path, action='append', required=True)
+    a.add_argument('--count', type=int, help='Must match the number of ordered --object arguments')
     a.add_argument('--request-id'); a.add_argument('--wait-seconds', type=int, default=60); a.add_argument('--output', type=Path)
     a = commands.add_parser('inspect'); a.add_argument('run'); a.add_argument('--output', type=Path); a.add_argument('--reports', action='store_true')
 
@@ -179,6 +198,8 @@ def run(args):
         raise ValueError('Output already exists; no server request was sent: '+str(output))
     if args.action == 'export' and (args.directory.exists() or args.directory.is_symlink()):
         raise ValueError('Export directory already exists; no server request was sent')
+    if args.action == 'run' and args.count is not None and args.count != len(args.object):
+        raise ValueError('--count must match the number of ordered --object arguments')
     client = ExecutionClient(Terminal(args.connection.absolute()), args.state_dir.absolute())
     if args.action in MUTATIONS:
         request_id = str(uuid.UUID(args.request_id)) if args.request_id else str(uuid.uuid4())
@@ -190,8 +211,9 @@ def run(args):
         if args.wait_seconds < 0: raise ValueError('nonnegative wait required')
         request_id = str(uuid.UUID(args.request_id)) if args.request_id else str(uuid.uuid4())
         print('Execution request: '+request_id, file=__import__('sys').stderr, flush=True)
-        result = client.run_one(json.loads(read_file(args.publication.absolute())),
-                                json.loads(read_file(args.object.absolute())), request_id, args.wait_seconds)
+        objects = [json.loads(read_file(path.absolute())) for path in args.object]
+        result = client.run_parts(json.loads(read_file(args.publication.absolute())),
+                                  objects, request_id, args.wait_seconds)
     elif args.action == 'start':
         if args.wait_seconds < 0: raise ValueError('nonnegative wait required')
         request_id = str(uuid.UUID(args.request_id)) if args.request_id else str(uuid.uuid4())

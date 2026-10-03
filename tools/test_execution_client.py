@@ -44,6 +44,44 @@ class ExecutionClientTests(unittest.TestCase):
                 terminal.assert_not_called()
             self.assertEqual(output.read_text(), 'original')
 
+    def test_three_parts_keep_one_run_and_bind_only_after_previous_completion(self):
+        def ref():
+            return {'catalog':str(uuid.uuid4()),'id':str(uuid.uuid4()),'revision':'1','digest':'a'*64}
+        publication={'reference':ref(),'cell':'cell/sim'}
+        objects=[ref() for _ in range(3)]; calls=[]; run_id=str(uuid.uuid4())
+        server=SimpleNamespace(fingerprint='server',
+            get=lambda *a,**k:{'revision':'7','value':{'configuration':{'execution':{'publication':publication['reference']}}}})
+        with tempfile.TemporaryDirectory() as d:
+            client=ExecutionClient(server,Path(d)); key=str(uuid.uuid4())
+            def command(action,body,identity):
+                calls.append((action,copy.deepcopy(body),identity))
+                if action=='create-run': return {'binding':{'run':run_id}}
+                return body
+            def start(run,identity,wait,on_status):
+                self.assertEqual(run,run_id)
+                self.assertEqual([c[1]['ordinal'] for c in calls if c[0]=='bind-object'],['1'])
+                on_status({'parts':[{'value':{'ordinal':'1','disposition':'ACTIVE'}}]})
+                self.assertEqual(len(calls),2)
+                for ordinal in [1,2]:
+                    on_status({'parts':[{'value':{'ordinal':str(ordinal),'disposition':'CONFIRMED_COMPLETED'}}]})
+                return {'binding':{},'result':{}}
+            client.command=command;client.start=start;client.approved_reports=lambda *a:{}
+            client.run_parts(publication,objects,key,90)
+            self.assertEqual(calls[0][1]['count'],'3')
+            self.assertEqual([c[1]['object'] for c in calls[1:]],objects)
+            self.assertEqual({c[1]['run'] for c in calls[1:]},{run_id})
+            self.assertEqual(len({c[2] for c in calls}),4)
+            # A retry cannot reorder the remaining queue under the original request.
+            with self.assertRaises(ValueError):
+                client.run_parts(publication,list(reversed(objects)),key,90)
+            self.assertEqual(len(calls),4)
+
+    def test_count_mismatch_is_refused_before_login(self):
+        with patch('execution_client.Terminal') as terminal:
+            with self.assertRaisesRegex(ValueError,'--count'):
+                run(SimpleNamespace(action='run',output=None,count=3,object=[Path('one')]))
+            terminal.assert_not_called()
+
     def test_export_preserves_canonical_bytes_and_checks_hash(self):
         # JSON spelling must not be changed by a parse/encode round trip.
         raw = b'{"number":0.000001}'

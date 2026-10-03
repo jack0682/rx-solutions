@@ -81,6 +81,8 @@ def main(inputs):
         raise ValueError('exact workflow parameter shape required')
     if inputs.get('schema') != 'rx.workflow-parameters.v2' or inputs['on_failure'] != 'STOP' or inputs['on_unknown'] != 'HOLD_AND_RECONCILE':
         raise ValueError('supported pinned workflow parameters required')
+    correlation = {key: str(uuid.UUID(os.environ[variable])) for key, variable in (
+        ('operation', 'RX_HOST_OPERATION_ID'), ('invocation', 'RX_HOST_INVOCATION_ID'))}
     specification = read(Path(__file__).with_name('skill.json'))['simulation']
     if specification['environment'] != 'FILE_SIMULATION': raise ValueError('simulation only')
     root = Path(specification['state_directory'])
@@ -172,7 +174,7 @@ def main(inputs):
         require(observations.get(done['observation']) is expected)
         state['effects'] += 1
         save(root, state)
-        effect = {'environment':'FILE_SIMULATION', 'selection':selection, 'node':inputs['node'],
+        effect = {'environment':'FILE_SIMULATION', **correlation, 'selection':selection, 'node':inputs['node'],
                   'slot':slot, 'primitive':primitive, 'parameters':params,
                   'before_digest':hashlib.sha256(encoded(before)).hexdigest(),
                   'after_digest':hashlib.sha256(encoded(state)).hexdigest(), 'observations':observations,
