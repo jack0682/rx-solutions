@@ -416,6 +416,9 @@ impl<R: Repository> Worker<R> {
         body: Body,
         snapshot: &B,
     ) -> Result<Execution, Error> {
+        // Only an original-operation read may outlive this execution snapshot.
+        // P authenticates its current peer and scopes the query; this grants no new effect.
+        let needs_current_read = !matches!(&body, Body::ReconcileOperation { .. });
         let context = snapshot.context_identity();
         let entry = if let Some(old) = self.journal.get(&logical)? {
             if old.context != context {
@@ -450,7 +453,7 @@ impl<R: Repository> Worker<R> {
         ) {
             return Ok(Execution::Deferred(Outcome::RefreshRequired));
         }
-        if !snapshot.is_current() {
+        if needs_current_read && !snapshot.is_current() {
             return Ok(Execution::Deferred(Outcome::RefreshRequired));
         }
         let entered = self.journal.enter(&entry.key)?;
@@ -460,7 +463,7 @@ impl<R: Repository> Worker<R> {
         }
         // Losing the process between this durable boundary and the RPC leaves EmitEntered.
         // Such a request can only reuse its original key/body, never be silently replaced.
-        if !snapshot.is_current() {
+        if needs_current_read && !snapshot.is_current() {
             return Ok(Execution::Deferred(Outcome::RefreshRequired));
         }
         match self.client.emit(&entered.key, &entered.body).await {

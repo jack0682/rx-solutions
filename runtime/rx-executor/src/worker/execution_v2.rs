@@ -119,9 +119,6 @@ impl<R: Repository> Worker<R> {
                 })?;
             }
         }
-        if !snapshot.is_current() {
-            return Ok(Outcome::RefreshRequired);
-        }
         // Reconciliation reads preserve original identity even while new admission is disabled.
         if let Some(node) = snapshot.frontier().handovers.first() {
             let p = c
@@ -153,11 +150,19 @@ impl<R: Repository> Worker<R> {
                 _ => Err(Error::Invalid("v2 reconciliation reply differs".into())),
             };
         }
+        if !snapshot.is_current() {
+            return Ok(Outcome::RefreshRequired);
+        }
         if !c.request_admission_allowed {
             return Ok(Outcome::WaitingForAuthority);
         }
         let Some(node) = snapshot.frontier().operations.first() else {
-            return Ok(Outcome::RefreshRequired);
+            return Ok(snapshot
+                .frontier()
+                .pending_operations
+                .first()
+                .map(|operation| Outcome::ObservedOperation(operation.clone()))
+                .unwrap_or(Outcome::WaitingForAuthority));
         };
         if snapshot.frontier().operations.len() != 1 {
             return Err(Error::Invalid(

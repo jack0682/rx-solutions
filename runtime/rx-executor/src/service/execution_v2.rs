@@ -52,6 +52,9 @@ impl<R: Repository, F: PlannerFactory> RunService<R, F> {
     }
 }
 fn outcome(value: Outcome) -> Result<Option<StopReason>, Error> {
+    if matches!(value, Outcome::RefreshRequired) {
+        return Err(Error::Expired);
+    }
     Ok(match value {
         Outcome::ContextChanged => Some(StopReason::ContextChanged),
         Outcome::Attention(_) | Outcome::Unsupported(_) => Some(StopReason::WorkerFault),

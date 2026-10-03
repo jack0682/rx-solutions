@@ -43,3 +43,12 @@ the approved first P/Executor gate; this mode does not silently retry an effect.
 cargo test -p rx-executor --all-features --locked
 cargo clippy -p rx-executor --all-targets --all-features --locked -- -D warnings
 ```
+
+The platform's `tools/test_executor_v2_registered.sh SOLUTIONS_CHECKOUT NEW_OUTPUT`
+reuses its signed publication/qualification fixture and runs this repository's
+`rx-executor-v2-registered-fixture` over enrolled mTLS. Four sequential cases cover
+normal completion and lost committed BeginPart2, SubmitNode2 and CompletePart replies.
+Each completes two Parts, waits for explicit second-object binding, retains missing
+replies as pending query recovery, and refuses v1 snapshot/incorrect v2 binding or
+foreign artifacts. Host evidence and the shared test clock are synthetic. The harness
+is available only with `test-harness`; it is not the installed service or M3 acceptance.

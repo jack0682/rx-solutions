@@ -158,6 +158,7 @@ struct Server {
     saved: Arc<Mutex<Vec<String>>>,
     lose: Arc<AtomicBool>,
     snapshot: snap::Snapshot,
+    queries: Arc<std::sync::atomic::AtomicUsize>,
 }
 #[tonic::async_trait]
 impl wire2::execution_control_service_server::ExecutionControlService for Server {
@@ -253,7 +254,9 @@ async fn worker_reopens_pending_v2_request_and_reuses_original_key_after_lost_re
     let address = listener.local_addr().unwrap();
     drop(listener);
     let saved = Arc::new(Mutex::new(Vec::new()));
+    let queries = Arc::new(std::sync::atomic::AtomicUsize::new(0));
     let server = Server {
+        queries: queries.clone(),
         snapshot: snapshot.clone(),
         saved: saved.clone(),
         lose: Arc::new(AtomicBool::new(true)),
@@ -261,6 +264,9 @@ async fn worker_reopens_pending_v2_request_and_reuses_original_key_after_lost_re
     let (stop, stopped) = tokio::sync::oneshot::channel();
     let task = tokio::spawn(async move {
         tonic::transport::Server::builder()
+            .add_service(base::operation_service_server::OperationServiceServer::new(
+                server.clone(),
+            ))
             .add_service(
                 wire2::execution_control_service_server::ExecutionControlServiceServer::new(server),
             )
@@ -313,6 +319,16 @@ async fn worker_reopens_pending_v2_request_and_reuses_original_key_after_lost_re
     .unwrap();
     let mut worker = crate::worker::Worker::new(client, journal).unwrap();
     worker.negotiate_execution().await.unwrap();
+    let mut stale = worker.execution_snapshot(Counter(1)).await.unwrap();
+    stale.deadline = Instant::now() - Duration::from_millis(1);
+    assert!(matches!(
+        worker.handle_execution_snapshot(&stale).await.unwrap(),
+        crate::worker::Outcome::RefreshRequired
+    ));
+    assert!(
+        saved.lock().unwrap().is_empty(),
+        "expired read cannot submit a new effect"
+    );
     let view = worker.execution_snapshot(Counter(1)).await.unwrap();
     assert!(worker.handle_execution_snapshot(&view).await.is_err());
     let (client, journal) = worker.into_parts();
@@ -331,6 +347,95 @@ async fn worker_reopens_pending_v2_request_and_reuses_original_key_after_lost_re
         assert_eq!(keys.len(), 2);
         assert_eq!(keys[0], keys[1]);
     }
+    let mut stale = worker.execution_snapshot(Counter(1)).await.unwrap();
+    let mut accepted = admission(&stale.raw);
+    accepted
+        .operation
+        .conclude(rx_domain::operation::Conclusion {
+            outcome: rx_domain::operation::Outcome::Succeeded,
+            evidence_ids: vec![uid(99)],
+        })
+        .unwrap();
+    let node = stale.raw.plan.binding.nodes.keys().next().unwrap().clone();
+    stale.raw.context.run.checkpoint.activations = vec![ActivationSnapshot {
+        id: accepted.activation.clone(),
+        node: node.clone(),
+        visit: Counter(1),
+        slots: vec![SlotSnapshot {
+            slot: n("main"),
+            operation: accepted.operation.id().clone(),
+            intent_digest: accepted.operation.intent_digest(),
+        }],
+    }];
+    stale.raw.context.progress.operations.insert(
+        node.clone(),
+        frontier::OperationProgress {
+            intent_digest: accepted.operation.intent_digest(),
+            operation: accepted.operation,
+        },
+    );
+    stale.frontier = stale.raw.validate().unwrap();
+    stale.deadline = Instant::now() - Duration::from_millis(1);
+    assert!(
+        matches!(worker.handle_execution_snapshot(&stale).await,Err(Error::Rpc(e)) if e.code()==tonic::Code::Unavailable)
+    );
+    assert_eq!(
+        queries.load(Ordering::SeqCst),
+        1,
+        "original-operation query must reach P even after execution read expires"
+    );
+    let entry = worker
+        .journal()
+        .get(&crate::journal::Logical {
+            visit: Counter(1),
+            node,
+            stage: crate::journal::Stage::ReconcileOperation,
+            control: None,
+        })
+        .unwrap()
+        .unwrap();
+    assert!(matches!(entry.send, crate::journal::SendState::EmitEntered));
+    assert!(matches!(
+        entry.resolution,
+        crate::journal::Resolution::Pending
+    ));
     let _ = stop.send(());
     task.await.unwrap();
+}
+
+#[tonic::async_trait]
+impl base::operation_service_server::OperationService for Server {
+    async fn submit(
+        &self,
+        _: tonic::Request<base::SubmitOperation>,
+    ) -> Result<tonic::Response<base::Receipt>, tonic::Status> {
+        Err(tonic::Status::unimplemented("unused"))
+    }
+
+    async fn get(
+        &self,
+        _: tonic::Request<base::OperationRef>,
+    ) -> Result<tonic::Response<base::OperationView>, tonic::Status> {
+        Err(tonic::Status::unimplemented("unused"))
+    }
+    async fn lookup(
+        &self,
+        _: tonic::Request<base::CallContext>,
+    ) -> Result<tonic::Response<base::Receipt>, tonic::Status> {
+        Err(tonic::Status::unimplemented("unused"))
+    }
+    async fn request_cancel(
+        &self,
+        _: tonic::Request<base::CancelRequest>,
+    ) -> Result<tonic::Response<base::OperationView>, tonic::Status> {
+        Err(tonic::Status::unimplemented("unused"))
+    }
+    async fn reconcile(
+        &self,
+        r: tonic::Request<base::OperationRef>,
+    ) -> Result<tonic::Response<base::OperationView>, tonic::Status> {
+        assert_eq!(r.into_inner().operation_id, uid(80).as_str());
+        self.queries.fetch_add(1, Ordering::SeqCst);
+        Err(tonic::Status::unavailable("query response lost; no effect"))
+    }
 }
