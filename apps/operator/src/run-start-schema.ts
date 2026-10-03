@@ -40,7 +40,7 @@ const operatorRun = runSchema.extend({
   envelope_digest: digest,
 });
 export const startContextSchema = z
-  .object({
+  .strictObject({
     installation: installationSchema,
     checked_at: timeSchema,
     cell: z.string(),
@@ -51,7 +51,7 @@ export const startContextSchema = z
     environment: z.enum(['SIMULATION', 'PHYSICAL']),
     commissioning: z.enum(['NOT_COMMISSIONED', 'COMMISSIONED', 'REVALIDATION_REQUIRED']).nullable(),
     envelope: artifactSchema,
-    recipe: artifactSchema,
+    recipe: artifactSchema.extend({ schema_id: z.literal('rx.resolved-process.v1') }),
     site_config_digest: digest,
     maximum_budget: counter,
     run_revision: counter,
