@@ -88,4 +88,26 @@ before returning, so each effect can be joined to the product Run's operation an
 invocation records. Parameter bytes and main(inputs) remain unchanged. A repeated
 effect remains visible; this logging does not suppress it or certify completion.
 
-UNKNOWN reconciliation remains CP3 and is not implemented by this checkpoint.
+Checkpoint 3 exercises the separate result-loss observation and continuation path below.
+
+## Result-loss observation and continuation
+
+For the isolated SIM result-loss fixture, add `--until-unknown` to `execution run`.
+It returns P's receipt immediately when an operation has execution_knowledge UNKNOWN,
+with the usual incomplete-run exit code 2. This changes only CLI waiting; it does not
+change admission, create uncertainty, stop the Host or settle an operation.
+
+Each work entry includes current P-owned resource records and its original
+reconciliation request, if any. `slot_pools` contains current pool generations and
+this Run's slot holds. These are observations, not new authority; resource state is
+current while operation/report references preserve their historical identity.
+
+After restoring transmission, repeat the same `run` command, ordered object references
+and request ID without `--until-unknown`, using a new output path. This recovers the
+original Run/Start and continues supplying objects after confirmed Part completion.
+Already emitted native operations are queried/reconciled through the existing path;
+they are not resubmitted. `inspect --reports` reopens those same records.
+
+The [SIM result-loss link](../simulation/result-link/README.md) implements the
+checkpoint fault outside the Host. Mixed ECC model data is in
+[rotation/mixed-models.json](../../examples/process/laser-heat-treatment/rotation/mixed-models.json).
