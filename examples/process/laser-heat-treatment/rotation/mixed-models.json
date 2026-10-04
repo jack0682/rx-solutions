@@ -1,0 +1,141 @@
+{
+  "schema": "rx.definition-package.v1",
+  "catalog": "a86ea3cc-8431-58ac-8401-5c2c63cb532c",
+  "title": "Mixed ECC rotation models · SIMULATION",
+  "definitions": [
+    {
+      "key": "type.rotation-ECC_51",
+      "id": "783188e7-411f-5b0d-af96-63bcb5b10b04",
+      "expected": null,
+      "label": "ECC_51 rotation · SIMULATION",
+      "body": {
+        "kind": "OBJECT_TYPE",
+        "parent": {
+          "$ref": "type.ECC_51"
+        },
+        "fields": {
+          "nominal_angle": {
+            "property": {
+              "$ref": "f0.object-angle"
+            },
+            "required": true
+          },
+          "angle_tolerance": {
+            "property": {
+              "$ref": "f0.object-tolerance"
+            },
+            "required": true
+          }
+        }
+      }
+    },
+    {
+      "key": "part.rotation-ECC_51",
+      "id": "9162766d-c992-5e70-99f2-5e462bbfdc4c",
+      "expected": null,
+      "label": "ECC_51 rotation · SIMULATION",
+      "body": {
+        "kind": "OBJECT_MODEL",
+        "object_type": {
+          "$ref": "type.rotation-ECC_51"
+        },
+        "values": {
+          "profile": {
+            "text": "SIMULATION"
+          },
+          "jig": {
+            "text": "PART1/14"
+          },
+          "width": {
+            "number": 45
+          },
+          "height": {
+            "number": 20
+          },
+          "depth": {
+            "number": 40
+          },
+          "weight": {
+            "number": 0.4
+          },
+          "allowed_force": {
+            "number": 50
+          },
+          "nominal_angle": {
+            "number": 90
+          },
+          "angle_tolerance": {
+            "number": 0.8
+          }
+        }
+      }
+    },
+    {
+      "key": "type.rotation-ECC_99",
+      "id": "613b2efd-5def-515a-a3ba-820ebd48840d",
+      "expected": null,
+      "label": "ECC_99 rotation · SIMULATION",
+      "body": {
+        "kind": "OBJECT_TYPE",
+        "parent": {
+          "$ref": "type.ECC_99"
+        },
+        "fields": {
+          "nominal_angle": {
+            "property": {
+              "$ref": "f0.object-angle"
+            },
+            "required": true
+          },
+          "angle_tolerance": {
+            "property": {
+              "$ref": "f0.object-tolerance"
+            },
+            "required": true
+          }
+        }
+      }
+    },
+    {
+      "key": "part.rotation-ECC_99",
+      "id": "8248e6bf-155d-5387-b8f9-fb9f93273c4c",
+      "expected": null,
+      "label": "ECC_99 rotation · SIMULATION",
+      "body": {
+        "kind": "OBJECT_MODEL",
+        "object_type": {
+          "$ref": "type.rotation-ECC_99"
+        },
+        "values": {
+          "profile": {
+            "text": "SIMULATION"
+          },
+          "jig": {
+            "text": "PART1/14"
+          },
+          "width": {
+            "number": 75
+          },
+          "height": {
+            "number": 35
+          },
+          "depth": {
+            "number": 40
+          },
+          "weight": {
+            "number": 1.2
+          },
+          "allowed_force": {
+            "number": 35
+          },
+          "nominal_angle": {
+            "number": 180
+          },
+          "angle_tolerance": {
+            "number": 0.3
+          }
+        }
+      }
+    }
+  ]
+}

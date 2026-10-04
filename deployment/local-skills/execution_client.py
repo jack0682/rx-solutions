@@ -65,7 +65,7 @@ class ExecutionClient(RuntimeClient):
         save_new(output/'host-material.json', chunks)
         return {'preview':ref, 'material':str(output/'host-material.json'), 'qualified':False}
 
-    def start(self, run, request_id, wait_seconds, on_status=None):
+    def start(self, run, request_id, wait_seconds, on_status=None, until_unknown=False):
         run = str(uuid.UUID(run))
         bound = self.terminal.get(BASE+'runs', run=run)
         if bound['run'] != run: raise ValueError('Run binding differs')
@@ -98,13 +98,15 @@ class ExecutionClient(RuntimeClient):
             result = self.inspect(run)
             if on_status is not None and result['run']['value']['state'] == 'EXECUTING':
                 on_status(result)
-            if result['run']['value']['state'] not in ('PREPARED','EXECUTING') or time.monotonic() >= deadline:
+            unknown = any(w['operation']['execution_knowledge'] == 'UNKNOWN' for w in result['work'])
+            if (result['run']['value']['state'] not in ('PREPARED','EXECUTING')
+                    or time.monotonic() >= deadline or (until_unknown and unknown)):
                 return {'schema':'rx.execution-cli-receipt.v2', 'environment':result['binding']['environment'],
                         'workflow':result['binding']['name'], 'request_id':request_id,
                         'binding':bound, 'start_attempt':attempt['id'], 'result':result}
             time.sleep(.2)
 
-    def run_parts(self, publication, objects, request_id, wait_seconds):
+    def run_parts(self, publication, objects, request_id, wait_seconds, until_unknown=False):
         reference(publication['reference'])
         if not 1 <= len(objects) <= 2400:
             raise ValueError('One to 2400 ordered objects required')
@@ -138,9 +140,10 @@ class ExecutionClient(RuntimeClient):
             if parts and parts[-1]['disposition'] == 'CONFIRMED_COMPLETED':
                 ordinal = int(parts[-1]['ordinal'])+1
                 if ordinal <= len(objects): bind(ordinal)
-        receipt = self.start(run, child('start'), wait_seconds, next_object)
+        receipt = self.start(run, child('start'), wait_seconds, next_object, until_unknown=until_unknown)
         receipt['request_id'] = request_id
         receipt['approved_reports'] = self.approved_reports(receipt['binding'], receipt['result'])
+        receipt['slot_pools'] = self.slot_pools(receipt['binding'])
         return receipt
 
     def approved_reports(self, bound, result):
@@ -163,6 +166,16 @@ class ExecutionClient(RuntimeClient):
             reports[key] = json.loads(raw)
         return reports
 
+    def slot_pools(self, bound):
+        result = []
+        for pin in bound['pools']:
+            pool = self.terminal.get(BASE+'slot-pools', **pin['resource'])
+            if pool['cell'] != bound['cell']: raise ValueError('Slot pool cell differs')
+            result.append({'resource':pin['resource'], 'generation':pool['generation'],
+                           'layout_digest':pool['layout']['layout_digest'],
+                           'holds':{k:v for k,v in pool['holds'].items() if v['run'] == bound['run']}})
+        return result
+
     def inspect_execution(self, run, reports=False):
         result = self.inspect(run)
         if result['binding']['recipe']['schema_id'] != 'rx.execution-plan.v2':
@@ -171,6 +184,7 @@ class ExecutionClient(RuntimeClient):
         receipt = {'schema':'rx.execution-cli-receipt.v2', 'environment':result['binding']['environment'],
                    'workflow':result['binding']['name'], 'binding':bound, 'result':result}
         if reports: receipt['approved_reports'] = self.approved_reports(bound, result)
+        receipt['slot_pools'] = self.slot_pools(bound)
         return receipt
 
 
@@ -187,6 +201,7 @@ def arguments(sub):
     a.add_argument('--wait-seconds', type=int, default=60); a.add_argument('--output', type=Path)
     a = commands.add_parser('run', help='Run ordered Parts of an installed published workflow')
     a.add_argument('publication', type=Path); a.add_argument('--object', type=Path, action='append', required=True)
+    a.add_argument('--until-unknown', action='store_true', help='Return the product receipt as soon as P reports UNKNOWN')
     a.add_argument('--count', type=int, help='Must match the number of ordered --object arguments')
     a.add_argument('--request-id'); a.add_argument('--wait-seconds', type=int, default=60); a.add_argument('--output', type=Path)
     a = commands.add_parser('inspect'); a.add_argument('run'); a.add_argument('--output', type=Path); a.add_argument('--reports', action='store_true')
@@ -213,7 +228,7 @@ def run(args):
         print('Execution request: '+request_id, file=__import__('sys').stderr, flush=True)
         objects = [json.loads(read_file(path.absolute())) for path in args.object]
         result = client.run_parts(json.loads(read_file(args.publication.absolute())),
-                                  objects, request_id, args.wait_seconds)
+                                  objects, request_id, args.wait_seconds, until_unknown=args.until_unknown)
     elif args.action == 'start':
         if args.wait_seconds < 0: raise ValueError('nonnegative wait required')
         request_id = str(uuid.UUID(args.request_id)) if args.request_id else str(uuid.uuid4())

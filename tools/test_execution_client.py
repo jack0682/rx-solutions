@@ -57,7 +57,7 @@ class ExecutionClientTests(unittest.TestCase):
                 calls.append((action,copy.deepcopy(body),identity))
                 if action=='create-run': return {'binding':{'run':run_id}}
                 return body
-            def start(run,identity,wait,on_status):
+            def start(run,identity,wait,on_status,until_unknown=False):
                 self.assertEqual(run,run_id)
                 self.assertEqual([c[1]['ordinal'] for c in calls if c[0]=='bind-object'],['1'])
                 on_status({'parts':[{'value':{'ordinal':'1','disposition':'ACTIVE'}}]})
@@ -65,7 +65,7 @@ class ExecutionClientTests(unittest.TestCase):
                 for ordinal in [1,2]:
                     on_status({'parts':[{'value':{'ordinal':str(ordinal),'disposition':'CONFIRMED_COMPLETED'}}]})
                 return {'binding':{},'result':{}}
-            client.command=command;client.start=start;client.approved_reports=lambda *a:{}
+            client.command=command;client.start=start;client.approved_reports=lambda *a:{};client.slot_pools=lambda *a:[]
             client.run_parts(publication,objects,key,90)
             self.assertEqual(calls[0][1]['count'],'3')
             self.assertEqual([c[1]['object'] for c in calls[1:]],objects)
@@ -75,6 +75,27 @@ class ExecutionClientTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 client.run_parts(publication,list(reversed(objects)),key,90)
             self.assertEqual(len(calls),4)
+
+    def test_until_unknown_returns_authoritative_work_without_changing_start_request(self):
+        run_id=str(uuid.uuid4()); key=str(uuid.uuid4()); calls=[]
+        bound={'run':run_id,'cell':'cell/sim','slots':[{}, {}, {}]}
+        command={'run':run_id,'budget_limit':'3'}
+        def get(route,**query):
+            if route.endswith('/runs'): return bound
+            return {'run':{'id':run_id},'cell':'cell/sim','recipe':{'schema_id':'rx.execution-plan.v2'},
+                    'can_request':True,'request':command}
+        def request(route,body):
+            calls.append(copy.deepcopy(body)); return {'run':run_id,'cell':'cell/sim','id':'original-start'}
+        result={'run':{'value':{'state':'EXECUTING'}},'binding':{'environment':'SIMULATION','name':'s2'},
+                'work':[{'operation':{'execution_knowledge':'UNKNOWN','disposition':'QUARANTINED'}}]}
+        with tempfile.TemporaryDirectory() as d:
+            client=ExecutionClient(SimpleNamespace(fingerprint='p',get=get,request=request),Path(d))
+            client.inspect=lambda _:copy.deepcopy(result)
+            returned=client.start(run_id,key,180,until_unknown=True)
+            self.assertEqual(returned['result'],result)
+            client.start(run_id,key,0)
+            self.assertEqual(calls[0],calls[1])
+            self.assertEqual(calls[0]['command'],command)
 
     def test_count_mismatch_is_refused_before_login(self):
         with patch('execution_client.Terminal') as terminal:
