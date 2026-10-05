@@ -16,6 +16,15 @@ use std::{
     time::{Duration, Instant},
 };
 
+fn stage(error: HostError, at: impl std::fmt::Display) -> HostError {
+    // Preserve the RPC error class; retain the failed local boundary instead of a bare errno.
+    match error {
+        HostError::Invalid(message) => invalid(format!("{at}: {message}")),
+        HostError::NativeUnknown(message) => HostError::NativeUnknown(format!("{at}: {message}")),
+        other => other,
+    }
+}
+
 struct ChildState {
     child: Child,
     reaped: bool,
@@ -114,8 +123,11 @@ impl Call {
         timeout: Duration,
         protection: &Protection,
     ) -> Result<Self> {
-        program.validate(true)?;
-        let (channel, peer) = UnixStream::pair().map_err(invalid)?;
+        program
+            .validate(true)
+            .map_err(|e| stage(e, format!("external {mode} program verification")))?;
+        let (channel, peer) = UnixStream::pair()
+            .map_err(|e| invalid(format!("external {mode} channel creation: {e}")))?;
         channel.set_write_timeout(Some(timeout)).map_err(invalid)?;
         let stdout = peer.try_clone().map_err(invalid)?;
         let child = Command::new(&program.executable.path)
@@ -128,7 +140,7 @@ impl Call {
             .stderr(Stdio::null())
             .process_group(0)
             .spawn()
-            .map_err(invalid)?;
+            .map_err(|e| invalid(format!("external {mode} process spawn: {e}")))?;
         let group = rustix::process::Pid::from_raw(child.id() as i32).ok_or(HostError::Guard)?;
         let child = Arc::new(Control {
             state: Mutex::new(ChildState {
@@ -143,7 +155,10 @@ impl Call {
             child,
             deadline: Instant::now() + timeout,
         };
-        result.channel.write_all(bytes).map_err(invalid)?;
+        result
+            .channel
+            .write_all(bytes)
+            .map_err(|e| invalid(format!("external {mode} request write: {e}")))?;
         result.channel.shutdown(Shutdown::Write).map_err(invalid)?;
         Ok(result)
     }
@@ -158,11 +173,23 @@ impl Call {
         self.channel.read(bytes).map_err(invalid)
     }
     pub fn entry(&mut self, timeout: Duration) -> Result<Value> {
+        let started = Instant::now();
         let deadline = (Instant::now() + timeout).min(self.deadline);
         let mut bytes = Vec::new();
         loop {
             let mut byte = [0];
-            if self.read(&mut byte, deadline)? == 0 {
+            if self.read(&mut byte, deadline).map_err(|e| {
+                stage(
+                    e,
+                    format!(
+                        "external execute entry read (budget_us={}, elapsed_us={}, bytes={})",
+                        timeout.as_micros(),
+                        started.elapsed().as_micros(),
+                        bytes.len()
+                    ),
+                )
+            })? == 0
+            {
                 return Err(HostError::NativeUnknown("external entry missing".into()));
             }
             if byte[0] == b'\n' {
