@@ -30,6 +30,7 @@ COPY native/open-manipulator ./native/open-manipulator
 COPY dependencies ./dependencies
 COPY interfaces ./interfaces
 COPY deployment/local-skills/host_runner.py deployment/local-skills/python_environment.py ./deployment/local-skills/
+COPY deployment/external-adapters ./deployment/external-adapters
 RUN --mount=type=cache,id=rx-solutions-registry,target=/usr/local/cargo/registry \
     --mount=type=cache,id=rx-solutions-release,target=/src/target \
     cargo build --release --locked --workspace && mkdir -p /out && cp target/release/rx-hostd target/release/rx-executor-service target/release/rx-process-compile target/release/rx-solutionsd target/release/rx-process-package target/release/rx-device-package /out/

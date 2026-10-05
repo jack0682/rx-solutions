@@ -49,6 +49,11 @@ impl PinnedFile {
 #[serde(tag = "kind", rename_all = "SCREAMING_SNAKE_CASE", deny_unknown_fields)]
 pub enum Backend {
     #[cfg(unix)]
+    ExternalProcessPackage {
+        registry: PinnedFile,
+        adapter: Name,
+    },
+    #[cfg(unix)]
     PythonExecutionPackage {
         directory: PathBuf,
         manifest_digest: Digest,

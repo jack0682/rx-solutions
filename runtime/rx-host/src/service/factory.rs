@@ -9,6 +9,8 @@ const JTC_NOT_CONFIGURED: &str = "JTC_CONTROL_PROVIDER_NOT_CONFIGURED: validated
 pub struct Builtin;
 pub enum BuiltinAdapter<C: Clock> {
     #[cfg(unix)]
+    External(Box<crate::external_process::External<C>>),
+    #[cfg(unix)]
     Python(Box<crate::python_skill::PythonSkill<crate::simulation::FileDevice<C>, C>>),
     File(crate::simulation::FileDevice<C>),
     Dynamixel(Box<crate::dynamixel::Dynamixel<C>>),
@@ -16,7 +18,7 @@ pub enum BuiltinAdapter<C: Clock> {
 }
 macro_rules! delegate {
     ($self:ident,$method:ident($($arg:expr),*)) => {
-        match $self {#[cfg(unix)] Self::Python(v)=>v.$method($($arg),*), Self::File(v)=>v.$method($($arg),*),Self::Melsec(v)=>v.$method($($arg),*),Self::Dynamixel(v)=>v.$method($($arg),*)}
+        match $self {#[cfg(unix)] Self::External(v)=>v.$method($($arg),*), #[cfg(unix)] Self::Python(v)=>v.$method($($arg),*), Self::File(v)=>v.$method($($arg),*),Self::Melsec(v)=>v.$method($($arg),*),Self::Dynamixel(v)=>v.$method($($arg),*)}
     };
 }
 impl<C: Clock> NativeAdapter for BuiltinAdapter<C> {
@@ -115,10 +117,20 @@ impl<C: Clock + Clone + 'static> AdapterFactory<C> for Builtin {
         if matches!(backend, Backend::PythonExecutionPackage { .. }) {
             return Ok(vec![python_execution_package::load(backend)?.1.templates]);
         }
+        #[cfg(unix)]
+        if let Backend::ExternalProcessPackage { registry, adapter } = backend {
+            return Ok(vec![external_package::load(registry, adapter)?.1.templates]);
+        }
         Ok(vec![])
     }
     fn validate(&self, backend: &Backend, bindings: &[Binding]) -> Result<()> {
         match backend {
+            #[cfg(unix)]
+            Backend::ExternalProcessPackage { registry, adapter } => {
+                external_package::load(registry, adapter)?
+                    .1
+                    .validate_bindings(bindings)
+            }
             #[cfg(unix)]
             Backend::PythonExecutionPackage { .. } => {
                 python_execution_package::load(backend)?
@@ -167,6 +179,17 @@ impl<C: Clock + Clone + 'static> AdapterFactory<C> for Builtin {
         data: &Path,
     ) -> Result<Option<NativeInstallation>> {
         match backend {
+            #[cfg(unix)]
+            Backend::ExternalProcessPackage { registry, adapter } => {
+                let (registration_digest, package) = external_package::load(registry, adapter)?;
+                let device_session =
+                    crate::external_process::initialize(&data.join("native-external"))?;
+                Ok(Some(NativeInstallation::ExternalProcess {
+                    registration_digest,
+                    program_digest: package.profile.program.sha256,
+                    device_session,
+                }))
+            }
             #[cfg(unix)]
             Backend::PythonExecutionPackage { .. } => {
                 let (registration_digest, p) = python_execution_package::load(backend)?;
@@ -229,6 +252,32 @@ impl<C: Clock + Clone + 'static> AdapterFactory<C> for Builtin {
         let descriptor = read_installation(data)?;
         let native_root = native_storage_root(data, &descriptor)?;
         match backend {
+            #[cfg(unix)]
+            Backend::ExternalProcessPackage { registry, adapter } => {
+                let (registration_digest, package) = external_package::load(registry, adapter)?;
+                let Some(NativeInstallation::ExternalProcess {
+                    registration_digest: stored,
+                    program_digest,
+                    device_session,
+                }) = descriptor.native
+                else {
+                    return Err("external registry installation metadata missing".into());
+                };
+                if registration_digest != stored || program_digest != package.profile.program.sha256
+                {
+                    return Err("external selected package differs from installed identity".into());
+                }
+                let native = crate::external_process::External::open(
+                    package.profile,
+                    package.program,
+                    native_root.join("native-external"),
+                    clock,
+                )?;
+                if native.device_session() != &device_session {
+                    return Err("external device generation differs".into());
+                }
+                Ok(BuiltinAdapter::External(Box::new(native)))
+            }
             #[cfg(unix)]
             Backend::PythonExecutionPackage { .. } => {
                 let (registration_digest, p) = python_execution_package::load(backend)?;
