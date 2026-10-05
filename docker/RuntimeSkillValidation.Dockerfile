@@ -15,6 +15,7 @@ RUN --mount=type=cache,id=rx-runtime-skill-p-registry,target=/usr/local/cargo/re
 RUN find /source -type f -not -path '/source/target/*' -print0 | sort -z | xargs -0 sha256sum > /out/source.sha256
 
 FROM rust:1.98.1-bookworm@sha256:9a73a5088750b4c95158ab26629c854c3d6fc4b173cb7bc8079ad252d8ed7bfa AS s-build
+RUN apt-get update && apt-get install -y --no-install-recommends python3 && rm -rf /var/lib/apt/lists/*
 WORKDIR /source
 COPY Cargo.toml Cargo.lock ./
 COPY sdk ./sdk
@@ -25,12 +26,14 @@ COPY native ./native
 COPY dependencies ./dependencies
 COPY interfaces ./interfaces
 COPY deployment/local-skills/host_runner.py deployment/local-skills/python_environment.py ./deployment/local-skills/
+COPY deployment/external-adapters ./deployment/external-adapters
 RUN --mount=type=cache,id=rx-runtime-skill-s-registry,target=/usr/local/cargo/registry \
     --mount=type=cache,id=rx-runtime-skill-s-target,target=/source/target \
     find /source -path /source/target -prune -o -type f -exec touch {} + && \
     cargo build --release --locked -p rx-host -p rx-executor -p rx-process-package -p rx-device-package && mkdir /out && cp target/release/rx-hostd target/release/rx-executor-service target/release/rx-process-package target/release/rx-device-package /out/
 RUN --mount=type=cache,id=rx-runtime-skill-s-registry,target=/usr/local/cargo/registry \
     --mount=type=cache,id=rx-runtime-skill-s-target,target=/source/target \
+    cargo test --locked -p rx-host --test external_process > /out/external-process.log && \
     cargo test --locked -p rx-host --features test-harness --test process_crash sigkill_at_both_journal_native_boundaries_never_replays_device_effect -- --exact > /out/host-recovery.log && \
     cargo test --locked -p rx-executor --test assignment_journal lost_run_initialization_reply_recovers_binding_without_reinitializing -- --exact > /out/executor-recovery.log && \
     cargo test --locked -p rx-executor --test assignment_journal run_creation_marker_cannot_change_after_header_initialization -- --exact > /out/executor-identity.log

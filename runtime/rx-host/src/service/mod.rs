@@ -3,6 +3,8 @@ pub mod binding_change;
 pub mod config;
 pub mod device_package;
 pub mod execution_material;
+#[cfg(unix)]
+pub mod external_package;
 mod factory;
 mod guarded_status;
 pub mod jtc_package;
@@ -92,6 +94,12 @@ impl<N: NativeAdapter, C: Clock> Drop for AdmissionOwner<N, C> {
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "SCREAMING_SNAKE_CASE", deny_unknown_fields)]
 pub enum NativeInstallation {
+    #[cfg(unix)]
+    ExternalProcess {
+        registration_digest: Digest,
+        program_digest: Digest,
+        device_session: Id,
+    },
     #[cfg(unix)]
     PythonExecution {
         registration_digest: Digest,

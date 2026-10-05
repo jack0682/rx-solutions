@@ -6,6 +6,8 @@ use rx_package::*;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 pub mod directory;
+#[cfg(unix)]
+pub mod external;
 pub mod jtc;
 #[cfg(unix)]
 pub mod python;
@@ -181,6 +183,12 @@ pub fn from_files(mut files: BTreeMap<PackagePath, Vec<u8>>) -> Result<Candidate
     let source: serde_json::Value =
         canonical::decode_json(assembly).map_err(|e| Error::Invalid(e.to_string()))?;
     let rebuilt = match source["schema"].as_str() {
+        #[cfg(unix)]
+        Some("rx.external-process-assembly.v1") => {
+            let source =
+                canonical::decode_json(assembly).map_err(|e| Error::Invalid(e.to_string()))?;
+            external::assemble(&source, &recipe)?
+        }
         Some("rx.melsec-assembly.v1") => {
             let a: Assembly =
                 canonical::decode_json(assembly).map_err(|e| Error::Invalid(e.to_string()))?;
@@ -244,6 +252,8 @@ pub fn decode_verified(
 }
 pub enum Device {
     #[cfg(unix)]
+    External(rx_host::service::external_package::Checked),
+    #[cfg(unix)]
     PythonExecution(rx_host::service::python_execution_package::Checked),
     #[cfg(unix)]
     PythonLibrary(rx_host::service::python_library::Library),
@@ -253,6 +263,16 @@ pub enum Device {
     Jtc(rx_host::service::jtc_package::LoadedDevice),
 }
 pub fn decode_verified_any(package: &VerifiedPackage) -> Result<Device> {
+    #[cfg(unix)]
+    if package
+        .file(&path("authoring/assembly.json"))
+        .and_then(|raw| serde_json::from_slice::<serde_json::Value>(raw).ok())
+        .is_some_and(|v| v["schema"] == "rx.external-process-assembly.v1")
+    {
+        return rx_host::service::external_package::decode(package)
+            .map(Device::External)
+            .map_err(|e| Error::Invalid(e.to_string()));
+    }
     #[cfg(unix)]
     if package
         .file(&path("authoring/assembly.json"))
