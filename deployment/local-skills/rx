@@ -198,7 +198,29 @@ def main():
     workflow_arguments(sub)
     from execution_client import arguments as execution_arguments, run as execution_run
     execution_arguments(sub)
+    p = sub.add_parser("api", help="Call an existing registered P API with explicit JSON documents")
+    p.add_argument("--connection", required=True, type=Path)
+    p.add_argument("--state-dir", type=Path, default=Path.home() / ".local/share/rx-api-client")
+    p.add_argument("method", choices=["get", "post"]); p.add_argument("path")
+    p.add_argument("--body", type=Path); p.add_argument("--request-id"); p.add_argument("--output", type=Path)
     args = parser.parse_args()
+    if args.command == "api":
+        from runtime_client import RuntimeClient, Terminal, read_file, save_new
+        try:
+            if args.output and args.output.exists(): raise ValueError("output already exists; no server request sent")
+            if (args.method == "post") != bool(args.body): raise ValueError("post requires --body; get does not accept a body")
+            body = json.loads(read_file(args.body.absolute())) if args.body else None
+            if args.method == "post" and not isinstance(body, dict): raise ValueError("post body must be a JSON object")
+            request_id = str(uuid.UUID(args.request_id)) if args.request_id else str(uuid.uuid4())
+            client = RuntimeClient(Terminal(args.connection.absolute()), args.state_dir.absolute())
+            if body is not None: print("API request: " + request_id, file=sys.stderr, flush=True)
+            result = client.api_request(args.path, body, request_id)
+            if args.output: save_new(args.output.absolute(), result)
+            print(json.dumps(result, indent=2))
+        except (ValueError, OSError) as exc:
+            print("RX API: " + str(exc) + ". Original request hashes remain under " + str(args.state_dir.absolute()), file=sys.stderr)
+            sys.exit(1)
+        return
     if args.command == "execution":
         try:
             result = execution_run(args)

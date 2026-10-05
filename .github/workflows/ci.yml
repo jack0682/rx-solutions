@@ -39,6 +39,7 @@ jobs:
           python3 tools/test_definition_client.py
           python3 tools/test_workflow_client.py
           python3 tools/test_execution_client.py
+          python3 tools/test_api_transport.py
       - name: Test Linux development installer boundaries
         run: python3 -B tools/test_linux_dev_bundle.py
       - name: Test offline Python SDK environment
