@@ -155,6 +155,17 @@ def main(inputs):
                 time.sleep(duration)
                 state.update(phase='PROCESSED', process_done=True, observed_duration_s=time.monotonic()-started)
                 observations['machine.process_done'] = True
+            elif primitive == 'acquire-support':
+                require(state['phase'] == 'OPEN' and not state['door_closed'] and state['clamped'] and state['process_done'])
+                state['motion'] = motion(params)
+                state.update(holding=True, phase='SUPPORTED', robot_clear=False)
+                # A completed package action, not a fresh Host support observation.
+                observations['gripper.part_held'] = True
+            elif primitive == 'withdraw':
+                require(state['phase'] == 'SUPPORTED' and state['holding'] and not state['clamped'] and not state['door_closed'] and state['process_done'])
+                state['motion'] = motion(params)
+                state.update(phase='UNLOADED', robot_clear=True)
+                observations['jig.part_unloaded'] = True
             elif primitive == 'unload':
                 require(state['phase'] == 'OPEN' and not state['door_closed'] and state['clamped'] and state['process_done'])
                 state['motion'] = motion(params)
@@ -179,10 +190,15 @@ def main(inputs):
                   'before_digest':hashlib.sha256(encoded(before)).hexdigest(),
                   'after_digest':hashlib.sha256(encoded(state)).hexdigest(), 'observations':observations,
                   'device':{key:state.get(key) for key in ['phase','motion','alignment','holding','clamped','door_closed','process_done']}}
+        if primitive in ('acquire-support', 'withdraw'):
+            effect['support_evidence'] = {'basis':'OPERATION_ORDER_ONLY', 'fresh_observation':False}
         log = os.open(root/'effects.jsonl', os.O_WRONLY | os.O_CREAT | os.O_APPEND | os.O_NOFOLLOW, 0o600)
         with os.fdopen(log, 'ab') as stream:
             stream.write(encoded(effect)+b'\n'); stream.flush(); os.fsync(stream.fileno())
-        return {'done':expected, 'observations':observations, 'selection':selection,
-                'slot':slot, 'state_digest':effect['after_digest']}
+        result = {'done':expected, 'observations':observations, 'selection':selection,
+                  'slot':slot, 'state_digest':effect['after_digest']}
+        if 'support_evidence' in effect:
+            result['support_evidence'] = effect['support_evidence']
+        return result
     finally:
         os.close(descriptor)
