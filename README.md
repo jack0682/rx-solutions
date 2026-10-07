@@ -1,5 +1,10 @@
 # RX Solutions
 
+> **Development has moved to [RobotTransformation](https://github.com/jack0682/RobotTransformation).**
+> New product and documentation work belongs in that repository. Development here has ended.
+> This repository preserves its original history, tags and existing references; the instructions below describe the legacy source tree.
+> This move does not accept the preserved CP2 Run or authorize changes to its environment or physical equipment.
+
 The [Linux development installer](deployment/linux-dev/README.md) packages pinned
 source snapshots and builds a device-free Platform/Host/Executor environment with
 the operator UI. It provides isolated verification sessions and retains their
