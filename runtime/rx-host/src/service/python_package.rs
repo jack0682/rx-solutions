@@ -168,6 +168,22 @@ pub fn decode(package: &VerifiedPackage) -> Result<Registration> {
             .file(&path("environment.json"))
             .ok_or("Python environment manifest absent")?,
     )?;
+    let Body::Program(goal) = &profile.intent.body else {
+        return Err("Python program absent".into());
+    };
+    check_package(
+        package,
+        files,
+        vec![goal.program.clone(), goal.parameter_set.clone()],
+    )?;
+    Ok(profile)
+}
+
+pub(super) fn check_package(
+    package: &VerifiedPackage,
+    files: BTreeMap<PackagePath, Vec<u8>>,
+    mut expected_assets: Vec<ArtifactRef>,
+) -> Result<()> {
     let expected_entry = rx_package::EntryPoint::DeviceReference {
         family: path("family.json"),
         profiles: vec![path("profile.json")],
@@ -193,10 +209,6 @@ pub fn decode(package: &VerifiedPackage) -> Result<Registration> {
     {
         return Err("Python package permissions/dependencies differ".into());
     }
-    let Body::Program(goal) = &profile.intent.body else {
-        return Err("Python program absent".into());
-    };
-    let mut expected_assets = vec![goal.program.clone(), goal.parameter_set.clone()];
     expected_assets.sort_by_key(|a| a.sha256);
     let mut assets = package.manifest().assets.clone();
     assets.sort_by_key(|a| a.sha256);
@@ -233,7 +245,7 @@ pub fn decode(package: &VerifiedPackage) -> Result<Registration> {
     {
         return Err("signed Python package target/version differs from environment".into());
     }
-    Ok(profile)
+    Ok(())
 }
 
 pub fn load(backend: &super::config::Backend) -> Result<(Digest, Registration)> {
@@ -245,6 +257,14 @@ pub fn load(backend: &super::config::Backend) -> Result<(Digest, Registration)> 
     else {
         return Err("signed Python package backend required".into());
     };
+    let package = load_package(directory, *manifest_digest, policy)?;
+    Ok((package.digest(), decode(&package)?))
+}
+pub(super) fn load_package(
+    directory: &std::path::Path,
+    manifest_digest: Digest,
+    policy: &super::config::PinnedFile,
+) -> Result<VerifiedPackage> {
     if !directory.is_absolute() {
         return Err("absolute Python package directory required".into());
     }
@@ -275,8 +295,8 @@ pub fn load(backend: &super::config::Backend) -> Result<(Digest, Registration)> 
     verification.max_files = 8;
     verification.max_content_bytes = 2 * 1024 * 1024;
     let package = rx_package::directory::verify_directory(directory, &verification)?;
-    if package.digest() != *manifest_digest {
+    if package.digest() != manifest_digest {
         return Err("selected Python package digest differs".into());
     }
-    Ok((package.digest(), decode(&package)?))
+    Ok(package)
 }

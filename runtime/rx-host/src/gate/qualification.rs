@@ -29,7 +29,10 @@ fn project(a: Accepted) -> data::AcceptedCell {
         binding_digest: a.binding_digest,
     }
 }
-fn observation<N>(core: &mut Core<N>, receipt: Option<data::Receipt>) -> Result<data::Observation> {
+pub(super) fn observation<N>(
+    core: &mut Core<N>,
+    receipt: Option<data::Receipt>,
+) -> Result<data::Observation> {
     let snapshot = configuration::observation(core, None)?.snapshot;
     let accepted = core.store.transact(|tx| {
         let mut values = Vec::new();
@@ -230,6 +233,14 @@ impl<N: NativeAdapter, C: Clock, H: BoundaryHook> Host<N, C, H> {
         caller: &Caller,
         request: data::Request,
     ) -> Result<data::Observation> {
+        self.accept_qualification_with(caller, request, None)
+    }
+    pub(crate) fn accept_qualification_with(
+        &self,
+        caller: &Caller,
+        request: data::Request,
+        execution: Option<&rx_process_contract::execution_v2::host_qualification::Request>,
+    ) -> Result<data::Observation> {
         request.validate().map_err(invalid)?;
         let digest = request.digest().map_err(invalid)?;
         let mut core = self.lock()?;
@@ -242,7 +253,20 @@ impl<N: NativeAdapter, C: Clock, H: BoundaryHook> Host<N, C, H> {
             if receipt.request_digest != digest {
                 return Err(HostError::Conflict);
             }
+            execution::check_qualification_replay(&mut core, caller, &request.id, execution)?;
             return observation(&mut core, Some(receipt));
+        }
+        if let Some(input) = execution {
+            execution::check_qualification(&mut core, input)?;
+        } else if core.store.transact(|tx| {
+            for cell in &request.cells {
+                if tx.get(&key("execution-policy", &cell.cell))?.is_some() {
+                    return Ok(true);
+                }
+            }
+            Ok(false)
+        })? {
+            return Err(HostError::Guard);
         }
         let binding = configuration::binding_digest(&core.bindings)?;
         let boot = core.boot.clone();
@@ -546,6 +570,9 @@ impl<N: NativeAdapter, C: Clock, H: BoundaryHook> Host<N, C, H> {
                 recorded_at: now,
             };
             receipt.validate().map_err(rx_ports::StoreError::Invalid)?;
+            if let Some(input) = execution {
+                execution::record_qualification(tx, caller, input, &receipt)?;
+            }
             tx.put(&cache, None, &doc(RECEIPT, &receipt)?)?;
             tx.put(
                 &slot,

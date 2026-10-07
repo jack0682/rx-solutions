@@ -1,0 +1,1548 @@
+{
+  "schema": "rx.definition-package.v1",
+  "catalog": "a86ea3cc-8431-58ac-8401-5c2c63cb532c",
+  "title": "0F Laser cell · SIMULATION",
+  "definitions": [
+    {
+      "key": "resource.profile",
+      "id": "5eee6505-59f4-5226-8331-78d7592e4c94",
+      "label": "resource.profile · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "PROPERTY",
+        "specification": {
+          "value_type": "TEXT",
+          "category": "RESOURCE",
+          "constraint_scope": null,
+          "unit": "unitless",
+          "minimum": null,
+          "maximum": null,
+          "choices": [],
+          "vector_length": null,
+          "overridable": false,
+          "parameter_mapping": {}
+        }
+      }
+    },
+    {
+      "key": "resource.frame",
+      "id": "7ffa7c19-ac3b-59a7-b75b-67e677c76ac8",
+      "label": "resource.frame · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "PROPERTY",
+        "specification": {
+          "value_type": "TEXT",
+          "category": "RESOURCE",
+          "constraint_scope": null,
+          "unit": "unitless",
+          "minimum": null,
+          "maximum": null,
+          "choices": [],
+          "vector_length": null,
+          "overridable": false,
+          "parameter_mapping": {}
+        }
+      }
+    },
+    {
+      "key": "resource.origin",
+      "id": "0d018fae-4595-5c1e-b990-cfa8813e99ba",
+      "label": "resource.origin · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "PROPERTY",
+        "specification": {
+          "value_type": "VECTOR",
+          "category": "RESOURCE",
+          "constraint_scope": null,
+          "unit": "mm",
+          "minimum": -100000,
+          "maximum": 100000,
+          "choices": [],
+          "vector_length": 3,
+          "overridable": false,
+          "parameter_mapping": {}
+        }
+      }
+    },
+    {
+      "key": "resource.height",
+      "id": "d32bfacc-363f-552f-abe2-7fb2e3059a75",
+      "label": "resource.height · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "PROPERTY",
+        "specification": {
+          "value_type": "NUMBER",
+          "category": "RESOURCE",
+          "constraint_scope": null,
+          "unit": "mm",
+          "minimum": 0,
+          "maximum": 100000,
+          "choices": [],
+          "vector_length": null,
+          "overridable": false,
+          "parameter_mapping": {}
+        }
+      }
+    },
+    {
+      "key": "resource.width",
+      "id": "136f1880-3358-5af8-b595-12987939c245",
+      "label": "resource.width · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "PROPERTY",
+        "specification": {
+          "value_type": "NUMBER",
+          "category": "RESOURCE",
+          "constraint_scope": null,
+          "unit": "mm",
+          "minimum": 0,
+          "maximum": 100000,
+          "choices": [],
+          "vector_length": null,
+          "overridable": false,
+          "parameter_mapping": {}
+        }
+      }
+    },
+    {
+      "key": "resource.depth",
+      "id": "26c15e36-810c-544c-8f62-7c3f6861b5ac",
+      "label": "resource.depth · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "PROPERTY",
+        "specification": {
+          "value_type": "NUMBER",
+          "category": "RESOURCE",
+          "constraint_scope": null,
+          "unit": "mm",
+          "minimum": 0,
+          "maximum": 100000,
+          "choices": [],
+          "vector_length": null,
+          "overridable": false,
+          "parameter_mapping": {}
+        }
+      }
+    },
+    {
+      "key": "resource.surface_height",
+      "id": "048cd095-b6be-587d-84d0-adff774678ba",
+      "label": "resource.surface_height · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "PROPERTY",
+        "specification": {
+          "value_type": "NUMBER",
+          "category": "RESOURCE",
+          "constraint_scope": null,
+          "unit": "mm",
+          "minimum": 0,
+          "maximum": 100000,
+          "choices": [],
+          "vector_length": null,
+          "overridable": false,
+          "parameter_mapping": {}
+        }
+      }
+    },
+    {
+      "key": "resource.row_pitch",
+      "id": "a879af46-1ebd-5d86-bee8-5e61569e7987",
+      "label": "resource.row_pitch · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "PROPERTY",
+        "specification": {
+          "value_type": "NUMBER",
+          "category": "RESOURCE",
+          "constraint_scope": null,
+          "unit": "mm",
+          "minimum": 0,
+          "maximum": 100000,
+          "choices": [],
+          "vector_length": null,
+          "overridable": false,
+          "parameter_mapping": {}
+        }
+      }
+    },
+    {
+      "key": "resource.column_pitch",
+      "id": "32218770-c5a6-5cb6-ae05-1b6cc37f0f79",
+      "label": "resource.column_pitch · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "PROPERTY",
+        "specification": {
+          "value_type": "NUMBER",
+          "category": "RESOURCE",
+          "constraint_scope": null,
+          "unit": "mm",
+          "minimum": 0,
+          "maximum": 100000,
+          "choices": [],
+          "vector_length": null,
+          "overridable": false,
+          "parameter_mapping": {}
+        }
+      }
+    },
+    {
+      "key": "resource.slot_depth",
+      "id": "11461fbb-c18b-50a4-bc84-27dfe099210e",
+      "label": "resource.slot_depth · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "PROPERTY",
+        "specification": {
+          "value_type": "NUMBER",
+          "category": "RESOURCE",
+          "constraint_scope": null,
+          "unit": "mm",
+          "minimum": 0,
+          "maximum": 100000,
+          "choices": [],
+          "vector_length": null,
+          "overridable": false,
+          "parameter_mapping": {}
+        }
+      }
+    },
+    {
+      "key": "resource.opening_width",
+      "id": "00d0cd02-927b-5b96-b78a-5fa88bb4fe98",
+      "label": "resource.opening_width · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "PROPERTY",
+        "specification": {
+          "value_type": "NUMBER",
+          "category": "RESOURCE",
+          "constraint_scope": null,
+          "unit": "mm",
+          "minimum": 0,
+          "maximum": 100000,
+          "choices": [],
+          "vector_length": null,
+          "overridable": false,
+          "parameter_mapping": {}
+        }
+      }
+    },
+    {
+      "key": "resource.stroke",
+      "id": "94393514-2b73-57a2-8f3c-8c8c2740dcf1",
+      "label": "resource.stroke · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "PROPERTY",
+        "specification": {
+          "value_type": "NUMBER",
+          "category": "RESOURCE",
+          "constraint_scope": null,
+          "unit": "mm",
+          "minimum": 0,
+          "maximum": 100000,
+          "choices": [],
+          "vector_length": null,
+          "overridable": false,
+          "parameter_mapping": {}
+        }
+      }
+    },
+    {
+      "key": "resource.rows",
+      "id": "979637f6-7663-5cbd-9e13-79927d776f8f",
+      "label": "resource.rows · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "PROPERTY",
+        "specification": {
+          "value_type": "NUMBER",
+          "category": "RESOURCE",
+          "constraint_scope": null,
+          "unit": "unitless",
+          "minimum": 1,
+          "maximum": 100000,
+          "choices": [],
+          "vector_length": null,
+          "overridable": false,
+          "parameter_mapping": {}
+        }
+      }
+    },
+    {
+      "key": "resource.columns",
+      "id": "a32e0bf7-35e0-5140-a27c-7ecd759fdc6c",
+      "label": "resource.columns · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "PROPERTY",
+        "specification": {
+          "value_type": "NUMBER",
+          "category": "RESOURCE",
+          "constraint_scope": null,
+          "unit": "unitless",
+          "minimum": 1,
+          "maximum": 100000,
+          "choices": [],
+          "vector_length": null,
+          "overridable": false,
+          "parameter_mapping": {}
+        }
+      }
+    },
+    {
+      "key": "resource.grasp_slots",
+      "id": "1c7dd907-a174-57ef-8dfb-a4f6332bce78",
+      "label": "resource.grasp_slots · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "PROPERTY",
+        "specification": {
+          "value_type": "NUMBER",
+          "category": "RESOURCE",
+          "constraint_scope": null,
+          "unit": "unitless",
+          "minimum": 1,
+          "maximum": 100000,
+          "choices": [],
+          "vector_length": null,
+          "overridable": false,
+          "parameter_mapping": {}
+        }
+      }
+    },
+    {
+      "key": "resource.force_limit",
+      "id": "f2280f88-1e15-521f-8545-106393123d45",
+      "label": "resource.force_limit · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "PROPERTY",
+        "specification": {
+          "value_type": "NUMBER",
+          "category": "RESOURCE",
+          "constraint_scope": null,
+          "unit": "N",
+          "minimum": 0,
+          "maximum": 100000,
+          "choices": [],
+          "vector_length": null,
+          "overridable": false,
+          "parameter_mapping": {}
+        }
+      }
+    },
+    {
+      "key": "resource.payload",
+      "id": "a5701531-f069-57fa-a8d9-3e89a8aa4e20",
+      "label": "resource.payload · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "PROPERTY",
+        "specification": {
+          "value_type": "NUMBER",
+          "category": "RESOURCE",
+          "constraint_scope": null,
+          "unit": "kg",
+          "minimum": 0,
+          "maximum": 100000,
+          "choices": [],
+          "vector_length": null,
+          "overridable": false,
+          "parameter_mapping": {}
+        }
+      }
+    },
+    {
+      "key": "object.profile",
+      "id": "597707ae-b836-5389-8f31-b9cbe293abb9",
+      "label": "object.profile · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "PROPERTY",
+        "specification": {
+          "value_type": "TEXT",
+          "category": "OBJECT",
+          "constraint_scope": null,
+          "unit": "unitless",
+          "minimum": null,
+          "maximum": null,
+          "choices": [],
+          "vector_length": null,
+          "overridable": false,
+          "parameter_mapping": {}
+        }
+      }
+    },
+    {
+      "key": "object.jig",
+      "id": "a7272a4f-7ae6-5738-ac40-becba3cf2d40",
+      "label": "object.jig · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "PROPERTY",
+        "specification": {
+          "value_type": "TEXT",
+          "category": "OBJECT",
+          "constraint_scope": null,
+          "unit": "unitless",
+          "minimum": null,
+          "maximum": null,
+          "choices": [],
+          "vector_length": null,
+          "overridable": false,
+          "parameter_mapping": {}
+        }
+      }
+    },
+    {
+      "key": "object.width",
+      "id": "90c62f04-8d53-57e2-aaa0-7b23a86a4927",
+      "label": "object.width · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "PROPERTY",
+        "specification": {
+          "value_type": "NUMBER",
+          "category": "OBJECT",
+          "constraint_scope": null,
+          "unit": "mm",
+          "minimum": 0,
+          "maximum": 100000,
+          "choices": [],
+          "vector_length": null,
+          "overridable": false,
+          "parameter_mapping": {}
+        }
+      }
+    },
+    {
+      "key": "object.height",
+      "id": "74b4b67b-253f-5808-b844-812fada97278",
+      "label": "object.height · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "PROPERTY",
+        "specification": {
+          "value_type": "NUMBER",
+          "category": "OBJECT",
+          "constraint_scope": null,
+          "unit": "mm",
+          "minimum": 0,
+          "maximum": 100000,
+          "choices": [],
+          "vector_length": null,
+          "overridable": false,
+          "parameter_mapping": {}
+        }
+      }
+    },
+    {
+      "key": "object.depth",
+      "id": "b37520ed-575c-5898-a95e-d7d730b0645e",
+      "label": "object.depth · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "PROPERTY",
+        "specification": {
+          "value_type": "NUMBER",
+          "category": "OBJECT",
+          "constraint_scope": null,
+          "unit": "mm",
+          "minimum": 0,
+          "maximum": 100000,
+          "choices": [],
+          "vector_length": null,
+          "overridable": false,
+          "parameter_mapping": {}
+        }
+      }
+    },
+    {
+      "key": "object.weight",
+      "id": "3f1b16ab-e7a7-5dd3-a285-2f6a0afd16e2",
+      "label": "object.weight · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "PROPERTY",
+        "specification": {
+          "value_type": "NUMBER",
+          "category": "OBJECT",
+          "constraint_scope": null,
+          "unit": "kg",
+          "minimum": 0,
+          "maximum": 100000,
+          "choices": [],
+          "vector_length": null,
+          "overridable": false,
+          "parameter_mapping": {}
+        }
+      }
+    },
+    {
+      "key": "object.allowed_force",
+      "id": "20afa07d-d551-5f26-ac72-3450780a484f",
+      "label": "object.allowed_force · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "PROPERTY",
+        "specification": {
+          "value_type": "NUMBER",
+          "category": "OBJECT",
+          "constraint_scope": null,
+          "unit": "N",
+          "minimum": 0,
+          "maximum": 100000,
+          "choices": [],
+          "vector_length": null,
+          "overridable": false,
+          "parameter_mapping": {}
+        }
+      }
+    },
+    {
+      "key": "execution.clearance",
+      "id": "cde9037a-b9e7-5a39-bf91-37e1f014667d",
+      "label": "execution.clearance · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "PROPERTY",
+        "specification": {
+          "value_type": "NUMBER",
+          "category": "EXECUTION",
+          "constraint_scope": null,
+          "unit": "mm",
+          "minimum": 0,
+          "maximum": 100000,
+          "choices": [],
+          "vector_length": null,
+          "overridable": true,
+          "parameter_mapping": {}
+        }
+      }
+    },
+    {
+      "key": "execution.grasp_clearance",
+      "id": "6165c550-d2eb-54fb-8382-9d65a84507a2",
+      "label": "execution.grasp_clearance · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "PROPERTY",
+        "specification": {
+          "value_type": "NUMBER",
+          "category": "EXECUTION",
+          "constraint_scope": null,
+          "unit": "mm",
+          "minimum": 0,
+          "maximum": 100000,
+          "choices": [],
+          "vector_length": null,
+          "overridable": true,
+          "parameter_mapping": {}
+        }
+      }
+    },
+    {
+      "key": "resource.orientation",
+      "id": "5e3641ba-616b-5b27-9143-9354d2305d4a",
+      "label": "Orientation quaternion [x,y,z,w] · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "PROPERTY",
+        "specification": {
+          "value_type": "VECTOR",
+          "category": "RESOURCE",
+          "constraint_scope": null,
+          "unit": "unitless",
+          "minimum": -1,
+          "maximum": 1,
+          "choices": [],
+          "vector_length": 4,
+          "overridable": false,
+          "parameter_mapping": {}
+        }
+      }
+    },
+    {
+      "key": "type.positioned",
+      "id": "eb2a7a32-1064-544e-9f0a-8c92f18ffad2",
+      "label": "type.positioned · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "RESOURCE_TYPE",
+        "parent": null,
+        "fields": {
+          "profile": {
+            "property": {
+              "$ref": "resource.profile"
+            },
+            "required": true
+          },
+          "frame": {
+            "property": {
+              "$ref": "resource.frame"
+            },
+            "required": true
+          },
+          "origin": {
+            "property": {
+              "$ref": "resource.origin"
+            },
+            "required": true
+          },
+          "orientation": {
+            "property": {
+              "$ref": "resource.orientation"
+            },
+            "required": true
+          }
+        }
+      }
+    },
+    {
+      "key": "type.tray",
+      "id": "7d3af13d-de40-5576-ab4e-19edf2e20662",
+      "label": "type.tray · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "RESOURCE_TYPE",
+        "parent": {
+          "$ref": "type.positioned"
+        },
+        "fields": {
+          "height": {
+            "property": {
+              "$ref": "resource.height"
+            },
+            "required": true
+          },
+          "width": {
+            "property": {
+              "$ref": "resource.width"
+            },
+            "required": true
+          },
+          "depth": {
+            "property": {
+              "$ref": "resource.depth"
+            },
+            "required": true
+          },
+          "surface_height": {
+            "property": {
+              "$ref": "resource.surface_height"
+            },
+            "required": true
+          },
+          "rows": {
+            "property": {
+              "$ref": "resource.rows"
+            },
+            "required": true
+          },
+          "columns": {
+            "property": {
+              "$ref": "resource.columns"
+            },
+            "required": true
+          },
+          "row_pitch": {
+            "property": {
+              "$ref": "resource.row_pitch"
+            },
+            "required": true
+          },
+          "column_pitch": {
+            "property": {
+              "$ref": "resource.column_pitch"
+            },
+            "required": true
+          },
+          "slot_depth": {
+            "property": {
+              "$ref": "resource.slot_depth"
+            },
+            "required": true
+          }
+        }
+      }
+    },
+    {
+      "key": "type.chuck",
+      "id": "9b5c901d-3279-5c0f-80a3-5814ad4bca42",
+      "label": "type.chuck · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "RESOURCE_TYPE",
+        "parent": {
+          "$ref": "type.positioned"
+        },
+        "fields": {
+          "opening_width": {
+            "property": {
+              "$ref": "resource.opening_width"
+            },
+            "required": true
+          },
+          "force_limit": {
+            "property": {
+              "$ref": "resource.force_limit"
+            },
+            "required": true
+          }
+        }
+      }
+    },
+    {
+      "key": "type.gripper",
+      "id": "ea6f22f8-89db-59b1-bd79-2e8bda335542",
+      "label": "type.gripper · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "RESOURCE_TYPE",
+        "parent": {
+          "$ref": "type.positioned"
+        },
+        "fields": {
+          "opening_width": {
+            "property": {
+              "$ref": "resource.opening_width"
+            },
+            "required": true
+          },
+          "force_limit": {
+            "property": {
+              "$ref": "resource.force_limit"
+            },
+            "required": true
+          },
+          "payload": {
+            "property": {
+              "$ref": "resource.payload"
+            },
+            "required": true
+          },
+          "grasp_slots": {
+            "property": {
+              "$ref": "resource.grasp_slots"
+            },
+            "required": true
+          }
+        }
+      }
+    },
+    {
+      "key": "type.door",
+      "id": "5fa1d855-6910-51d3-bf2d-909994947072",
+      "label": "type.door · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "RESOURCE_TYPE",
+        "parent": {
+          "$ref": "type.positioned"
+        },
+        "fields": {
+          "stroke": {
+            "property": {
+              "$ref": "resource.stroke"
+            },
+            "required": true
+          }
+        }
+      }
+    },
+    {
+      "key": "type.station",
+      "id": "cccff12d-2edd-5fb2-b799-6345d1b2c77b",
+      "label": "type.station · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "RESOURCE_TYPE",
+        "parent": {
+          "$ref": "type.positioned"
+        },
+        "fields": {
+          "surface_height": {
+            "property": {
+              "$ref": "resource.surface_height"
+            },
+            "required": true
+          }
+        }
+      }
+    },
+    {
+      "key": "type.part",
+      "id": "fed012d3-5c47-5c14-a036-539a3003053b",
+      "label": "type.part · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "OBJECT_TYPE",
+        "parent": null,
+        "fields": {
+          "profile": {
+            "property": {
+              "$ref": "object.profile"
+            },
+            "required": true
+          },
+          "jig": {
+            "property": {
+              "$ref": "object.jig"
+            },
+            "required": true
+          },
+          "width": {
+            "property": {
+              "$ref": "object.width"
+            },
+            "required": true
+          },
+          "height": {
+            "property": {
+              "$ref": "object.height"
+            },
+            "required": true
+          },
+          "depth": {
+            "property": {
+              "$ref": "object.depth"
+            },
+            "required": true
+          },
+          "weight": {
+            "property": {
+              "$ref": "object.weight"
+            },
+            "required": true
+          },
+          "allowed_force": {
+            "property": {
+              "$ref": "object.allowed_force"
+            },
+            "required": true
+          }
+        }
+      }
+    },
+    {
+      "key": "type.ECC_51",
+      "id": "5de2c64e-9579-590a-a10f-c769b774f062",
+      "label": "type.ECC_51 · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "OBJECT_TYPE",
+        "parent": {
+          "$ref": "type.part"
+        },
+        "fields": {}
+      }
+    },
+    {
+      "key": "type.ECC_99",
+      "id": "e5beca88-3ae8-591e-b992-7121e11869a7",
+      "label": "type.ECC_99 · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "OBJECT_TYPE",
+        "parent": {
+          "$ref": "type.part"
+        },
+        "fields": {}
+      }
+    },
+    {
+      "key": "tray.standard",
+      "id": "3437b808-fac0-5b3b-8486-c38d1cbb9d2f",
+      "label": "tray.standard · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "RESOURCE_MODEL",
+        "resource_type": {
+          "$ref": "type.tray"
+        },
+        "values": {
+          "profile": {
+            "text": "SIMULATION"
+          },
+          "frame": {
+            "text": "SIMULATION/world"
+          },
+          "origin": {
+            "vector": [
+              0,
+              0,
+              0
+            ]
+          },
+          "height": {
+            "number": 50
+          },
+          "width": {
+            "number": 600
+          },
+          "depth": {
+            "number": 400
+          },
+          "surface_height": {
+            "number": 900
+          },
+          "rows": {
+            "number": 4
+          },
+          "columns": {
+            "number": 6
+          },
+          "row_pitch": {
+            "number": 80
+          },
+          "column_pitch": {
+            "number": 80
+          },
+          "slot_depth": {
+            "number": 10
+          },
+          "orientation": {
+            "vector": [
+              0,
+              0,
+              0,
+              1
+            ]
+          }
+        }
+      }
+    },
+    {
+      "key": "tray.dense",
+      "id": "15076558-776d-5c3f-87b0-49a800f33c4c",
+      "label": "tray.dense · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "RESOURCE_MODEL",
+        "resource_type": {
+          "$ref": "type.tray"
+        },
+        "values": {
+          "profile": {
+            "text": "SIMULATION"
+          },
+          "frame": {
+            "text": "SIMULATION/world"
+          },
+          "origin": {
+            "vector": [
+              0,
+              0,
+              0
+            ]
+          },
+          "height": {
+            "number": 50
+          },
+          "width": {
+            "number": 1500
+          },
+          "depth": {
+            "number": 1000
+          },
+          "surface_height": {
+            "number": 900
+          },
+          "rows": {
+            "number": 40
+          },
+          "columns": {
+            "number": 60
+          },
+          "row_pitch": {
+            "number": 20
+          },
+          "column_pitch": {
+            "number": 20
+          },
+          "slot_depth": {
+            "number": 8
+          },
+          "orientation": {
+            "vector": [
+              0,
+              0,
+              0,
+              1
+            ]
+          }
+        }
+      }
+    },
+    {
+      "key": "tray.supply",
+      "id": "aff0538f-c44c-5d52-a9ba-321e14c8868c",
+      "label": "tray.supply · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "RESOURCE_INSTANCE",
+        "base": {
+          "$ref": "tray.standard"
+        },
+        "values": {
+          "origin": {
+            "vector": [
+              100,
+              200,
+              760
+            ]
+          },
+          "surface_height": {
+            "number": 760
+          }
+        }
+      }
+    },
+    {
+      "key": "tray.output",
+      "id": "65eb78fa-89ae-59dd-ac9c-3a45261b69d1",
+      "label": "tray.output · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "RESOURCE_INSTANCE",
+        "base": {
+          "$ref": "tray.standard"
+        },
+        "values": {
+          "origin": {
+            "vector": [
+              800,
+              200,
+              760
+            ]
+          },
+          "surface_height": {
+            "number": 760
+          }
+        }
+      }
+    },
+    {
+      "key": "chuck.standard",
+      "id": "e4d5ef98-3ebc-5abc-ad7b-246264c3c7b6",
+      "label": "chuck.standard · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "RESOURCE_MODEL",
+        "resource_type": {
+          "$ref": "type.chuck"
+        },
+        "values": {
+          "profile": {
+            "text": "SIMULATION"
+          },
+          "frame": {
+            "text": "SIMULATION/world"
+          },
+          "origin": {
+            "vector": [
+              0,
+              0,
+              0
+            ]
+          },
+          "opening_width": {
+            "number": 100
+          },
+          "force_limit": {
+            "number": 120
+          },
+          "orientation": {
+            "vector": [
+              0,
+              0,
+              0,
+              1
+            ]
+          }
+        }
+      }
+    },
+    {
+      "key": "chuck.cell",
+      "id": "36980a3e-7bc6-5ad8-9060-fda60c7b15e2",
+      "label": "chuck.cell · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "RESOURCE_INSTANCE",
+        "base": {
+          "$ref": "chuck.standard"
+        },
+        "values": {}
+      }
+    },
+    {
+      "key": "gripper.standard",
+      "id": "a8c06e74-8d5c-5228-a62d-fb9ff0e8d155",
+      "label": "gripper.standard · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "RESOURCE_MODEL",
+        "resource_type": {
+          "$ref": "type.gripper"
+        },
+        "values": {
+          "profile": {
+            "text": "SIMULATION"
+          },
+          "frame": {
+            "text": "SIMULATION/world"
+          },
+          "origin": {
+            "vector": [
+              0,
+              0,
+              0
+            ]
+          },
+          "opening_width": {
+            "number": 120
+          },
+          "force_limit": {
+            "number": 100
+          },
+          "payload": {
+            "number": 10
+          },
+          "grasp_slots": {
+            "number": 1
+          },
+          "orientation": {
+            "vector": [
+              0,
+              0,
+              0,
+              1
+            ]
+          }
+        }
+      }
+    },
+    {
+      "key": "gripper.cell",
+      "id": "bf6f1f46-d51a-5e84-bba1-42e5cb5f173d",
+      "label": "gripper.cell · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "RESOURCE_INSTANCE",
+        "base": {
+          "$ref": "gripper.standard"
+        },
+        "values": {}
+      }
+    },
+    {
+      "key": "door.standard",
+      "id": "93758776-4f98-5767-b5dd-a6ad1307ef0d",
+      "label": "door.standard · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "RESOURCE_MODEL",
+        "resource_type": {
+          "$ref": "type.door"
+        },
+        "values": {
+          "profile": {
+            "text": "SIMULATION"
+          },
+          "frame": {
+            "text": "SIMULATION/world"
+          },
+          "origin": {
+            "vector": [
+              0,
+              0,
+              0
+            ]
+          },
+          "stroke": {
+            "number": 500
+          },
+          "orientation": {
+            "vector": [
+              0,
+              0,
+              0,
+              1
+            ]
+          }
+        }
+      }
+    },
+    {
+      "key": "door.cell",
+      "id": "350c6b1f-8ecc-57f8-9df0-90a1b079ae4b",
+      "label": "door.cell · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "RESOURCE_INSTANCE",
+        "base": {
+          "$ref": "door.standard"
+        },
+        "values": {}
+      }
+    },
+    {
+      "key": "station.standard",
+      "id": "41432c58-925a-5a7e-8617-e79f38c77543",
+      "label": "station.standard · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "RESOURCE_MODEL",
+        "resource_type": {
+          "$ref": "type.station"
+        },
+        "values": {
+          "profile": {
+            "text": "SIMULATION"
+          },
+          "frame": {
+            "text": "SIMULATION/world"
+          },
+          "origin": {
+            "vector": [
+              0,
+              0,
+              0
+            ]
+          },
+          "surface_height": {
+            "number": 760
+          },
+          "orientation": {
+            "vector": [
+              0,
+              0,
+              0,
+              1
+            ]
+          }
+        }
+      }
+    },
+    {
+      "key": "station.cell",
+      "id": "573b0969-5553-5a61-87c4-120f989b2ddd",
+      "label": "station.cell · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "RESOURCE_INSTANCE",
+        "base": {
+          "$ref": "station.standard"
+        },
+        "values": {}
+      }
+    },
+    {
+      "key": "station.pick",
+      "id": "a82458a9-6010-5630-bfdf-57f5603fe4b4",
+      "label": "station.pick · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "RESOURCE_INSTANCE",
+        "base": {
+          "$ref": "station.standard"
+        },
+        "values": {
+          "origin": {
+            "vector": [
+              100,
+              200,
+              760
+            ]
+          }
+        }
+      }
+    },
+    {
+      "key": "station.place",
+      "id": "3cb836fa-6df8-5b1d-9103-bec009025825",
+      "label": "station.place · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "RESOURCE_INSTANCE",
+        "base": {
+          "$ref": "station.standard"
+        },
+        "values": {
+          "origin": {
+            "vector": [
+              800,
+              200,
+              760
+            ]
+          }
+        }
+      }
+    },
+    {
+      "key": "part.ECC_51-14",
+      "id": "44c4788a-8a7a-5caf-8a80-9481992d384d",
+      "label": "ECC_51-14 · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "OBJECT_MODEL",
+        "object_type": {
+          "$ref": "type.ECC_51"
+        },
+        "values": {
+          "profile": {
+            "text": "SIMULATION"
+          },
+          "jig": {
+            "text": "PART1/14"
+          },
+          "width": {
+            "number": 45
+          },
+          "height": {
+            "number": 20
+          },
+          "depth": {
+            "number": 40
+          },
+          "weight": {
+            "number": 0.4
+          },
+          "allowed_force": {
+            "number": 50
+          }
+        }
+      }
+    },
+    {
+      "key": "properties.ECC_51",
+      "id": "82afb6b2-e65d-5fc8-990c-b25a99b1ab77",
+      "label": "properties.ECC_51 · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "PROPERTY_SET",
+        "values": {
+          "clearance": {
+            "property": {
+              "$ref": "execution.clearance"
+            },
+            "value": {
+              "number": 25
+            }
+          },
+          "grasp_clearance": {
+            "property": {
+              "$ref": "execution.grasp_clearance"
+            },
+            "value": {
+              "number": 2
+            }
+          }
+        }
+      }
+    },
+    {
+      "key": "part.ECC_99-14",
+      "id": "9b651aa8-14e2-5b2d-9ddf-9c9e63b457e4",
+      "label": "ECC_99-14 · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "OBJECT_MODEL",
+        "object_type": {
+          "$ref": "type.ECC_99"
+        },
+        "values": {
+          "profile": {
+            "text": "SIMULATION"
+          },
+          "jig": {
+            "text": "PART1/14"
+          },
+          "width": {
+            "number": 75
+          },
+          "height": {
+            "number": 35
+          },
+          "depth": {
+            "number": 40
+          },
+          "weight": {
+            "number": 1.2
+          },
+          "allowed_force": {
+            "number": 35
+          }
+        }
+      }
+    },
+    {
+      "key": "properties.ECC_99",
+      "id": "3341268c-71f9-50d7-b2d4-f49b9a27e259",
+      "label": "properties.ECC_99 · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "PROPERTY_SET",
+        "values": {
+          "clearance": {
+            "property": {
+              "$ref": "execution.clearance"
+            },
+            "value": {
+              "number": 40
+            }
+          },
+          "grasp_clearance": {
+            "property": {
+              "$ref": "execution.grasp_clearance"
+            },
+            "value": {
+              "number": 2
+            }
+          }
+        }
+      }
+    },
+    {
+      "key": "rule.tray-slots",
+      "id": "cd0b38dd-0f2c-5269-8396-67abd4401f14",
+      "label": "rule.tray-slots · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "POINT_PATTERN",
+        "resource_type": {
+          "$ref": "type.tray"
+        },
+        "origin": "origin",
+        "frame": "frame",
+        "axes": [
+          {
+            "count": "rows",
+            "pitch": "row_pitch",
+            "direction": [
+              0,
+              1,
+              0
+            ]
+          },
+          {
+            "count": "columns",
+            "pitch": "column_pitch",
+            "direction": [
+              1,
+              0,
+              0
+            ]
+          }
+        ],
+        "orientation": "orientation"
+      }
+    },
+    {
+      "key": "type.jig",
+      "id": "451735f2-f99f-5586-9f75-bfe7666d256d",
+      "label": "Jig type · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "RESOURCE_TYPE",
+        "parent": {
+          "$ref": "type.positioned"
+        },
+        "fields": {
+          "width": {
+            "property": {
+              "$ref": "resource.width"
+            },
+            "required": true
+          },
+          "depth": {
+            "property": {
+              "$ref": "resource.depth"
+            },
+            "required": true
+          },
+          "height": {
+            "property": {
+              "$ref": "resource.height"
+            },
+            "required": true
+          }
+        }
+      }
+    },
+    {
+      "key": "jig.PART1-14",
+      "id": "c7da4420-07b4-504d-a744-d07f84890cfa",
+      "label": "PART1/14 jig · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "RESOURCE_MODEL",
+        "resource_type": {
+          "$ref": "type.jig"
+        },
+        "values": {
+          "profile": {
+            "text": "SIMULATION"
+          },
+          "frame": {
+            "text": "SIMULATION/world"
+          },
+          "origin": {
+            "vector": [
+              0,
+              0,
+              0
+            ]
+          },
+          "width": {
+            "number": 120
+          },
+          "depth": {
+            "number": 120
+          },
+          "height": {
+            "number": 40
+          },
+          "orientation": {
+            "vector": [
+              0,
+              0,
+              0,
+              1
+            ]
+          }
+        }
+      }
+    },
+    {
+      "key": "jig.installed",
+      "id": "91c462d3-f7ab-5bc7-a541-ecca1e14c384",
+      "label": "Installed PART1/14 jig · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "RESOURCE_INSTANCE",
+        "base": {
+          "$ref": "jig.PART1-14"
+        },
+        "values": {
+          "origin": {
+            "vector": [
+              600,
+              500,
+              800
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

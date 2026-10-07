@@ -7,10 +7,13 @@ use serde::{Deserialize, Serialize, de::DeserializeOwned};
 mod decisions;
 pub use decisions::*;
 pub mod diagnostic;
+mod platform;
 mod recovery;
 pub use recovery::*;
 mod resident;
+mod transfer;
 mod work;
+pub use transfer::{DeclarationAuthority, FreezeRecord, FreezeRequest, FrozenRegistry};
 
 type Result<T> = rx_ports::Result<T>;
 const REGISTRATION: &str = "rx.component-registration.v1";
@@ -33,57 +36,11 @@ fn execution_key(component: &Id, instance: &Id) -> Name {
     name(&format!("{}{instance}", execution_prefix(component)))
 }
 
-/// A reference to accepted author content, never an editable policy snapshot.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct CatalogReference {
-    pub program: Name,
-    pub digest: Digest,
-}
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct Declaration {
-    pub label: Name,
-    pub catalog: CatalogReference,
-}
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum RegistrationState {
-    Accepted,
-    Retired,
-}
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct Registration {
-    pub id: Id,
-    pub declaration: Declaration,
-    pub state: RegistrationState,
-}
-#[derive(Clone, Debug, Serialize)]
-pub struct VersionedRegistration {
-    pub revision: Counter,
-    pub registration: Registration,
-}
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct Binding {
-    pub registration: Id,
-    pub registration_revision: Counter,
-    pub catalog: CatalogReference,
-    /// Opaque consumer run and selection identities, not part of the registration key.
-    pub run: Id,
-    pub selection: Name,
-    pub instance: Id,
-}
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum ExecutionState {
-    Assigned,
-    Running,
-    Exited,
-    NotStarted,
-    Unknown,
-}
+// Shared with Platform through the source-owned SDK; old Rust import paths remain valid.
+pub use rx_domain::component::{
+    Binding, CatalogReference, Declaration, Registration, RegistrationState, VersionedRegistration,
+};
+pub use rx_domain::resident_reporting::ExecutionState;
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Observation {
@@ -103,6 +60,7 @@ pub struct Execution {
 }
 #[derive(Clone, Debug, Serialize)]
 pub struct View {
+    pub declaration_authority: DeclarationAuthority,
     pub registration: VersionedRegistration,
     pub executions: Vec<Execution>,
     pub recovery: RecoveryView,
@@ -136,6 +94,9 @@ fn decode<T: DeserializeOwned>(record: &Record, schema: &str) -> Result<T> {
     .map_err(|e| StoreError::Integrity(e.to_string()))
 }
 fn load(tx: &mut dyn Transaction, id: &Id) -> Result<VersionedRegistration> {
+    if let Some(snapshot) = platform::snapshot(tx, id)? {
+        return Ok(snapshot);
+    }
     let row = tx
         .get(&key(id))?
         .ok_or_else(|| StoreError::Invalid("component registration not found".into()))?;
@@ -186,6 +147,7 @@ fn save(
     Ok(entity)
 }
 fn eligible(tx: &mut dyn Transaction, binding: &Binding) -> Result<()> {
+    transfer::require_local_authority(tx)?;
     let current = load(tx, &binding.registration)?;
     if current.registration.state != RegistrationState::Accepted {
         return Err(StoreError::Invalid(
@@ -222,6 +184,7 @@ impl<R: Repository> Registry<R> {
             state: RegistrationState::Accepted,
         };
         self.repository.transact(|tx| {
+            transfer::require_local_authority(tx)?;
             let row = save(
                 tx,
                 &registration.id,
@@ -254,6 +217,7 @@ impl<R: Repository> Registry<R> {
         declaration: Option<Declaration>,
     ) -> Result<VersionedRegistration> {
         self.repository.transact(|tx| {
+            transfer::require_local_authority(tx)?;
             let mut current = load(tx, id)?;
             if current.revision != expected {
                 return Err(StoreError::RevisionConflict(
@@ -290,6 +254,7 @@ impl<R: Repository> Registry<R> {
             let executions = executions(tx, id)?;
             let recovery = recovery::view(tx, id, &executions)?;
             Ok(View {
+                declaration_authority: transfer::authority(tx)?,
                 registration: load(tx, id)?,
                 executions,
                 recovery,
@@ -301,19 +266,16 @@ impl<R: Repository> Registry<R> {
     }
     pub fn list(&mut self) -> Result<Vec<VersionedRegistration>> {
         self.repository.transact(|tx| {
-            tx.scan("components/registration/")?
-                .iter()
-                .map(|r| {
-                    let registration: Registration = decode(r, REGISTRATION)?;
-                    if r.key != key(&registration.id) {
-                        return Err(StoreError::Integrity("registration key differs".into()));
-                    }
-                    Ok(VersionedRegistration {
-                        revision: r.revision,
-                        registration,
-                    })
-                })
-                .collect()
+            let mut ids = std::collections::BTreeSet::new();
+            for row in tx.scan("components/registration/")? {
+                let registration: Registration = decode(&row, REGISTRATION)?;
+                if row.key != key(&registration.id) {
+                    return Err(StoreError::Integrity("registration key differs".into()));
+                }
+                ids.insert(registration.id);
+            }
+            ids.extend(platform::ids(tx)?);
+            ids.into_iter().map(|id| load(tx, &id)).collect()
         })
     }
     pub fn history(&mut self, id: &Id) -> Result<Vec<StoredEvent>> {

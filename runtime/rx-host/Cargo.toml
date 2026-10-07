@@ -54,6 +54,7 @@ serde_json = "1"
 sha2 = "0.10"
 
 [dev-dependencies]
+rx-process = {path="../rx-process"}
 ed25519-dalek = "3"
 semver = "1"
 tempfile = "3"

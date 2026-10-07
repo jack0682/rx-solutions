@@ -1,0 +1,141 @@
+{
+  "task": {
+    "label": "Rotate and align in fixture",
+    "contexts": [
+      "part",
+      "jig"
+    ],
+    "properties": {
+      "timeout": {
+        "property": {
+          "$ref": "m2.timeout"
+        },
+        "sources": [
+          {
+            "kind": "OVERRIDE"
+          },
+          {
+            "kind": "PROPERTY_SET"
+          },
+          {
+            "kind": "DEFAULT"
+          }
+        ],
+        "default": {
+          "unit": "s",
+          "data": {
+            "kind": "NUMBER",
+            "range": {
+              "min": 30,
+              "max": 30
+            }
+          }
+        }
+      },
+      "angle": {
+        "property": {
+          "$ref": "f0.angle"
+        },
+        "sources": [
+          {
+            "kind": "RULE",
+            "rule": "f0-target-angle"
+          }
+        ],
+        "default": null
+      },
+      "tolerance": {
+        "property": {
+          "$ref": "f0.tolerance"
+        },
+        "sources": [
+          {
+            "kind": "RULE",
+            "rule": "f0-target-tolerance"
+          }
+        ],
+        "default": null
+      }
+    },
+    "constraints": [],
+    "capabilities": [
+      {
+        "name": "align",
+        "slot": "jig",
+        "field": "cap_align"
+      }
+    ],
+    "skills": [
+      {
+        "capability": "align",
+        "slot": "jig",
+        "implementation_field": "implementation",
+        "version_field": "implementation_version",
+        "primitive": "rotate-align",
+        "parameters": {
+          "angle_deg": "angle",
+          "tolerance_deg": "tolerance",
+          "timeout_s": "timeout"
+        }
+      }
+    ],
+    "timeout_property": "timeout",
+    "done": {
+      "observation": "fixture.aligned",
+      "property": {
+        "$ref": "f0.aligned"
+      },
+      "equals": {
+        "unit": "unitless",
+        "data": {
+          "kind": "BOOLEAN",
+          "value": true
+        }
+      }
+    },
+    "on_failure": "STOP",
+    "on_unknown": "HOLD_AND_RECONCILE"
+  },
+  "rules": {
+    "f0-target-angle": {
+      "output": {
+        "$ref": "f0.angle"
+      },
+      "operation": {
+        "kind": "ADD",
+        "left": {
+          "kind": "CONTEXT",
+          "slot": "part",
+          "field": "nominal_angle",
+          "index": 0
+        },
+        "right": {
+          "kind": "CONTEXT",
+          "slot": "jig",
+          "field": "rotation_offset",
+          "index": 0
+        }
+      }
+    },
+    "f0-target-tolerance": {
+      "output": {
+        "$ref": "f0.tolerance"
+      },
+      "operation": {
+        "kind": "MIN",
+        "left": {
+          "kind": "CONTEXT",
+          "slot": "part",
+          "field": "angle_tolerance",
+          "index": 0
+        },
+        "right": {
+          "kind": "CONTEXT",
+          "slot": "jig",
+          "field": "angle_tolerance",
+          "index": 0
+        }
+      }
+    }
+  }
+}

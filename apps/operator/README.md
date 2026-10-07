@@ -20,6 +20,44 @@ The app follows [React's standalone app guidance](https://react.dev/learn/build-
 
 ## State and request rules
 
+### Workflow canvas
+
+The collapsible workflow library searches the server before pagination and filters
+by site label, service label and active/archived state. Labels classify drafts;
+they do not establish a registered site or operating-area permission. Workflow
+settings holds the editable labels and source identifiers. Selecting a node opens
+its inspector; the graph remains the main surface while lists and details are closed.
+
+Archive/restore creates a saved revision. Archived drafts are read-only until
+explicitly restored, and copying one creates a separate active draft. Version
+history lists immutable revisions; a selected revision can be compared or edited
+as a new copy, preserving its source, labels and layout. These controls require the
+paired Platform library/history API. Publishing and operating deployment remain
+separate later steps.
+
+Workflow design opens a library, action graph and node inspector. Sequence arrows
+follow the saved child order; parallel paths join after all paths complete,
+branches rejoin after the selected path, and finite repeats have a return edge
+and a separate counted exit. Join markers are derived views of control nodes.
+They are not additional executable nodes or evidence that a run has completed.
+Long sequences wrap into viewport-width bands at readable zoom; Fit shows an
+overview and Reset zoom restores full size. Unconnected or invalid structures
+remain editable and are reported by saved-version validation.
+
+Use node settings to change order, or source connection controls to change child
+references. Dragging or arrow-key movement changes only layout. Save persists
+source and optional presentation in one version; reopening restores the saved
+positions. Source-only export and compiler input retain execution semantics.
+The paired Platform version must accept the optional presentation field.
+
+This editor uses the existing structured process-source v1. Failure/Timeout/Event
+ports, Parallel Any, conditional loops and definition/property resolution require
+the new workflow contract and are not supplied by this visual projection.
+The laser heat-treatment examples remain authoring drafts with unconfigured
+deadlines and operation bindings; saving them does not start equipment.
+
+### Runtime views and requests
+
 - An unregistered qualification appears as awaiting verification. Network connectivity or an existing configuration does not establish operating readiness.
 - Display operation observations, outcomes, integrity, and resource disposition separately. Confirmed completion does not mean that resource handover is complete.
 - The current implementation polls snapshots every three seconds. A query error, or ten seconds since the last successful check, blocks new requests and marks the data as historical. This is not an SSE implementation.

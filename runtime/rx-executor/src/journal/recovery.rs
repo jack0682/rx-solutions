@@ -244,6 +244,22 @@ fn validate_observation(scope: &Scope, observation: &Observation) -> Result<()> 
 }
 fn observation_matches(entry: &Entry, observation: &Observation) -> Result<()> {
     let valid = match (&entry.body, &observation.target) {
+        (Body::BeginExecutionPart(b), ObservedTarget::Part { value }) => {
+            b.run == value.run
+                && b.ordinal == value.ordinal
+                && !matches!(&entry.resolution,Resolution::Reply {response} if matches!(response.as_ref(),Response::ExecutionPart(old) if old.binding.part!=value.id))
+        }
+        (
+            Body::SubmitExecutionNode(b),
+            ObservedTarget::Operation {
+                activation,
+                operation,
+                intent_digest,
+            },
+        ) => {
+            b.intent_digest == *intent_digest
+                && !matches!(&entry.resolution,Resolution::Reply {response} if matches!(response.as_ref(),Response::ExecutionAdmission(old) if old.activation!=*activation || old.operation.id()!=operation))
+        }
         (Body::BeginPart { .. }, ObservedTarget::Part { value }) => {
             !matches!(&entry.resolution, Resolution::Reply { response } if matches!(response.as_ref(), Response::Part(old) if old.id != value.id))
         }

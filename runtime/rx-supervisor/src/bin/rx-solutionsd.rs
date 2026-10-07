@@ -35,6 +35,8 @@ struct Configuration {
     services: Option<ServiceConfigurations>,
     #[serde(default)]
     operating_area_mailbox: Option<PathBuf>,
+    #[serde(default)]
+    reporting: Option<rx_supervisor::reporting::resident::Configuration>,
 }
 fn read_json<T: serde::de::DeserializeOwned>(path: &Path) -> Result<T> {
     let metadata = fs::symlink_metadata(path)?;
@@ -119,6 +121,17 @@ async fn main() -> Result<()> {
 }
 async fn run() -> Result<()> {
     let args = std::env::args().skip(1).collect::<Vec<_>>();
+    if args.len() == 2
+        && matches!(
+            args[0].as_str(),
+            "platform-run" | "platform-investigate" | "catalog"
+        )
+    {
+        return Ok(
+            rx_supervisor::resident_execution::run::execute(&args[0], Path::new(&args[1])).await?,
+        );
+    }
+
     if !((args.len() == 2
         && matches!(
             args[0].as_str(),
@@ -228,6 +241,8 @@ async fn run() -> Result<()> {
         "initialization.writer.lock",
         "registration.db",
         "registration.writer.lock",
+        "reporting.db",
+        "reporting.writer.lock",
     ] {
         match fs::symlink_metadata(state.join(filename)) {
             Ok(m) if !m.is_file() || m.file_type().is_symlink() => {
@@ -364,6 +379,13 @@ async fn run() -> Result<()> {
     if args[0] == "activate" {
         supervisor.rearm_software()?;
     }
+    let mut reporter = configuration
+        .reporting
+        .map(|config| {
+            rx_supervisor::reporting::resident::Resident::start(config, state.join("reporting.db"))
+        })
+        .transpose()?;
+    let mut last_reporting = String::new();
     #[cfg(unix)]
     let mut term = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())?;
     let mut stop = false;
@@ -438,7 +460,34 @@ async fn run() -> Result<()> {
                         }
                     }
                 }
+                if let Some(reporter) = &reporter {
+                    match supervisor
+                        .reporting_snapshot()
+                        .map_err(|e| e.to_string())
+                        .and_then(|snapshots| {
+                            reporter.observe(snapshots).map_err(|e| e.to_string())
+                        }) {
+                        Ok(()) => {}
+                        Err(error) => {
+                            eprintln!("reporting attention; local management continues: {error}")
+                        }
+                    }
+                    let text = serde_json::to_string(
+                        &serde_json::json!({"schema":"rx.resident-reporting-status.v1","status":reporter.status()}),
+                    )?;
+                    if text != last_reporting {
+                        println!("{text}");
+                        last_reporting = text;
+                    }
+                }
                 if report.all_exited {
+                    if let Some(reporter) = reporter.take() {
+                        let status = reporter.finish(supervisor.reporting_snapshot()?).await;
+                        println!(
+                            "{}",
+                            serde_json::json!({"schema":"rx.resident-reporting-status.v1","status":status})
+                        );
+                    }
                     if !report.unconfirmed_component_stops.is_empty() {
                         return Err(format!(
                             "COMPONENT_STOP_UNCONFIRMED; process exit settled, component residual requires reconciliation: {}",

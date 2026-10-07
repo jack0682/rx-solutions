@@ -1,0 +1,110 @@
+{
+  "schema": "rx.laser-heat-treatment-example-boundary.v1",
+  "source": "User confirmed the existing laser heat-treatment process; 19-step CNC-labelled exchange image is a sequencing reference, not proof of identical controller semantics",
+  "reference_image_sha256": "7c3a19511ad21385618659cc91721eeabaf11ba4a9528c98d892bda65e0dddb2",
+  "classification": "AUTHORING_DRAFT_NOT_EXECUTABLE",
+  "robot_model": "UNSPECIFIED",
+  "material_roles": [
+    "incoming raw material",
+    "outgoing finished part"
+  ],
+  "cycle_mode": "One steady-state exchange for authoring; production quantity and first/last cycle handling require separate configuration",
+  "parallel_process": "Laser processing continues while the robot prepares the next raw material or deposits the prior finished part; no assumption that the robot shares a physical work zone during processing",
+  "wait_gates": [
+    {
+      "flow": "prepare-next",
+      "node": "step-1-material-check",
+      "condition": "feed-next-material-present",
+      "timeout": "UNSET"
+    },
+    {
+      "flow": "orient-next",
+      "node": "alignment-station-ready",
+      "condition": "alignment-station-ready",
+      "timeout": "UNSET"
+    },
+    {
+      "flow": "orient-next",
+      "node": "material-seated-for-alignment",
+      "condition": "alignment-station-material-seated",
+      "timeout": "UNSET"
+    },
+    {
+      "flow": "orient-next",
+      "node": "orientation-confirmed",
+      "condition": "alignment-station-orientation-confirmed",
+      "timeout": "UNSET"
+    },
+    {
+      "flow": "orient-next",
+      "node": "rotation-stopped",
+      "condition": "alignment-station-rotation-stopped",
+      "timeout": "UNSET"
+    },
+    {
+      "flow": "wait-for-machine",
+      "node": "machining-complete",
+      "condition": "cnc-cycle-complete",
+      "timeout": "UNSET"
+    },
+    {
+      "flow": "exchange",
+      "node": "door-open-confirmed",
+      "condition": "cnc-door-open-confirmed",
+      "timeout": "UNSET"
+    },
+    {
+      "flow": "exchange",
+      "node": "finished-held",
+      "condition": "gripper-finished-part-held",
+      "timeout": "UNSET"
+    },
+    {
+      "flow": "exchange",
+      "node": "unclamped",
+      "condition": "cnc-chuck-open-confirmed",
+      "timeout": "UNSET"
+    },
+    {
+      "flow": "exchange",
+      "node": "step-14-1-seat-check",
+      "condition": "fixture-next-material-seated",
+      "timeout": "UNSET"
+    },
+    {
+      "flow": "exchange",
+      "node": "clamped",
+      "condition": "cnc-chuck-clamped-confirmed",
+      "timeout": "UNSET"
+    },
+    {
+      "flow": "exchange",
+      "node": "robot-clear",
+      "condition": "cell-robot-clear-of-door",
+      "timeout": "UNSET"
+    },
+    {
+      "flow": "restart-machining",
+      "node": "door-closed",
+      "condition": "cnc-door-closed-confirmed",
+      "timeout": "UNSET"
+    }
+  ],
+  "unresolved": [
+    "Actual PLC/controller interfaces and addresses",
+    "Gripper roles and selection/retention evidence",
+    "Workpiece geometry, calibration, payload and gripping/seat conditions",
+    "Observation providers, freshness and execution authority",
+    "Validated deadlines and failure/unknown recovery procedures",
+    "Empty-machine startup, final-part removal and interrupted-cycle recovery",
+    "Confirm which steps in the CNC-labelled reference apply unchanged to the laser cell"
+  ],
+  "excluded_robots": [
+    "ANT / ilgaemi",
+    "jipgaemi (prototype label: jipgemi)"
+  ],
+  "physical_execution_performed": false,
+  "process_type": "LASER_HEAT_TREATMENT",
+  "confirmed_by_user": "Existing 0F laser heat-treatment process",
+  "alignment_equipment": "Separate rotary alignment station, user-confirmed; interface and physical procedure unqualified"
+}

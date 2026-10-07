@@ -43,7 +43,7 @@ const candidate: StartContext = {
   environment: 'SIMULATION',
   commissioning: 'COMMISSIONED',
   envelope: artifact('a'),
-  recipe: artifact('b'),
+  recipe: { ...artifact('b'), schema_id: 'rx.resolved-process.v1' },
   site_config_digest: 'c'.repeat(64),
   maximum_budget: '10',
   run_revision: '9007199254740994',
@@ -480,5 +480,24 @@ describe('start attempt display against the latest overview', () => {
     });
     expect(startStatusDisplay({ ...display, now: 10100 }).attemptFresh).toBe(false);
     expect(startStatusDisplay({ ...display, queryFresh: false }).attemptFresh).toBe(false);
+  });
+});
+
+describe('execution version isolation at legacy Start', () => {
+  it('refuses a v2 recipe and extra policy before freezing a legacy request', () => {
+    const v2 = { ...candidate, recipe: { ...candidate.recipe, schema_id: 'rx.execution-plan.v2' } };
+    expect(() => validateStartContext(v2, data, candidate.cell, candidate.run.id, '2')).toThrow();
+    expect(() =>
+      validateStartContext(
+        { ...candidate, execution: { schema: 'rx.workflow-execution-binding.v2' } },
+        data,
+        candidate.cell,
+        candidate.run.id,
+        '2',
+      ),
+    ).toThrow();
+    expect(validateStartContext(candidate, data, candidate.cell, candidate.run.id, '2')).toEqual(
+      candidate,
+    );
   });
 });

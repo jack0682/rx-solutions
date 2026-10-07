@@ -35,6 +35,7 @@ struct RegisteredBackend<B, R> {
     bindings: BTreeMap<Name, Binding>,
     legacy: bool,
     resume: Option<ResumePermit>,
+    platform: Option<std::sync::Arc<crate::resident_execution::Lease>>,
 }
 impl<B: Backend, R: Repository> RegisteredBackend<B, R> {
     fn begin(&mut self, launch: &Launch) -> std::result::Result<Binding, SpawnFailure> {
@@ -48,7 +49,17 @@ impl<B: Backend, R: Repository> RegisteredBackend<B, R> {
                 ))
             })?;
         binding.instance = launch.instance.clone();
-        if let Some(permit) = &self.resume {
+        if let Some(platform) = &self.platform {
+            platform.enter(&binding).map_err(SpawnFailure::NotStarted)?;
+            if let Err(error) = self
+                .registry
+                .borrow_mut()
+                .assign_platform(&binding, platform)
+            {
+                platform.finish(&binding.instance);
+                return Err(SpawnFailure::NotStarted(error.into()));
+            }
+        } else if let Some(permit) = &self.resume {
             self.registry
                 .borrow_mut()
                 .assign_with_resume(&binding, Some(permit))
@@ -88,7 +99,13 @@ impl<B: Backend, R: Repository> Backend for RegisteredBackend<B, R> {
             if !authorize() {
                 return false;
             }
-            match registry.borrow_mut().check_start(&binding) {
+            match if let Some(platform) = &self.platform {
+                registry
+                    .borrow_mut()
+                    .check_platform_start(&binding, platform)
+            } else {
+                registry.borrow_mut().check_start(&binding)
+            } {
                 Ok(()) => true,
                 Err(error) => {
                     denial = Some(error);
@@ -96,6 +113,9 @@ impl<B: Backend, R: Repository> Backend for RegisteredBackend<B, R> {
                 }
             }
         });
+        if let Some(platform) = &self.platform {
+            platform.finish(&binding.instance);
+        }
         match (outcome, denial) {
             (Err(SpawnFailure::NotStarted(_)), Some(error)) => {
                 Err(SpawnFailure::NotStarted(error.into()))
@@ -129,7 +149,13 @@ impl<B: Backend, R: Repository> Backend for RegisteredBackend<B, R> {
                 if !authorize() {
                     return false;
                 }
-                match registry.borrow_mut().check_start(&binding) {
+                match if let Some(platform) = &self.platform {
+                    registry
+                        .borrow_mut()
+                        .check_platform_start(&binding, platform)
+                } else {
+                    registry.borrow_mut().check_start(&binding)
+                } {
                     Ok(()) => true,
                     Err(error) => {
                         denial = Some(error);
@@ -137,6 +163,9 @@ impl<B: Backend, R: Repository> Backend for RegisteredBackend<B, R> {
                     }
                 }
             });
+        if let Some(platform) = &self.platform {
+            platform.finish(&binding.instance);
+        }
         match (outcome, denial) {
             (Err(SpawnFailure::NotStarted(_)), Some(error)) => {
                 Err(SpawnFailure::NotStarted(error.into()))
@@ -167,6 +196,148 @@ impl<B: Backend, R: Repository> Backend for RegisteredBackend<B, R> {
     }
 }
 
+impl<S: Repository, B: Backend>
+    RegisteredSupervisor<S, B, crate::resident_execution::Authority, rx_storage::SqliteRepository>
+{
+    pub fn platform_observation(&mut self) -> Result<rx_domain::resident_execution::Observation> {
+        use rx_domain::resident_execution::{NodeObservation, Observation, ObservationState as O};
+        let lease = self
+            .platform
+            .as_ref()
+            .ok_or_else(|| Error::Invalid("not a P-owned execution".into()))?;
+        let report = self.supervisor.status()?;
+        let grant = &lease.grant;
+        let nodes = report
+            .state
+            .records
+            .iter()
+            .map(|(selection, record)| {
+                let binding = self
+                    .bindings
+                    .get(selection)
+                    .ok_or_else(|| Error::Invalid("unbound execution selection".into()))?;
+                let instance = record
+                    .instance
+                    .clone()
+                    .ok_or_else(|| Error::Invalid("assigned instance absent".into()))?;
+                if instance != binding.instance {
+                    return Err(Error::Invalid("managed instance differs".into()));
+                }
+                if !self
+                    .registry
+                    .borrow_mut()
+                    .platform_observation_owned(binding, lease)?
+                {
+                    return Err(Error::Reconciliation(
+                        "original execution belongs to another local owner; no observation rewrite"
+                            .into(),
+                    ));
+                }
+                let state = match record.phase {
+                    Phase::Pending | Phase::Prepared => O::Assigned,
+                    Phase::Starting
+                    | Phase::ProcessReady
+                    | Phase::Unready
+                    | Phase::StopRequested => O::Running,
+                    Phase::Exited => O::Exited,
+                    Phase::Skipped | Phase::StartFailed => O::NotStarted,
+                    Phase::SpawnEntered | Phase::Unknown => O::Unknown,
+                };
+                let detail = format!(
+                    "supervisor {:?}; {}; process lifecycle only, work use not granted",
+                    record.phase,
+                    record
+                        .error
+                        .as_deref()
+                        .unwrap_or("no additional lifecycle error")
+                );
+                Ok((
+                    selection.clone(),
+                    NodeObservation {
+                        instance,
+                        state,
+                        pid: record.pid,
+                        exit_code: record.exit_code,
+                        detail,
+                    },
+                ))
+            })
+            .collect::<Result<_>>()?;
+        Ok(Observation {
+            assignment: grant.assignment.clone(),
+            grant: grant.id.clone(),
+            sequence: Counter(0),
+            nodes,
+            reconciliation_required: report.reconciliation_required,
+        })
+    }
+    /// Consume a live P grant; site data cannot provide this capability or replace its catalog.
+    pub fn open_platform(
+        store: S,
+        backend: B,
+        prepared: crate::resident_execution::Prepared,
+        grant: crate::resident_execution::LiveGrant,
+        mut registry: Registry<rx_storage::SqliteRepository>,
+    ) -> Result<Self> {
+        let lease = grant.lease;
+        if lease.intent != prepared.intent
+            || lease.plan_digest != prepared.offer.plan_digest
+            || prepared
+                .plan
+                .validate(&prepared.catalog.programs, &prepared.catalog.support)?
+                != lease.plan_digest
+        {
+            return Err(Error::Invalid(
+                "live grant differs from the actual prepared plan".into(),
+            ));
+        }
+        registry.enroll_platform(&lease)?;
+        let uses = Self::authored_uses(&prepared.plan, &prepared.catalog.programs);
+        let bindings = prepared
+            .intent
+            .nodes
+            .keys()
+            .map(|selection| Ok((selection.clone(), lease.binding(selection)?)))
+            .collect::<Result<BTreeMap<_, _>>>()?;
+        let registry = Rc::new(RefCell::new(registry));
+        let backend = RegisteredBackend {
+            backend,
+            registry: registry.clone(),
+            bindings: bindings.clone(),
+            legacy: false,
+            resume: None,
+            platform: Some(lease.clone()),
+        };
+        let mut supervisor = Supervisor::open(
+            store,
+            backend,
+            crate::resident_execution::Authority(lease.clone()),
+            prepared.plan,
+            prepared.catalog.programs,
+            &prepared.catalog.support,
+        )?;
+        supervisor.prepare_assigned_instances(
+            &prepared
+                .intent
+                .nodes
+                .iter()
+                .map(|(name, node)| (name.clone(), node.instance.clone()))
+                .collect(),
+        )?;
+        let mut this = Self {
+            supervisor,
+            registry,
+            run: prepared.intent.run,
+            bindings,
+            single: None,
+            uses,
+            platform: Some(lease),
+        };
+        this.synchronize()?;
+        Ok(this)
+    }
+}
+
 pub struct RegisteredSupervisor<S, B, A, R> {
     supervisor: Supervisor<S, RegisteredBackend<B, R>, A>,
     registry: Rc<RefCell<Registry<R>>>,
@@ -174,6 +345,7 @@ pub struct RegisteredSupervisor<S, B, A, R> {
     bindings: BTreeMap<Name, Binding>,
     single: Option<SingleComponent>,
     uses: BTreeMap<Name, AuthoredUse>,
+    platform: Option<std::sync::Arc<crate::resident_execution::Lease>>,
 }
 struct SingleComponent {
     component: Id,
@@ -321,6 +493,7 @@ impl<S: Repository, B: Backend, A: LifecycleAuthority, R: Repository>
             resume,
             bindings: bindings.clone(),
             legacy: false,
+            platform: None,
         };
         let supervisor = Supervisor::open(store, backend, authority, plan, programs, support)?;
         let mut this = Self {
@@ -334,6 +507,7 @@ impl<S: Repository, B: Backend, A: LifecycleAuthority, R: Repository>
                 catalog,
             }),
             uses,
+            platform: None,
         };
         this.synchronize()?;
         Ok(this)
@@ -408,6 +582,7 @@ impl<S: Repository, B: Backend, A: LifecycleAuthority, R: Repository>
             bindings: bindings.clone(),
             legacy: true,
             resume: None,
+            platform: None,
         };
         let supervisor = Supervisor::open(store, backend, authority, plan, programs, support)?;
         let mut this = Self {
@@ -417,6 +592,7 @@ impl<S: Repository, B: Backend, A: LifecycleAuthority, R: Repository>
             bindings,
             single: None,
             uses,
+            platform: None,
         };
         this.synchronize()?;
         Ok(this)
@@ -865,6 +1041,33 @@ impl<S: Repository, B: Backend, A: LifecycleAuthority, R: Repository>
     pub fn state(&mut self) -> Result<State> {
         self.supervisor.state()
     }
+    /// Retained snapshots for the current run's exact instances, without ownership promotion.
+    pub fn reporting_snapshot(&mut self) -> Result<Vec<crate::registration::Execution>> {
+        let state = self.supervisor.state()?;
+        let mut snapshots = Vec::new();
+        for (selection, binding) in &self.bindings {
+            let Some(instance) = &state.records[selection].instance else {
+                continue;
+            };
+            let view = self.registry.borrow_mut().query(&binding.registration)?;
+            if let Some(execution) = view
+                .executions
+                .into_iter()
+                .find(|e| e.binding.instance == *instance)
+            {
+                if execution.binding.run != self.run
+                    || execution.binding.selection != *selection
+                    || execution.binding.catalog != binding.catalog
+                {
+                    return Err(Error::Reconciliation(
+                        "report source differs from current run".into(),
+                    ));
+                }
+                snapshots.push(execution);
+            }
+        }
+        Ok(snapshots)
+    }
     pub fn execution_admission(&mut self) -> Result<BTreeMap<Name, execution::Status>> {
         self.supervisor.execution_admission()
     }
@@ -890,6 +1093,22 @@ impl<S: Repository, B: Backend, A: LifecycleAuthority, R: Repository>
             let Some(instance) = &record.instance else {
                 continue;
             };
+            if let Some(lease) = &self.platform {
+                let actual = Binding {
+                    instance: instance.clone(),
+                    ..binding.clone()
+                };
+                if !self
+                    .registry
+                    .borrow_mut()
+                    .platform_observation_owned(&actual, lease)?
+                {
+                    return Err(Error::Reconciliation(
+                        "execution history belongs to another local owner; no implicit adoption"
+                            .into(),
+                    ));
+                }
+            }
             let view = self.registry.borrow_mut().query(&binding.registration)?;
             let Some(execution) = view
                 .executions

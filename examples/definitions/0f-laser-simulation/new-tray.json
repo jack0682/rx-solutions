@@ -1,0 +1,69 @@
+{
+  "schema": "rx.definition-package.v1",
+  "catalog": "a86ea3cc-8431-58ac-8401-5c2c63cb532c",
+  "title": "0F Laser cell · SIMULATION",
+  "definitions": [
+    {
+      "key": "tray.new",
+      "id": "8a6f069a-49c7-5be5-adac-27020a48f611",
+      "label": "New tray model · SIMULATION",
+      "expected": null,
+      "body": {
+        "kind": "RESOURCE_MODEL",
+        "resource_type": {
+          "$ref": "type.tray"
+        },
+        "values": {
+          "profile": {
+            "text": "SIMULATION"
+          },
+          "frame": {
+            "text": "SIMULATION/world"
+          },
+          "origin": {
+            "vector": [
+              0,
+              0,
+              0
+            ]
+          },
+          "height": {
+            "number": 50
+          },
+          "width": {
+            "number": 400
+          },
+          "depth": {
+            "number": 250
+          },
+          "surface_height": {
+            "number": 850
+          },
+          "rows": {
+            "number": 3
+          },
+          "columns": {
+            "number": 5
+          },
+          "row_pitch": {
+            "number": 60
+          },
+          "column_pitch": {
+            "number": 60
+          },
+          "slot_depth": {
+            "number": 12
+          },
+          "orientation": {
+            "vector": [
+              0,
+              0,
+              0,
+              1
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

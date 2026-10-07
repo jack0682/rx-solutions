@@ -70,7 +70,7 @@ pub enum ReadyProbe {
     HttpStatus { port_parameter: Name },
     GuardedStatus(GuardedStatusBinding),
 }
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize)]
 pub struct Launch {
     /// Current plan selection, never a persistent registration or OS identity.
     pub selection: Name,

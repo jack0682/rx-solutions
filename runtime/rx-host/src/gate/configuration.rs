@@ -125,6 +125,21 @@ impl<N: NativeAdapter, C: Clock, H: BoundaryHook> Host<N, C, H> {
         caller: &Caller,
         request: config::Request,
     ) -> Result<config::Observation> {
+        self.accept_configuration_with(caller, request, None)
+    }
+    pub(crate) fn accept_configuration_with(
+        &self,
+        caller: &Caller,
+        request: config::Request,
+        execution: Option<&rx_process_contract::execution_v2::host_configuration::Request>,
+    ) -> Result<config::Observation> {
+        if execution.is_none()
+            && request.cells.iter().any(|c| {
+                c.recipe.schema_id.as_str() == rx_process_contract::execution_v2::PLAN_SCHEMA
+            })
+        {
+            return Err(HostError::Guard);
+        }
         request.validate().map_err(invalid)?;
         let digest = request.digest().map_err(invalid)?;
         let mut core = self.lock()?;
@@ -137,7 +152,11 @@ impl<N: NativeAdapter, C: Clock, H: BoundaryHook> Host<N, C, H> {
             if receipt.request_digest != digest {
                 return Err(HostError::Conflict);
             }
+            execution::check_configuration_replay(&mut core, caller, &request.id, execution)?;
             return observation(&mut core, Some(receipt));
+        }
+        if let Some(input) = execution {
+            execution::check_configuration(&mut core, input)?;
         }
         let actual_binding = binding_digest(&core.bindings)?;
         let boot = core.boot.clone();
@@ -358,6 +377,9 @@ impl<N: NativeAdapter, C: Clock, H: BoundaryHook> Host<N, C, H> {
                 recorded_at: now,
             };
             receipt.validate().map_err(rx_ports::StoreError::Invalid)?;
+            if let Some(input) = execution {
+                execution::record_configuration(tx, caller, input, &receipt)?;
+            }
             tx.put(&cache, None, &doc(RECEIPT, &receipt)?)?;
             tx.put(
                 &key(

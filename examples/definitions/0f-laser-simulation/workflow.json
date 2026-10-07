@@ -1,0 +1,3125 @@
+{
+  "schema": "rx.workflow-model-package.v1",
+  "catalog": "a86ea3cc-8431-58ac-8401-5c2c63cb532c",
+  "id": "9bdc93cc-bad2-5331-af5b-1fbb33b0c1df",
+  "expected": null,
+  "label": "0F single-gripper tending · SIMULATION",
+  "spec": {
+    "schema": "rx.workflow-model.v1",
+    "contexts": {
+      "part": {
+        "label": "part",
+        "kind": "OBJECT",
+        "accepted_types": [
+          {
+            "$ref": "type.part"
+          }
+        ],
+        "required": true,
+        "multiple": false
+      },
+      "supply": {
+        "label": "supply",
+        "kind": "RESOURCE",
+        "accepted_types": [
+          {
+            "$ref": "type.m2_tray"
+          }
+        ],
+        "required": true,
+        "multiple": false
+      },
+      "output": {
+        "label": "output",
+        "kind": "RESOURCE",
+        "accepted_types": [
+          {
+            "$ref": "type.m2_tray"
+          }
+        ],
+        "required": true,
+        "multiple": false
+      },
+      "gripper": {
+        "label": "gripper",
+        "kind": "RESOURCE",
+        "accepted_types": [
+          {
+            "$ref": "type.gripper"
+          }
+        ],
+        "required": true,
+        "multiple": false
+      },
+      "chuck": {
+        "label": "chuck",
+        "kind": "RESOURCE",
+        "accepted_types": [
+          {
+            "$ref": "type.chuck"
+          }
+        ],
+        "required": true,
+        "multiple": false
+      },
+      "jig": {
+        "label": "jig",
+        "kind": "RESOURCE",
+        "accepted_types": [
+          {
+            "$ref": "type.m2_jig"
+          }
+        ],
+        "required": true,
+        "multiple": false
+      },
+      "robot": {
+        "label": "robot",
+        "kind": "RESOURCE",
+        "accepted_types": [
+          {
+            "$ref": "type.m2_robot"
+          }
+        ],
+        "required": true,
+        "multiple": false
+      },
+      "machine": {
+        "label": "machine",
+        "kind": "RESOURCE",
+        "accepted_types": [
+          {
+            "$ref": "type.m2_machine"
+          }
+        ],
+        "required": true,
+        "multiple": false
+      }
+    },
+    "defaults": {
+      "part": [
+        {
+          "$ref": "part.ECC_51-14"
+        }
+      ],
+      "supply": [
+        {
+          "$ref": "m2.tray.supply"
+        }
+      ],
+      "output": [
+        {
+          "$ref": "m2.tray.output"
+        }
+      ],
+      "gripper": [
+        {
+          "$ref": "gripper.cell"
+        }
+      ],
+      "chuck": [
+        {
+          "$ref": "chuck.cell"
+        }
+      ],
+      "jig": [
+        {
+          "$ref": "jig.m2-work"
+        }
+      ],
+      "robot": [
+        {
+          "$ref": "robot.simulation"
+        }
+      ],
+      "machine": [
+        {
+          "$ref": "machine.simulation"
+        }
+      ]
+    },
+    "property_sets": [
+      {
+        "slot": "part",
+        "accepted_type": {
+          "$ref": "type.ECC_51"
+        },
+        "property_set": {
+          "$ref": "m2.properties.ECC_51"
+        }
+      },
+      {
+        "slot": "part",
+        "accepted_type": {
+          "$ref": "type.ECC_99"
+        },
+        "property_set": {
+          "$ref": "m2.properties.ECC_99"
+        }
+      }
+    ],
+    "tasks": {
+      "pick": {
+        "label": "Pick from/to tray slot",
+        "contexts": [
+          "part",
+          "supply",
+          "gripper",
+          "robot"
+        ],
+        "properties": {
+          "part_width": {
+            "property": {
+              "$ref": "object.width"
+            },
+            "sources": [
+              {
+                "kind": "CONTEXT",
+                "slot": "part",
+                "field": "width",
+                "index": 0
+              }
+            ],
+            "default": null
+          },
+          "part_depth": {
+            "property": {
+              "$ref": "object.depth"
+            },
+            "sources": [
+              {
+                "kind": "CONTEXT",
+                "slot": "part",
+                "field": "depth",
+                "index": 0
+              }
+            ],
+            "default": null
+          },
+          "part_height": {
+            "property": {
+              "$ref": "object.height"
+            },
+            "sources": [
+              {
+                "kind": "CONTEXT",
+                "slot": "part",
+                "field": "height",
+                "index": 0
+              }
+            ],
+            "default": null
+          },
+          "part_mass": {
+            "property": {
+              "$ref": "object.weight"
+            },
+            "sources": [
+              {
+                "kind": "CONTEXT",
+                "slot": "part",
+                "field": "weight",
+                "index": 0
+              }
+            ],
+            "default": null
+          },
+          "clearance": {
+            "property": {
+              "$ref": "execution.clearance"
+            },
+            "sources": [
+              {
+                "kind": "OVERRIDE"
+              },
+              {
+                "kind": "PROPERTY_SET"
+              },
+              {
+                "kind": "DEFAULT"
+              }
+            ],
+            "default": {
+              "unit": "mm",
+              "data": {
+                "kind": "NUMBER",
+                "range": {
+                  "min": 25,
+                  "max": 25
+                }
+              }
+            }
+          },
+          "grasp_clearance": {
+            "property": {
+              "$ref": "execution.grasp_clearance"
+            },
+            "sources": [
+              {
+                "kind": "OVERRIDE"
+              },
+              {
+                "kind": "PROPERTY_SET"
+              },
+              {
+                "kind": "DEFAULT"
+              }
+            ],
+            "default": {
+              "unit": "mm",
+              "data": {
+                "kind": "NUMBER",
+                "range": {
+                  "min": 2,
+                  "max": 2
+                }
+              }
+            }
+          },
+          "force_factor": {
+            "property": {
+              "$ref": "m2.force_factor"
+            },
+            "sources": [
+              {
+                "kind": "OVERRIDE"
+              },
+              {
+                "kind": "PROPERTY_SET"
+              },
+              {
+                "kind": "DEFAULT"
+              }
+            ],
+            "default": {
+              "unit": "unitless",
+              "data": {
+                "kind": "NUMBER",
+                "range": {
+                  "min": 0.5,
+                  "max": 0.5
+                }
+              }
+            }
+          },
+          "timeout": {
+            "property": {
+              "$ref": "m2.timeout"
+            },
+            "sources": [
+              {
+                "kind": "OVERRIDE"
+              },
+              {
+                "kind": "PROPERTY_SET"
+              },
+              {
+                "kind": "DEFAULT"
+              }
+            ],
+            "default": {
+              "unit": "s",
+              "data": {
+                "kind": "NUMBER",
+                "range": {
+                  "min": 30,
+                  "max": 30
+                }
+              }
+            }
+          },
+          "grasp_width": {
+            "property": {
+              "$ref": "m2.grasp_width"
+            },
+            "sources": [
+              {
+                "kind": "OVERRIDE"
+              },
+              {
+                "kind": "RULE",
+                "rule": "grasp-width"
+              }
+            ],
+            "default": null
+          },
+          "grip_force": {
+            "property": {
+              "$ref": "m2.grip_force"
+            },
+            "sources": [
+              {
+                "kind": "OVERRIDE"
+              },
+              {
+                "kind": "RULE",
+                "rule": "grip-force"
+              }
+            ],
+            "default": null
+          },
+          "contact_position": {
+            "property": {
+              "$ref": "m2.position"
+            },
+            "sources": [
+              {
+                "kind": "RULE",
+                "rule": "contact-position"
+              }
+            ],
+            "default": null
+          },
+          "approach_position": {
+            "property": {
+              "$ref": "m2.position"
+            },
+            "sources": [
+              {
+                "kind": "RULE",
+                "rule": "approach-position"
+              }
+            ],
+            "default": null
+          },
+          "surface_z": {
+            "property": {
+              "$ref": "m2.surface_z"
+            },
+            "sources": [
+              {
+                "kind": "RULE",
+                "rule": "surface-z"
+              }
+            ],
+            "default": null
+          },
+          "approach_z": {
+            "property": {
+              "$ref": "m2.surface_z"
+            },
+            "sources": [
+              {
+                "kind": "RULE",
+                "rule": "approach-z"
+              }
+            ],
+            "default": null
+          },
+          "slot_position": {
+            "property": {
+              "$ref": "m2.position"
+            },
+            "sources": [
+              {
+                "kind": "PATTERN",
+                "slot": "supply",
+                "rule": {
+                  "$ref": "m2.rule.tray-slots"
+                },
+                "component": "POSITION"
+              }
+            ],
+            "default": null
+          },
+          "orientation": {
+            "property": {
+              "$ref": "m2.orientation"
+            },
+            "sources": [
+              {
+                "kind": "PATTERN",
+                "slot": "supply",
+                "rule": {
+                  "$ref": "m2.rule.tray-slots"
+                },
+                "component": "ORIENTATION"
+              }
+            ],
+            "default": null
+          },
+          "frame": {
+            "property": {
+              "$ref": "m2.frame"
+            },
+            "sources": [
+              {
+                "kind": "PATTERN",
+                "slot": "supply",
+                "rule": {
+                  "$ref": "m2.rule.tray-slots"
+                },
+                "component": "FRAME"
+              }
+            ],
+            "default": null
+          },
+          "slot_depth": {
+            "property": {
+              "$ref": "resource.slot_depth"
+            },
+            "sources": [
+              {
+                "kind": "CONTEXT",
+                "slot": "supply",
+                "field": "slot_depth",
+                "index": 0
+              }
+            ],
+            "default": null
+          },
+          "rows": {
+            "property": {
+              "$ref": "resource.rows"
+            },
+            "sources": [
+              {
+                "kind": "CONTEXT",
+                "slot": "supply",
+                "field": "rows",
+                "index": 0
+              }
+            ],
+            "default": null
+          },
+          "columns": {
+            "property": {
+              "$ref": "resource.columns"
+            },
+            "sources": [
+              {
+                "kind": "CONTEXT",
+                "slot": "supply",
+                "field": "columns",
+                "index": 0
+              }
+            ],
+            "default": null
+          },
+          "row_pitch": {
+            "property": {
+              "$ref": "resource.row_pitch"
+            },
+            "sources": [
+              {
+                "kind": "CONTEXT",
+                "slot": "supply",
+                "field": "row_pitch",
+                "index": 0
+              }
+            ],
+            "default": null
+          },
+          "column_pitch": {
+            "property": {
+              "$ref": "resource.column_pitch"
+            },
+            "sources": [
+              {
+                "kind": "CONTEXT",
+                "slot": "supply",
+                "field": "column_pitch",
+                "index": 0
+              }
+            ],
+            "default": null
+          },
+          "tray_width": {
+            "property": {
+              "$ref": "resource.width"
+            },
+            "sources": [
+              {
+                "kind": "CONTEXT",
+                "slot": "supply",
+                "field": "width",
+                "index": 0
+              }
+            ],
+            "default": null
+          },
+          "tray_depth": {
+            "property": {
+              "$ref": "resource.depth"
+            },
+            "sources": [
+              {
+                "kind": "CONTEXT",
+                "slot": "supply",
+                "field": "depth",
+                "index": 0
+              }
+            ],
+            "default": null
+          },
+          "tray_height": {
+            "property": {
+              "$ref": "resource.height"
+            },
+            "sources": [
+              {
+                "kind": "CONTEXT",
+                "slot": "supply",
+                "field": "height",
+                "index": 0
+              }
+            ],
+            "default": null
+          }
+        },
+        "constraints": [
+          "gripper-opening",
+          "part-force",
+          "gripper-force",
+          "gripper-payload",
+          "robot-payload",
+          "depth-fit",
+          "column-fit",
+          "row-fit",
+          "tray-width",
+          "tray-depth",
+          "opening-pitch",
+          "opening-part",
+          "positive-grip",
+          "planning-frame",
+          "cavity-thickness"
+        ],
+        "capabilities": [
+          {
+            "name": "manipulate",
+            "slot": "robot",
+            "field": "cap_manipulate"
+          }
+        ],
+        "skills": [
+          {
+            "capability": "manipulate",
+            "slot": "robot",
+            "implementation_field": "implementation",
+            "version_field": "implementation_version",
+            "primitive": "pick",
+            "parameters": {
+              "target_position": "contact_position",
+              "approach_position": "approach_position",
+              "orientation": "orientation",
+              "frame": "frame",
+              "width": "grasp_width",
+              "force": "grip_force",
+              "timeout_s": "timeout"
+            }
+          }
+        ],
+        "timeout_property": "timeout",
+        "done": {
+          "observation": "gripper.part_held",
+          "property": {
+            "$ref": "observation.part_held"
+          },
+          "equals": {
+            "unit": "unitless",
+            "data": {
+              "kind": "BOOLEAN",
+              "value": true
+            }
+          }
+        },
+        "on_failure": "STOP",
+        "on_unknown": "HOLD_AND_RECONCILE"
+      },
+      "place": {
+        "label": "Place from/to tray slot",
+        "contexts": [
+          "part",
+          "output",
+          "gripper",
+          "robot"
+        ],
+        "properties": {
+          "part_width": {
+            "property": {
+              "$ref": "object.width"
+            },
+            "sources": [
+              {
+                "kind": "CONTEXT",
+                "slot": "part",
+                "field": "width",
+                "index": 0
+              }
+            ],
+            "default": null
+          },
+          "part_depth": {
+            "property": {
+              "$ref": "object.depth"
+            },
+            "sources": [
+              {
+                "kind": "CONTEXT",
+                "slot": "part",
+                "field": "depth",
+                "index": 0
+              }
+            ],
+            "default": null
+          },
+          "part_height": {
+            "property": {
+              "$ref": "object.height"
+            },
+            "sources": [
+              {
+                "kind": "CONTEXT",
+                "slot": "part",
+                "field": "height",
+                "index": 0
+              }
+            ],
+            "default": null
+          },
+          "part_mass": {
+            "property": {
+              "$ref": "object.weight"
+            },
+            "sources": [
+              {
+                "kind": "CONTEXT",
+                "slot": "part",
+                "field": "weight",
+                "index": 0
+              }
+            ],
+            "default": null
+          },
+          "clearance": {
+            "property": {
+              "$ref": "execution.clearance"
+            },
+            "sources": [
+              {
+                "kind": "OVERRIDE"
+              },
+              {
+                "kind": "PROPERTY_SET"
+              },
+              {
+                "kind": "DEFAULT"
+              }
+            ],
+            "default": {
+              "unit": "mm",
+              "data": {
+                "kind": "NUMBER",
+                "range": {
+                  "min": 25,
+                  "max": 25
+                }
+              }
+            }
+          },
+          "grasp_clearance": {
+            "property": {
+              "$ref": "execution.grasp_clearance"
+            },
+            "sources": [
+              {
+                "kind": "OVERRIDE"
+              },
+              {
+                "kind": "PROPERTY_SET"
+              },
+              {
+                "kind": "DEFAULT"
+              }
+            ],
+            "default": {
+              "unit": "mm",
+              "data": {
+                "kind": "NUMBER",
+                "range": {
+                  "min": 2,
+                  "max": 2
+                }
+              }
+            }
+          },
+          "force_factor": {
+            "property": {
+              "$ref": "m2.force_factor"
+            },
+            "sources": [
+              {
+                "kind": "OVERRIDE"
+              },
+              {
+                "kind": "PROPERTY_SET"
+              },
+              {
+                "kind": "DEFAULT"
+              }
+            ],
+            "default": {
+              "unit": "unitless",
+              "data": {
+                "kind": "NUMBER",
+                "range": {
+                  "min": 0.5,
+                  "max": 0.5
+                }
+              }
+            }
+          },
+          "timeout": {
+            "property": {
+              "$ref": "m2.timeout"
+            },
+            "sources": [
+              {
+                "kind": "OVERRIDE"
+              },
+              {
+                "kind": "PROPERTY_SET"
+              },
+              {
+                "kind": "DEFAULT"
+              }
+            ],
+            "default": {
+              "unit": "s",
+              "data": {
+                "kind": "NUMBER",
+                "range": {
+                  "min": 30,
+                  "max": 30
+                }
+              }
+            }
+          },
+          "grasp_width": {
+            "property": {
+              "$ref": "m2.grasp_width"
+            },
+            "sources": [
+              {
+                "kind": "OVERRIDE"
+              },
+              {
+                "kind": "RULE",
+                "rule": "grasp-width"
+              }
+            ],
+            "default": null
+          },
+          "grip_force": {
+            "property": {
+              "$ref": "m2.grip_force"
+            },
+            "sources": [
+              {
+                "kind": "OVERRIDE"
+              },
+              {
+                "kind": "RULE",
+                "rule": "grip-force"
+              }
+            ],
+            "default": null
+          },
+          "contact_position": {
+            "property": {
+              "$ref": "m2.position"
+            },
+            "sources": [
+              {
+                "kind": "RULE",
+                "rule": "contact-position"
+              }
+            ],
+            "default": null
+          },
+          "approach_position": {
+            "property": {
+              "$ref": "m2.position"
+            },
+            "sources": [
+              {
+                "kind": "RULE",
+                "rule": "approach-position"
+              }
+            ],
+            "default": null
+          },
+          "surface_z": {
+            "property": {
+              "$ref": "m2.surface_z"
+            },
+            "sources": [
+              {
+                "kind": "RULE",
+                "rule": "surface-z"
+              }
+            ],
+            "default": null
+          },
+          "approach_z": {
+            "property": {
+              "$ref": "m2.surface_z"
+            },
+            "sources": [
+              {
+                "kind": "RULE",
+                "rule": "approach-z"
+              }
+            ],
+            "default": null
+          },
+          "slot_position": {
+            "property": {
+              "$ref": "m2.position"
+            },
+            "sources": [
+              {
+                "kind": "PATTERN",
+                "slot": "output",
+                "rule": {
+                  "$ref": "m2.rule.tray-slots"
+                },
+                "component": "POSITION"
+              }
+            ],
+            "default": null
+          },
+          "orientation": {
+            "property": {
+              "$ref": "m2.orientation"
+            },
+            "sources": [
+              {
+                "kind": "PATTERN",
+                "slot": "output",
+                "rule": {
+                  "$ref": "m2.rule.tray-slots"
+                },
+                "component": "ORIENTATION"
+              }
+            ],
+            "default": null
+          },
+          "frame": {
+            "property": {
+              "$ref": "m2.frame"
+            },
+            "sources": [
+              {
+                "kind": "PATTERN",
+                "slot": "output",
+                "rule": {
+                  "$ref": "m2.rule.tray-slots"
+                },
+                "component": "FRAME"
+              }
+            ],
+            "default": null
+          },
+          "slot_depth": {
+            "property": {
+              "$ref": "resource.slot_depth"
+            },
+            "sources": [
+              {
+                "kind": "CONTEXT",
+                "slot": "output",
+                "field": "slot_depth",
+                "index": 0
+              }
+            ],
+            "default": null
+          },
+          "rows": {
+            "property": {
+              "$ref": "resource.rows"
+            },
+            "sources": [
+              {
+                "kind": "CONTEXT",
+                "slot": "output",
+                "field": "rows",
+                "index": 0
+              }
+            ],
+            "default": null
+          },
+          "columns": {
+            "property": {
+              "$ref": "resource.columns"
+            },
+            "sources": [
+              {
+                "kind": "CONTEXT",
+                "slot": "output",
+                "field": "columns",
+                "index": 0
+              }
+            ],
+            "default": null
+          },
+          "row_pitch": {
+            "property": {
+              "$ref": "resource.row_pitch"
+            },
+            "sources": [
+              {
+                "kind": "CONTEXT",
+                "slot": "output",
+                "field": "row_pitch",
+                "index": 0
+              }
+            ],
+            "default": null
+          },
+          "column_pitch": {
+            "property": {
+              "$ref": "resource.column_pitch"
+            },
+            "sources": [
+              {
+                "kind": "CONTEXT",
+                "slot": "output",
+                "field": "column_pitch",
+                "index": 0
+              }
+            ],
+            "default": null
+          },
+          "tray_width": {
+            "property": {
+              "$ref": "resource.width"
+            },
+            "sources": [
+              {
+                "kind": "CONTEXT",
+                "slot": "output",
+                "field": "width",
+                "index": 0
+              }
+            ],
+            "default": null
+          },
+          "tray_depth": {
+            "property": {
+              "$ref": "resource.depth"
+            },
+            "sources": [
+              {
+                "kind": "CONTEXT",
+                "slot": "output",
+                "field": "depth",
+                "index": 0
+              }
+            ],
+            "default": null
+          },
+          "tray_height": {
+            "property": {
+              "$ref": "resource.height"
+            },
+            "sources": [
+              {
+                "kind": "CONTEXT",
+                "slot": "output",
+                "field": "height",
+                "index": 0
+              }
+            ],
+            "default": null
+          }
+        },
+        "constraints": [
+          "gripper-opening",
+          "part-force",
+          "gripper-force",
+          "gripper-payload",
+          "robot-payload",
+          "depth-fit",
+          "column-fit",
+          "row-fit",
+          "tray-width",
+          "tray-depth",
+          "opening-pitch",
+          "opening-part",
+          "positive-grip",
+          "planning-frame",
+          "cavity-thickness"
+        ],
+        "capabilities": [
+          {
+            "name": "manipulate",
+            "slot": "robot",
+            "field": "cap_manipulate"
+          }
+        ],
+        "skills": [
+          {
+            "capability": "manipulate",
+            "slot": "robot",
+            "implementation_field": "implementation",
+            "version_field": "implementation_version",
+            "primitive": "place",
+            "parameters": {
+              "target_position": "contact_position",
+              "approach_position": "approach_position",
+              "orientation": "orientation",
+              "frame": "frame",
+              "width": "grasp_width",
+              "force": "grip_force",
+              "timeout_s": "timeout"
+            }
+          }
+        ],
+        "timeout_property": "timeout",
+        "done": {
+          "observation": "tray.part_placed",
+          "property": {
+            "$ref": "observation.part_placed"
+          },
+          "equals": {
+            "unit": "unitless",
+            "data": {
+              "kind": "BOOLEAN",
+              "value": true
+            }
+          }
+        },
+        "on_failure": "STOP",
+        "on_unknown": "HOLD_AND_RECONCILE"
+      },
+      "load": {
+        "label": "Load at chuck/jig",
+        "contexts": [
+          "part",
+          "jig",
+          "gripper",
+          "robot"
+        ],
+        "properties": {
+          "part_width": {
+            "property": {
+              "$ref": "object.width"
+            },
+            "sources": [
+              {
+                "kind": "CONTEXT",
+                "slot": "part",
+                "field": "width",
+                "index": 0
+              }
+            ],
+            "default": null
+          },
+          "part_depth": {
+            "property": {
+              "$ref": "object.depth"
+            },
+            "sources": [
+              {
+                "kind": "CONTEXT",
+                "slot": "part",
+                "field": "depth",
+                "index": 0
+              }
+            ],
+            "default": null
+          },
+          "part_height": {
+            "property": {
+              "$ref": "object.height"
+            },
+            "sources": [
+              {
+                "kind": "CONTEXT",
+                "slot": "part",
+                "field": "height",
+                "index": 0
+              }
+            ],
+            "default": null
+          },
+          "part_mass": {
+            "property": {
+              "$ref": "object.weight"
+            },
+            "sources": [
+              {
+                "kind": "CONTEXT",
+                "slot": "part",
+                "field": "weight",
+                "index": 0
+              }
+            ],
+            "default": null
+          },
+          "clearance": {
+            "property": {
+              "$ref": "execution.clearance"
+            },
+            "sources": [
+              {
+                "kind": "OVERRIDE"
+              },
+              {
+                "kind": "PROPERTY_SET"
+              },
+              {
+                "kind": "DEFAULT"
+              }
+            ],
+            "default": {
+              "unit": "mm",
+              "data": {
+                "kind": "NUMBER",
+                "range": {
+                  "min": 25,
+                  "max": 25
+                }
+              }
+            }
+          },
+          "grasp_clearance": {
+            "property": {
+              "$ref": "execution.grasp_clearance"
+            },
+            "sources": [
+              {
+                "kind": "OVERRIDE"
+              },
+              {
+                "kind": "PROPERTY_SET"
+              },
+              {
+                "kind": "DEFAULT"
+              }
+            ],
+            "default": {
+              "unit": "mm",
+              "data": {
+                "kind": "NUMBER",
+                "range": {
+                  "min": 2,
+                  "max": 2
+                }
+              }
+            }
+          },
+          "force_factor": {
+            "property": {
+              "$ref": "m2.force_factor"
+            },
+            "sources": [
+              {
+                "kind": "OVERRIDE"
+              },
+              {
+                "kind": "PROPERTY_SET"
+              },
+              {
+                "kind": "DEFAULT"
+              }
+            ],
+            "default": {
+              "unit": "unitless",
+              "data": {
+                "kind": "NUMBER",
+                "range": {
+                  "min": 0.5,
+                  "max": 0.5
+                }
+              }
+            }
+          },
+          "timeout": {
+            "property": {
+              "$ref": "m2.timeout"
+            },
+            "sources": [
+              {
+                "kind": "OVERRIDE"
+              },
+              {
+                "kind": "PROPERTY_SET"
+              },
+              {
+                "kind": "DEFAULT"
+              }
+            ],
+            "default": {
+              "unit": "s",
+              "data": {
+                "kind": "NUMBER",
+                "range": {
+                  "min": 30,
+                  "max": 30
+                }
+              }
+            }
+          },
+          "grasp_width": {
+            "property": {
+              "$ref": "m2.grasp_width"
+            },
+            "sources": [
+              {
+                "kind": "OVERRIDE"
+              },
+              {
+                "kind": "RULE",
+                "rule": "grasp-width"
+              }
+            ],
+            "default": null
+          },
+          "grip_force": {
+            "property": {
+              "$ref": "m2.grip_force"
+            },
+            "sources": [
+              {
+                "kind": "OVERRIDE"
+              },
+              {
+                "kind": "RULE",
+                "rule": "grip-force"
+              }
+            ],
+            "default": null
+          },
+          "contact_position": {
+            "property": {
+              "$ref": "m2.position"
+            },
+            "sources": [
+              {
+                "kind": "RULE",
+                "rule": "contact-position"
+              }
+            ],
+            "default": null
+          },
+          "approach_position": {
+            "property": {
+              "$ref": "m2.position"
+            },
+            "sources": [
+              {
+                "kind": "RULE",
+                "rule": "approach-position"
+              }
+            ],
+            "default": null
+          },
+          "surface_z": {
+            "property": {
+              "$ref": "m2.surface_z"
+            },
+            "sources": [
+              {
+                "kind": "RULE",
+                "rule": "surface-z"
+              }
+            ],
+            "default": null
+          },
+          "approach_z": {
+            "property": {
+              "$ref": "m2.surface_z"
+            },
+            "sources": [
+              {
+                "kind": "RULE",
+                "rule": "approach-z"
+              }
+            ],
+            "default": null
+          },
+          "fixture_origin": {
+            "property": {
+              "$ref": "resource.origin"
+            },
+            "sources": [
+              {
+                "kind": "CONTEXT",
+                "slot": "jig",
+                "field": "origin",
+                "index": 0,
+                "frame_field": "frame"
+              }
+            ],
+            "default": null
+          },
+          "orientation": {
+            "property": {
+              "$ref": "resource.orientation"
+            },
+            "sources": [
+              {
+                "kind": "CONTEXT",
+                "slot": "jig",
+                "field": "orientation",
+                "index": 0,
+                "frame_field": "frame"
+              }
+            ],
+            "default": null
+          },
+          "frame": {
+            "property": {
+              "$ref": "resource.frame"
+            },
+            "sources": [
+              {
+                "kind": "CONTEXT",
+                "slot": "jig",
+                "field": "frame",
+                "index": 0
+              }
+            ],
+            "default": null
+          },
+          "fixture_height": {
+            "property": {
+              "$ref": "resource.height"
+            },
+            "sources": [
+              {
+                "kind": "CONTEXT",
+                "slot": "jig",
+                "field": "height",
+                "index": 0
+              }
+            ],
+            "default": null
+          },
+          "slot_position": {
+            "property": {
+              "$ref": "m2.position"
+            },
+            "sources": [
+              {
+                "kind": "RULE",
+                "rule": "fixture-surface"
+              }
+            ],
+            "default": null
+          },
+          "slot_depth": {
+            "property": {
+              "$ref": "resource.slot_depth"
+            },
+            "sources": [
+              {
+                "kind": "CONTEXT",
+                "slot": "jig",
+                "field": "seat_depth",
+                "index": 0
+              }
+            ],
+            "default": null
+          }
+        },
+        "constraints": [
+          "gripper-opening",
+          "part-force",
+          "gripper-force",
+          "gripper-payload",
+          "robot-payload",
+          "depth-fit",
+          "jig-width",
+          "jig-depth",
+          "jig-family",
+          "opening-part",
+          "positive-grip",
+          "planning-frame"
+        ],
+        "capabilities": [
+          {
+            "name": "manipulate",
+            "slot": "robot",
+            "field": "cap_manipulate"
+          }
+        ],
+        "skills": [
+          {
+            "capability": "manipulate",
+            "slot": "robot",
+            "implementation_field": "implementation",
+            "version_field": "implementation_version",
+            "primitive": "load",
+            "parameters": {
+              "target_position": "contact_position",
+              "approach_position": "approach_position",
+              "orientation": "orientation",
+              "frame": "frame",
+              "width": "grasp_width",
+              "force": "grip_force",
+              "timeout_s": "timeout"
+            }
+          }
+        ],
+        "timeout_property": "timeout",
+        "done": {
+          "observation": "jig.part_seated",
+          "property": {
+            "$ref": "observation.part_seated"
+          },
+          "equals": {
+            "unit": "unitless",
+            "data": {
+              "kind": "BOOLEAN",
+              "value": true
+            }
+          }
+        },
+        "on_failure": "STOP",
+        "on_unknown": "HOLD_AND_RECONCILE"
+      },
+      "unload": {
+        "label": "Unload at chuck/jig",
+        "contexts": [
+          "part",
+          "jig",
+          "gripper",
+          "robot"
+        ],
+        "properties": {
+          "part_width": {
+            "property": {
+              "$ref": "object.width"
+            },
+            "sources": [
+              {
+                "kind": "CONTEXT",
+                "slot": "part",
+                "field": "width",
+                "index": 0
+              }
+            ],
+            "default": null
+          },
+          "part_depth": {
+            "property": {
+              "$ref": "object.depth"
+            },
+            "sources": [
+              {
+                "kind": "CONTEXT",
+                "slot": "part",
+                "field": "depth",
+                "index": 0
+              }
+            ],
+            "default": null
+          },
+          "part_height": {
+            "property": {
+              "$ref": "object.height"
+            },
+            "sources": [
+              {
+                "kind": "CONTEXT",
+                "slot": "part",
+                "field": "height",
+                "index": 0
+              }
+            ],
+            "default": null
+          },
+          "part_mass": {
+            "property": {
+              "$ref": "object.weight"
+            },
+            "sources": [
+              {
+                "kind": "CONTEXT",
+                "slot": "part",
+                "field": "weight",
+                "index": 0
+              }
+            ],
+            "default": null
+          },
+          "clearance": {
+            "property": {
+              "$ref": "execution.clearance"
+            },
+            "sources": [
+              {
+                "kind": "OVERRIDE"
+              },
+              {
+                "kind": "PROPERTY_SET"
+              },
+              {
+                "kind": "DEFAULT"
+              }
+            ],
+            "default": {
+              "unit": "mm",
+              "data": {
+                "kind": "NUMBER",
+                "range": {
+                  "min": 25,
+                  "max": 25
+                }
+              }
+            }
+          },
+          "grasp_clearance": {
+            "property": {
+              "$ref": "execution.grasp_clearance"
+            },
+            "sources": [
+              {
+                "kind": "OVERRIDE"
+              },
+              {
+                "kind": "PROPERTY_SET"
+              },
+              {
+                "kind": "DEFAULT"
+              }
+            ],
+            "default": {
+              "unit": "mm",
+              "data": {
+                "kind": "NUMBER",
+                "range": {
+                  "min": 2,
+                  "max": 2
+                }
+              }
+            }
+          },
+          "force_factor": {
+            "property": {
+              "$ref": "m2.force_factor"
+            },
+            "sources": [
+              {
+                "kind": "OVERRIDE"
+              },
+              {
+                "kind": "PROPERTY_SET"
+              },
+              {
+                "kind": "DEFAULT"
+              }
+            ],
+            "default": {
+              "unit": "unitless",
+              "data": {
+                "kind": "NUMBER",
+                "range": {
+                  "min": 0.5,
+                  "max": 0.5
+                }
+              }
+            }
+          },
+          "timeout": {
+            "property": {
+              "$ref": "m2.timeout"
+            },
+            "sources": [
+              {
+                "kind": "OVERRIDE"
+              },
+              {
+                "kind": "PROPERTY_SET"
+              },
+              {
+                "kind": "DEFAULT"
+              }
+            ],
+            "default": {
+              "unit": "s",
+              "data": {
+                "kind": "NUMBER",
+                "range": {
+                  "min": 30,
+                  "max": 30
+                }
+              }
+            }
+          },
+          "grasp_width": {
+            "property": {
+              "$ref": "m2.grasp_width"
+            },
+            "sources": [
+              {
+                "kind": "OVERRIDE"
+              },
+              {
+                "kind": "RULE",
+                "rule": "grasp-width"
+              }
+            ],
+            "default": null
+          },
+          "grip_force": {
+            "property": {
+              "$ref": "m2.grip_force"
+            },
+            "sources": [
+              {
+                "kind": "OVERRIDE"
+              },
+              {
+                "kind": "RULE",
+                "rule": "grip-force"
+              }
+            ],
+            "default": null
+          },
+          "contact_position": {
+            "property": {
+              "$ref": "m2.position"
+            },
+            "sources": [
+              {
+                "kind": "RULE",
+                "rule": "contact-position"
+              }
+            ],
+            "default": null
+          },
+          "approach_position": {
+            "property": {
+              "$ref": "m2.position"
+            },
+            "sources": [
+              {
+                "kind": "RULE",
+                "rule": "approach-position"
+              }
+            ],
+            "default": null
+          },
+          "surface_z": {
+            "property": {
+              "$ref": "m2.surface_z"
+            },
+            "sources": [
+              {
+                "kind": "RULE",
+                "rule": "surface-z"
+              }
+            ],
+            "default": null
+          },
+          "approach_z": {
+            "property": {
+              "$ref": "m2.surface_z"
+            },
+            "sources": [
+              {
+                "kind": "RULE",
+                "rule": "approach-z"
+              }
+            ],
+            "default": null
+          },
+          "fixture_origin": {
+            "property": {
+              "$ref": "resource.origin"
+            },
+            "sources": [
+              {
+                "kind": "CONTEXT",
+                "slot": "jig",
+                "field": "origin",
+                "index": 0,
+                "frame_field": "frame"
+              }
+            ],
+            "default": null
+          },
+          "orientation": {
+            "property": {
+              "$ref": "resource.orientation"
+            },
+            "sources": [
+              {
+                "kind": "CONTEXT",
+                "slot": "jig",
+                "field": "orientation",
+                "index": 0,
+                "frame_field": "frame"
+              }
+            ],
+            "default": null
+          },
+          "frame": {
+            "property": {
+              "$ref": "resource.frame"
+            },
+            "sources": [
+              {
+                "kind": "CONTEXT",
+                "slot": "jig",
+                "field": "frame",
+                "index": 0
+              }
+            ],
+            "default": null
+          },
+          "fixture_height": {
+            "property": {
+              "$ref": "resource.height"
+            },
+            "sources": [
+              {
+                "kind": "CONTEXT",
+                "slot": "jig",
+                "field": "height",
+                "index": 0
+              }
+            ],
+            "default": null
+          },
+          "slot_position": {
+            "property": {
+              "$ref": "m2.position"
+            },
+            "sources": [
+              {
+                "kind": "RULE",
+                "rule": "fixture-surface"
+              }
+            ],
+            "default": null
+          },
+          "slot_depth": {
+            "property": {
+              "$ref": "resource.slot_depth"
+            },
+            "sources": [
+              {
+                "kind": "CONTEXT",
+                "slot": "jig",
+                "field": "seat_depth",
+                "index": 0
+              }
+            ],
+            "default": null
+          }
+        },
+        "constraints": [
+          "gripper-opening",
+          "part-force",
+          "gripper-force",
+          "gripper-payload",
+          "robot-payload",
+          "depth-fit",
+          "jig-width",
+          "jig-depth",
+          "jig-family",
+          "opening-part",
+          "positive-grip",
+          "planning-frame"
+        ],
+        "capabilities": [
+          {
+            "name": "manipulate",
+            "slot": "robot",
+            "field": "cap_manipulate"
+          }
+        ],
+        "skills": [
+          {
+            "capability": "manipulate",
+            "slot": "robot",
+            "implementation_field": "implementation",
+            "version_field": "implementation_version",
+            "primitive": "unload",
+            "parameters": {
+              "target_position": "contact_position",
+              "approach_position": "approach_position",
+              "orientation": "orientation",
+              "frame": "frame",
+              "width": "grasp_width",
+              "force": "grip_force",
+              "timeout_s": "timeout"
+            }
+          }
+        ],
+        "timeout_property": "timeout",
+        "done": {
+          "observation": "jig.part_unloaded",
+          "property": {
+            "$ref": "observation.part_unloaded"
+          },
+          "equals": {
+            "unit": "unitless",
+            "data": {
+              "kind": "BOOLEAN",
+              "value": true
+            }
+          }
+        },
+        "on_failure": "STOP",
+        "on_unknown": "HOLD_AND_RECONCILE"
+      },
+      "clamp": {
+        "label": "Clamp seated part",
+        "contexts": [
+          "part",
+          "chuck",
+          "machine"
+        ],
+        "properties": {
+          "timeout": {
+            "property": {
+              "$ref": "m2.timeout"
+            },
+            "sources": [
+              {
+                "kind": "OVERRIDE"
+              },
+              {
+                "kind": "PROPERTY_SET"
+              },
+              {
+                "kind": "DEFAULT"
+              }
+            ],
+            "default": {
+              "unit": "s",
+              "data": {
+                "kind": "NUMBER",
+                "range": {
+                  "min": 30,
+                  "max": 30
+                }
+              }
+            }
+          },
+          "clamp_factor": {
+            "property": {
+              "$ref": "m2.clamp_factor"
+            },
+            "sources": [
+              {
+                "kind": "OVERRIDE"
+              },
+              {
+                "kind": "PROPERTY_SET"
+              },
+              {
+                "kind": "DEFAULT"
+              }
+            ],
+            "default": {
+              "unit": "unitless",
+              "data": {
+                "kind": "NUMBER",
+                "range": {
+                  "min": 0.6,
+                  "max": 0.6
+                }
+              }
+            }
+          },
+          "clamp_force": {
+            "property": {
+              "$ref": "m2.clamp_force"
+            },
+            "sources": [
+              {
+                "kind": "OVERRIDE"
+              },
+              {
+                "kind": "RULE",
+                "rule": "clamp-force"
+              }
+            ],
+            "default": null
+          },
+          "target_state": {
+            "property": {
+              "$ref": "m2.target_state"
+            },
+            "sources": [
+              {
+                "kind": "DEFAULT"
+              }
+            ],
+            "default": {
+              "unit": "unitless",
+              "data": {
+                "kind": "BOOLEAN",
+                "value": true
+              }
+            }
+          },
+          "release_gripper": {
+            "property": {
+              "$ref": "m2.release_gripper"
+            },
+            "sources": [
+              {
+                "kind": "DEFAULT"
+              }
+            ],
+            "default": {
+              "unit": "unitless",
+              "data": {
+                "kind": "BOOLEAN",
+                "value": true
+              }
+            }
+          }
+        },
+        "constraints": [
+          "clamp-part-limit",
+          "clamp-device-limit",
+          "positive-clamp"
+        ],
+        "capabilities": [
+          {
+            "name": "clamp",
+            "slot": "machine",
+            "field": "cap_clamp"
+          }
+        ],
+        "skills": [
+          {
+            "capability": "clamp",
+            "slot": "machine",
+            "implementation_field": "implementation",
+            "version_field": "implementation_version",
+            "primitive": "clamp",
+            "parameters": {
+              "force": "clamp_force",
+              "state": "target_state",
+              "release_gripper": "release_gripper",
+              "timeout_s": "timeout"
+            }
+          }
+        ],
+        "timeout_property": "timeout",
+        "done": {
+          "observation": "chuck.clamped",
+          "property": {
+            "$ref": "observation.clamped"
+          },
+          "equals": {
+            "unit": "unitless",
+            "data": {
+              "kind": "BOOLEAN",
+              "value": true
+            }
+          }
+        },
+        "on_failure": "STOP",
+        "on_unknown": "HOLD_AND_RECONCILE"
+      },
+      "close-door": {
+        "label": "Close Door",
+        "contexts": [
+          "machine"
+        ],
+        "properties": {
+          "timeout": {
+            "property": {
+              "$ref": "m2.timeout"
+            },
+            "sources": [
+              {
+                "kind": "OVERRIDE"
+              },
+              {
+                "kind": "PROPERTY_SET"
+              },
+              {
+                "kind": "DEFAULT"
+              }
+            ],
+            "default": {
+              "unit": "s",
+              "data": {
+                "kind": "NUMBER",
+                "range": {
+                  "min": 30,
+                  "max": 30
+                }
+              }
+            }
+          },
+          "target_state": {
+            "property": {
+              "$ref": "m2.target_state"
+            },
+            "sources": [
+              {
+                "kind": "DEFAULT"
+              }
+            ],
+            "default": {
+              "unit": "unitless",
+              "data": {
+                "kind": "BOOLEAN",
+                "value": true
+              }
+            }
+          }
+        },
+        "constraints": [],
+        "capabilities": [
+          {
+            "name": "door",
+            "slot": "machine",
+            "field": "cap_door"
+          }
+        ],
+        "skills": [
+          {
+            "capability": "door",
+            "slot": "machine",
+            "implementation_field": "implementation",
+            "version_field": "implementation_version",
+            "primitive": "door",
+            "parameters": {
+              "state": "target_state",
+              "timeout_s": "timeout"
+            }
+          }
+        ],
+        "timeout_property": "timeout",
+        "done": {
+          "observation": "machine.door_closed",
+          "property": {
+            "$ref": "observation.door_closed"
+          },
+          "equals": {
+            "unit": "unitless",
+            "data": {
+              "kind": "BOOLEAN",
+              "value": true
+            }
+          }
+        },
+        "on_failure": "STOP",
+        "on_unknown": "HOLD_AND_RECONCILE"
+      },
+      "open-door": {
+        "label": "Open Door",
+        "contexts": [
+          "machine"
+        ],
+        "properties": {
+          "timeout": {
+            "property": {
+              "$ref": "m2.timeout"
+            },
+            "sources": [
+              {
+                "kind": "OVERRIDE"
+              },
+              {
+                "kind": "PROPERTY_SET"
+              },
+              {
+                "kind": "DEFAULT"
+              }
+            ],
+            "default": {
+              "unit": "s",
+              "data": {
+                "kind": "NUMBER",
+                "range": {
+                  "min": 30,
+                  "max": 30
+                }
+              }
+            }
+          },
+          "target_state": {
+            "property": {
+              "$ref": "m2.target_state"
+            },
+            "sources": [
+              {
+                "kind": "DEFAULT"
+              }
+            ],
+            "default": {
+              "unit": "unitless",
+              "data": {
+                "kind": "BOOLEAN",
+                "value": false
+              }
+            }
+          }
+        },
+        "constraints": [],
+        "capabilities": [
+          {
+            "name": "door",
+            "slot": "machine",
+            "field": "cap_door"
+          }
+        ],
+        "skills": [
+          {
+            "capability": "door",
+            "slot": "machine",
+            "implementation_field": "implementation",
+            "version_field": "implementation_version",
+            "primitive": "door",
+            "parameters": {
+              "state": "target_state",
+              "timeout_s": "timeout"
+            }
+          }
+        ],
+        "timeout_property": "timeout",
+        "done": {
+          "observation": "machine.door_closed",
+          "property": {
+            "$ref": "observation.door_closed"
+          },
+          "equals": {
+            "unit": "unitless",
+            "data": {
+              "kind": "BOOLEAN",
+              "value": false
+            }
+          }
+        },
+        "on_failure": "STOP",
+        "on_unknown": "HOLD_AND_RECONCILE"
+      },
+      "process": {
+        "label": "Process and wait for done",
+        "contexts": [
+          "machine"
+        ],
+        "properties": {
+          "timeout": {
+            "property": {
+              "$ref": "m2.timeout"
+            },
+            "sources": [
+              {
+                "kind": "OVERRIDE"
+              },
+              {
+                "kind": "PROPERTY_SET"
+              },
+              {
+                "kind": "DEFAULT"
+              }
+            ],
+            "default": {
+              "unit": "s",
+              "data": {
+                "kind": "NUMBER",
+                "range": {
+                  "min": 30,
+                  "max": 30
+                }
+              }
+            }
+          },
+          "process_duration": {
+            "property": {
+              "$ref": "m2.process_duration"
+            },
+            "sources": [
+              {
+                "kind": "OVERRIDE"
+              },
+              {
+                "kind": "PROPERTY_SET"
+              },
+              {
+                "kind": "DEFAULT"
+              }
+            ],
+            "default": {
+              "unit": "s",
+              "data": {
+                "kind": "NUMBER",
+                "range": {
+                  "min": 5,
+                  "max": 5
+                }
+              }
+            }
+          }
+        },
+        "constraints": [
+          "process-deadline",
+          "positive-process"
+        ],
+        "capabilities": [
+          {
+            "name": "process",
+            "slot": "machine",
+            "field": "cap_process"
+          }
+        ],
+        "skills": [
+          {
+            "capability": "process",
+            "slot": "machine",
+            "implementation_field": "implementation",
+            "version_field": "implementation_version",
+            "primitive": "process",
+            "parameters": {
+              "duration_s": "process_duration",
+              "timeout_s": "timeout"
+            }
+          }
+        ],
+        "timeout_property": "timeout",
+        "done": {
+          "observation": "machine.process_done",
+          "property": {
+            "$ref": "observation.process_done"
+          },
+          "equals": {
+            "unit": "unitless",
+            "data": {
+              "kind": "BOOLEAN",
+              "value": true
+            }
+          }
+        },
+        "on_failure": "STOP",
+        "on_unknown": "HOLD_AND_RECONCILE"
+      }
+    },
+    "rules": {
+      "grasp-width": {
+        "output": {
+          "$ref": "m2.grasp_width"
+        },
+        "operation": {
+          "kind": "ADD",
+          "left": {
+            "kind": "PROPERTY",
+            "name": "part_width"
+          },
+          "right": {
+            "kind": "PROPERTY",
+            "name": "grasp_clearance"
+          }
+        }
+      },
+      "double-padding": {
+        "output": {
+          "$ref": "m2.distance"
+        },
+        "operation": {
+          "kind": "SCALE",
+          "value": {
+            "kind": "PROPERTY",
+            "name": "grasp_clearance"
+          },
+          "factor": {
+            "kind": "LITERAL",
+            "value": {
+              "unit": "unitless",
+              "data": {
+                "kind": "NUMBER",
+                "range": {
+                  "min": 2,
+                  "max": 2
+                }
+              }
+            }
+          }
+        }
+      },
+      "footprint-x": {
+        "output": {
+          "$ref": "m2.footprint"
+        },
+        "operation": {
+          "kind": "ADD",
+          "left": {
+            "kind": "PROPERTY",
+            "name": "part_width"
+          },
+          "right": {
+            "kind": "RULE",
+            "name": "double-padding"
+          }
+        }
+      },
+      "footprint-y": {
+        "output": {
+          "$ref": "m2.footprint"
+        },
+        "operation": {
+          "kind": "ADD",
+          "left": {
+            "kind": "PROPERTY",
+            "name": "part_depth"
+          },
+          "right": {
+            "kind": "RULE",
+            "name": "double-padding"
+          }
+        }
+      },
+      "half-height": {
+        "output": {
+          "$ref": "m2.distance"
+        },
+        "operation": {
+          "kind": "SCALE",
+          "value": {
+            "kind": "PROPERTY",
+            "name": "part_height"
+          },
+          "factor": {
+            "kind": "LITERAL",
+            "value": {
+              "unit": "unitless",
+              "data": {
+                "kind": "NUMBER",
+                "range": {
+                  "min": 0.5,
+                  "max": 0.5
+                }
+              }
+            }
+          }
+        }
+      },
+      "grasp-offset": {
+        "output": {
+          "$ref": "m2.distance"
+        },
+        "operation": {
+          "kind": "SUBTRACT",
+          "left": {
+            "kind": "RULE",
+            "name": "half-height"
+          },
+          "right": {
+            "kind": "PROPERTY",
+            "name": "slot_depth"
+          }
+        }
+      },
+      "protrusion": {
+        "output": {
+          "$ref": "m2.distance"
+        },
+        "operation": {
+          "kind": "SUBTRACT",
+          "left": {
+            "kind": "PROPERTY",
+            "name": "part_height"
+          },
+          "right": {
+            "kind": "PROPERTY",
+            "name": "slot_depth"
+          }
+        }
+      },
+      "approach-distance": {
+        "output": {
+          "$ref": "m2.distance"
+        },
+        "operation": {
+          "kind": "ADD",
+          "left": {
+            "kind": "RULE",
+            "name": "protrusion"
+          },
+          "right": {
+            "kind": "PROPERTY",
+            "name": "clearance"
+          }
+        }
+      },
+      "surface-z": {
+        "output": {
+          "$ref": "m2.surface_z"
+        },
+        "operation": {
+          "kind": "COMPONENT",
+          "vector": {
+            "kind": "PROPERTY",
+            "name": "slot_position"
+          },
+          "index": 2
+        }
+      },
+      "approach-position": {
+        "output": {
+          "$ref": "m2.position"
+        },
+        "operation": {
+          "kind": "OFFSET",
+          "position": {
+            "kind": "PROPERTY",
+            "name": "slot_position"
+          },
+          "orientation": {
+            "kind": "PROPERTY",
+            "name": "orientation"
+          },
+          "distance": {
+            "kind": "RULE",
+            "name": "approach-distance"
+          },
+          "direction": [
+            0,
+            0,
+            1
+          ]
+        }
+      },
+      "contact-position": {
+        "output": {
+          "$ref": "m2.position"
+        },
+        "operation": {
+          "kind": "OFFSET",
+          "position": {
+            "kind": "PROPERTY",
+            "name": "slot_position"
+          },
+          "orientation": {
+            "kind": "PROPERTY",
+            "name": "orientation"
+          },
+          "distance": {
+            "kind": "RULE",
+            "name": "grasp-offset"
+          },
+          "direction": [
+            0,
+            0,
+            1
+          ]
+        }
+      },
+      "approach-z": {
+        "output": {
+          "$ref": "m2.surface_z"
+        },
+        "operation": {
+          "kind": "COMPONENT",
+          "vector": {
+            "kind": "PROPERTY",
+            "name": "approach_position"
+          },
+          "index": 2
+        }
+      },
+      "grip-limit": {
+        "output": {
+          "$ref": "m2.grip_force"
+        },
+        "operation": {
+          "kind": "MIN",
+          "left": {
+            "kind": "CONTEXT",
+            "slot": "part",
+            "field": "allowed_force",
+            "index": 0
+          },
+          "right": {
+            "kind": "CONTEXT",
+            "slot": "gripper",
+            "field": "force_limit",
+            "index": 0
+          }
+        }
+      },
+      "grip-force": {
+        "output": {
+          "$ref": "m2.grip_force"
+        },
+        "operation": {
+          "kind": "SCALE",
+          "value": {
+            "kind": "RULE",
+            "name": "grip-limit"
+          },
+          "factor": {
+            "kind": "PROPERTY",
+            "name": "force_factor"
+          }
+        }
+      },
+      "clamp-limit": {
+        "output": {
+          "$ref": "m2.clamp_force"
+        },
+        "operation": {
+          "kind": "MIN",
+          "left": {
+            "kind": "CONTEXT",
+            "slot": "part",
+            "field": "allowed_force",
+            "index": 0
+          },
+          "right": {
+            "kind": "CONTEXT",
+            "slot": "chuck",
+            "field": "force_limit",
+            "index": 0
+          }
+        }
+      },
+      "clamp-force": {
+        "output": {
+          "$ref": "m2.clamp_force"
+        },
+        "operation": {
+          "kind": "SCALE",
+          "value": {
+            "kind": "RULE",
+            "name": "clamp-limit"
+          },
+          "factor": {
+            "kind": "PROPERTY",
+            "name": "clamp_factor"
+          }
+        }
+      },
+      "fixture-surface": {
+        "output": {
+          "$ref": "m2.position"
+        },
+        "operation": {
+          "kind": "OFFSET",
+          "position": {
+            "kind": "PROPERTY",
+            "name": "fixture_origin"
+          },
+          "orientation": {
+            "kind": "PROPERTY",
+            "name": "orientation"
+          },
+          "distance": {
+            "kind": "PROPERTY",
+            "name": "fixture_height"
+          },
+          "direction": [
+            0,
+            0,
+            1
+          ]
+        }
+      },
+      "count-x": {
+        "output": {
+          "$ref": "m2.count"
+        },
+        "operation": {
+          "kind": "SUBTRACT",
+          "left": {
+            "kind": "PROPERTY",
+            "name": "columns"
+          },
+          "right": {
+            "kind": "LITERAL",
+            "value": {
+              "unit": "unitless",
+              "data": {
+                "kind": "NUMBER",
+                "range": {
+                  "min": 1,
+                  "max": 1
+                }
+              }
+            }
+          }
+        }
+      },
+      "span-x": {
+        "output": {
+          "$ref": "m2.distance"
+        },
+        "operation": {
+          "kind": "SCALE",
+          "value": {
+            "kind": "PROPERTY",
+            "name": "column_pitch"
+          },
+          "factor": {
+            "kind": "RULE",
+            "name": "count-x"
+          }
+        }
+      },
+      "grid-x": {
+        "output": {
+          "$ref": "m2.footprint"
+        },
+        "operation": {
+          "kind": "ADD",
+          "left": {
+            "kind": "RULE",
+            "name": "span-x"
+          },
+          "right": {
+            "kind": "RULE",
+            "name": "footprint-x"
+          }
+        }
+      },
+      "count-y": {
+        "output": {
+          "$ref": "m2.count"
+        },
+        "operation": {
+          "kind": "SUBTRACT",
+          "left": {
+            "kind": "PROPERTY",
+            "name": "rows"
+          },
+          "right": {
+            "kind": "LITERAL",
+            "value": {
+              "unit": "unitless",
+              "data": {
+                "kind": "NUMBER",
+                "range": {
+                  "min": 1,
+                  "max": 1
+                }
+              }
+            }
+          }
+        }
+      },
+      "span-y": {
+        "output": {
+          "$ref": "m2.distance"
+        },
+        "operation": {
+          "kind": "SCALE",
+          "value": {
+            "kind": "PROPERTY",
+            "name": "row_pitch"
+          },
+          "factor": {
+            "kind": "RULE",
+            "name": "count-y"
+          }
+        }
+      },
+      "grid-y": {
+        "output": {
+          "$ref": "m2.footprint"
+        },
+        "operation": {
+          "kind": "ADD",
+          "left": {
+            "kind": "RULE",
+            "name": "span-y"
+          },
+          "right": {
+            "kind": "RULE",
+            "name": "footprint-y"
+          }
+        }
+      }
+    },
+    "constraints": {
+      "gripper-opening": {
+        "left": {
+          "kind": "PROPERTY",
+          "name": "grasp_width"
+        },
+        "right": {
+          "kind": "CONTEXT",
+          "slot": "gripper",
+          "field": "opening_width",
+          "index": 0
+        },
+        "relation": "LE",
+        "property": "grasp_width",
+        "message": "Grasp width exceeds the declared gripper opening"
+      },
+      "part-force": {
+        "left": {
+          "kind": "PROPERTY",
+          "name": "grip_force"
+        },
+        "right": {
+          "kind": "CONTEXT",
+          "slot": "part",
+          "field": "allowed_force",
+          "index": 0
+        },
+        "relation": "LE",
+        "property": "grip_force",
+        "message": "Grip force exceeds the part contact-force limit"
+      },
+      "gripper-force": {
+        "left": {
+          "kind": "PROPERTY",
+          "name": "grip_force"
+        },
+        "right": {
+          "kind": "CONTEXT",
+          "slot": "gripper",
+          "field": "force_limit",
+          "index": 0
+        },
+        "relation": "LE",
+        "property": "grip_force",
+        "message": "Grip force exceeds the gripper limit"
+      },
+      "gripper-payload": {
+        "left": {
+          "kind": "PROPERTY",
+          "name": "part_mass"
+        },
+        "right": {
+          "kind": "CONTEXT",
+          "slot": "gripper",
+          "field": "payload",
+          "index": 0
+        },
+        "relation": "LE",
+        "property": "part_mass",
+        "message": "Part mass exceeds the gripper payload"
+      },
+      "robot-payload": {
+        "left": {
+          "kind": "PROPERTY",
+          "name": "part_mass"
+        },
+        "right": {
+          "kind": "CONTEXT",
+          "slot": "robot",
+          "field": "payload",
+          "index": 0
+        },
+        "relation": "LE",
+        "property": "part_mass",
+        "message": "Part mass exceeds the declared robot payload"
+      },
+      "depth-fit": {
+        "left": {
+          "kind": "PROPERTY",
+          "name": "slot_depth"
+        },
+        "right": {
+          "kind": "PROPERTY",
+          "name": "part_height"
+        },
+        "relation": "LE",
+        "property": "contact_position",
+        "message": "Supported part height must cover the seating depth"
+      },
+      "column-fit": {
+        "left": {
+          "kind": "RULE",
+          "name": "footprint-x"
+        },
+        "right": {
+          "kind": "PROPERTY",
+          "name": "column_pitch"
+        },
+        "relation": "LE",
+        "property": "grasp_width",
+        "message": "Part and grasp clearance exceed column pitch"
+      },
+      "row-fit": {
+        "left": {
+          "kind": "RULE",
+          "name": "footprint-y"
+        },
+        "right": {
+          "kind": "PROPERTY",
+          "name": "row_pitch"
+        },
+        "relation": "LE",
+        "property": "contact_position",
+        "message": "Part and grasp clearance exceed row pitch"
+      },
+      "tray-width": {
+        "left": {
+          "kind": "RULE",
+          "name": "grid-x"
+        },
+        "right": {
+          "kind": "PROPERTY",
+          "name": "tray_width"
+        },
+        "relation": "LE",
+        "property": "slot_position",
+        "message": "Full grid footprint exceeds tray width"
+      },
+      "tray-depth": {
+        "left": {
+          "kind": "RULE",
+          "name": "grid-y"
+        },
+        "right": {
+          "kind": "PROPERTY",
+          "name": "tray_depth"
+        },
+        "relation": "LE",
+        "property": "slot_position",
+        "message": "Full grid footprint exceeds tray depth"
+      },
+      "jig-width": {
+        "left": {
+          "kind": "RULE",
+          "name": "footprint-x"
+        },
+        "right": {
+          "kind": "CONTEXT",
+          "slot": "jig",
+          "field": "width",
+          "index": 0
+        },
+        "relation": "LE",
+        "property": "grasp_width",
+        "message": "Part and grasp clearance exceed jig width"
+      },
+      "jig-depth": {
+        "left": {
+          "kind": "RULE",
+          "name": "footprint-y"
+        },
+        "right": {
+          "kind": "CONTEXT",
+          "slot": "jig",
+          "field": "depth",
+          "index": 0
+        },
+        "relation": "LE",
+        "property": "contact_position",
+        "message": "Part and grasp clearance exceed jig depth"
+      },
+      "jig-family": {
+        "left": {
+          "kind": "CONTEXT",
+          "slot": "part",
+          "field": "jig",
+          "index": 0
+        },
+        "right": {
+          "kind": "CONTEXT",
+          "slot": "jig",
+          "field": "family",
+          "index": 0
+        },
+        "relation": "EQ",
+        "property": "slot_position",
+        "message": "Part and installed jig family differ"
+      },
+      "clamp-part-limit": {
+        "left": {
+          "kind": "PROPERTY",
+          "name": "clamp_force"
+        },
+        "right": {
+          "kind": "CONTEXT",
+          "slot": "part",
+          "field": "allowed_force",
+          "index": 0
+        },
+        "relation": "LE",
+        "property": "clamp_force",
+        "message": "Clamp force exceeds the simulated part contact-force limit"
+      },
+      "clamp-device-limit": {
+        "left": {
+          "kind": "PROPERTY",
+          "name": "clamp_force"
+        },
+        "right": {
+          "kind": "CONTEXT",
+          "slot": "chuck",
+          "field": "force_limit",
+          "index": 0
+        },
+        "relation": "LE",
+        "property": "clamp_force",
+        "message": "Clamp force exceeds the chuck limit"
+      },
+      "process-deadline": {
+        "left": {
+          "kind": "PROPERTY",
+          "name": "process_duration"
+        },
+        "right": {
+          "kind": "PROPERTY",
+          "name": "timeout"
+        },
+        "relation": "LE",
+        "property": "process_duration",
+        "message": "Process duration exceeds the timeout"
+      },
+      "opening-pitch": {
+        "left": {
+          "kind": "PROPERTY",
+          "name": "grasp_width"
+        },
+        "right": {
+          "kind": "PROPERTY",
+          "name": "column_pitch"
+        },
+        "relation": "LE",
+        "property": "grasp_width",
+        "message": "Commanded grasp opening exceeds column pitch"
+      },
+      "opening-part": {
+        "left": {
+          "kind": "PROPERTY",
+          "name": "grasp_width"
+        },
+        "right": {
+          "kind": "PROPERTY",
+          "name": "part_width"
+        },
+        "relation": "GE",
+        "property": "grasp_width",
+        "message": "Pre-grasp opening is smaller than the part"
+      },
+      "positive-grip": {
+        "left": {
+          "kind": "PROPERTY",
+          "name": "grip_force"
+        },
+        "right": {
+          "kind": "LITERAL",
+          "value": {
+            "unit": "N",
+            "data": {
+              "kind": "NUMBER",
+              "range": {
+                "min": 1,
+                "max": 1
+              }
+            }
+          }
+        },
+        "relation": "GE",
+        "property": "grip_force",
+        "message": "This simulated manipulation needs at least 1 N"
+      },
+      "positive-clamp": {
+        "left": {
+          "kind": "PROPERTY",
+          "name": "clamp_force"
+        },
+        "right": {
+          "kind": "LITERAL",
+          "value": {
+            "unit": "N",
+            "data": {
+              "kind": "NUMBER",
+              "range": {
+                "min": 1,
+                "max": 1
+              }
+            }
+          }
+        },
+        "relation": "GE",
+        "property": "clamp_force",
+        "message": "This simulated clamp needs at least 1 N"
+      },
+      "positive-process": {
+        "left": {
+          "kind": "PROPERTY",
+          "name": "process_duration"
+        },
+        "right": {
+          "kind": "LITERAL",
+          "value": {
+            "unit": "s",
+            "data": {
+              "kind": "NUMBER",
+              "range": {
+                "min": 0.001,
+                "max": 0.001
+              }
+            }
+          }
+        },
+        "relation": "GE",
+        "property": "process_duration",
+        "message": "The simulated process duration must be positive"
+      },
+      "planning-frame": {
+        "left": {
+          "kind": "PROPERTY",
+          "name": "frame"
+        },
+        "right": {
+          "kind": "CONTEXT",
+          "slot": "robot",
+          "field": "frame",
+          "index": 0
+        },
+        "relation": "EQ",
+        "property": "contact_position",
+        "message": "Task pose frame differs from the declared robot planning frame"
+      },
+      "cavity-thickness": {
+        "left": {
+          "kind": "PROPERTY",
+          "name": "slot_depth"
+        },
+        "right": {
+          "kind": "PROPERTY",
+          "name": "tray_height"
+        },
+        "relation": "LE",
+        "property": "slot_depth",
+        "message": "Slot depth exceeds tray thickness"
+      }
+    },
+    "steps": [
+      {
+        "id": "pick",
+        "task": "pick"
+      },
+      {
+        "id": "load",
+        "task": "load"
+      },
+      {
+        "id": "clamp",
+        "task": "clamp"
+      },
+      {
+        "id": "close-door",
+        "task": "close-door"
+      },
+      {
+        "id": "process",
+        "task": "process"
+      },
+      {
+        "id": "open-door",
+        "task": "open-door"
+      },
+      {
+        "id": "unload",
+        "task": "unload"
+      },
+      {
+        "id": "place",
+        "task": "place"
+      }
+    ]
+  }
+}

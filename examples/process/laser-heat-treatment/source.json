@@ -1,0 +1,562 @@
+{
+  "schema": "rx.process-source.v1",
+  "process": "process/laser-exchange-dual-gripper",
+  "entry": "main",
+  "conditions": {
+    "feed-next-material-present": {
+      "op": "EQ",
+      "fact": "feed/next-material-present",
+      "schema": "boolean/v1",
+      "unit": "unitless",
+      "expected": {
+        "boolean": true
+      }
+    },
+    "cnc-cycle-complete": {
+      "op": "EQ",
+      "fact": "machine/cycle-complete",
+      "schema": "boolean/v1",
+      "unit": "unitless",
+      "expected": {
+        "boolean": true
+      }
+    },
+    "cnc-door-open-confirmed": {
+      "op": "EQ",
+      "fact": "machine/door-open-confirmed",
+      "schema": "boolean/v1",
+      "unit": "unitless",
+      "expected": {
+        "boolean": true
+      }
+    },
+    "gripper-finished-part-held": {
+      "op": "EQ",
+      "fact": "gripper/finished-part-held",
+      "schema": "boolean/v1",
+      "unit": "unitless",
+      "expected": {
+        "boolean": true
+      }
+    },
+    "cnc-chuck-open-confirmed": {
+      "op": "EQ",
+      "fact": "machine/chuck-open-confirmed",
+      "schema": "boolean/v1",
+      "unit": "unitless",
+      "expected": {
+        "boolean": true
+      }
+    },
+    "fixture-next-material-seated": {
+      "op": "EQ",
+      "fact": "fixture/next-material-seated",
+      "schema": "boolean/v1",
+      "unit": "unitless",
+      "expected": {
+        "boolean": true
+      }
+    },
+    "cnc-chuck-clamped-confirmed": {
+      "op": "EQ",
+      "fact": "machine/chuck-clamped-confirmed",
+      "schema": "boolean/v1",
+      "unit": "unitless",
+      "expected": {
+        "boolean": true
+      }
+    },
+    "cell-robot-clear-of-door": {
+      "op": "EQ",
+      "fact": "cell/robot-clear-of-door",
+      "schema": "boolean/v1",
+      "unit": "unitless",
+      "expected": {
+        "boolean": true
+      }
+    },
+    "cnc-door-closed-confirmed": {
+      "op": "EQ",
+      "fact": "machine/door-closed-confirmed",
+      "schema": "boolean/v1",
+      "unit": "unitless",
+      "expected": {
+        "boolean": true
+      }
+    },
+    "alignment-station-ready": {
+      "op": "EQ",
+      "fact": "alignment-station/ready",
+      "schema": "boolean/v1",
+      "unit": "unitless",
+      "expected": {
+        "boolean": true
+      }
+    },
+    "alignment-station-material-seated": {
+      "op": "EQ",
+      "fact": "alignment-station/material-seated",
+      "schema": "boolean/v1",
+      "unit": "unitless",
+      "expected": {
+        "boolean": true
+      }
+    },
+    "alignment-station-orientation-confirmed": {
+      "op": "EQ",
+      "fact": "alignment-station/orientation-confirmed",
+      "schema": "boolean/v1",
+      "unit": "unitless",
+      "expected": {
+        "boolean": true
+      }
+    },
+    "alignment-station-rotation-stopped": {
+      "op": "EQ",
+      "fact": "alignment-station/rotation-stopped",
+      "schema": "boolean/v1",
+      "unit": "unitless",
+      "expected": {
+        "boolean": true
+      }
+    }
+  },
+  "flows": [
+    {
+      "id": "main",
+      "root": "repeat-cycle",
+      "nodes": [
+        {
+          "id": "repeat-cycle",
+          "body": {
+            "kind": "REPEAT",
+            "count": "1",
+            "child": "cycle-call"
+          }
+        },
+        {
+          "id": "cycle-call",
+          "body": {
+            "kind": "CALL",
+            "flow": "cycle"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cycle",
+      "root": "sequence",
+      "nodes": [
+        {
+          "id": "sequence",
+          "body": {
+            "kind": "SEQUENCE",
+            "children": [
+              "prepare-next",
+              "orient-next",
+              "wait-for-machine",
+              "exchange",
+              "restart-machining",
+              "deposit-finished"
+            ]
+          }
+        },
+        {
+          "id": "prepare-next",
+          "body": {
+            "kind": "CALL",
+            "flow": "prepare-next"
+          }
+        },
+        {
+          "id": "orient-next",
+          "body": {
+            "kind": "CALL",
+            "flow": "orient-next"
+          }
+        },
+        {
+          "id": "wait-for-machine",
+          "body": {
+            "kind": "CALL",
+            "flow": "wait-for-machine"
+          }
+        },
+        {
+          "id": "exchange",
+          "body": {
+            "kind": "CALL",
+            "flow": "exchange"
+          }
+        },
+        {
+          "id": "restart-machining",
+          "body": {
+            "kind": "CALL",
+            "flow": "restart-machining"
+          }
+        },
+        {
+          "id": "deposit-finished",
+          "body": {
+            "kind": "CALL",
+            "flow": "deposit-finished"
+          }
+        }
+      ]
+    },
+    {
+      "id": "prepare-next",
+      "root": "sequence",
+      "nodes": [
+        {
+          "id": "sequence",
+          "body": {
+            "kind": "SEQUENCE",
+            "children": [
+              "step-1-material-check",
+              "step-2-pick-next"
+            ]
+          }
+        },
+        {
+          "id": "step-1-material-check",
+          "body": {
+            "kind": "WAIT",
+            "condition": "feed-next-material-present",
+            "timeout_ns": "0"
+          }
+        },
+        {
+          "id": "step-2-pick-next",
+          "body": {
+            "kind": "OPERATION",
+            "binding": "robot/pick-next-from-tray"
+          }
+        }
+      ]
+    },
+    {
+      "id": "orient-next",
+      "root": "sequence",
+      "nodes": [
+        {
+          "id": "sequence",
+          "body": {
+            "kind": "SEQUENCE",
+            "children": [
+              "alignment-station-ready",
+              "step-3-place-on-rotary-station",
+              "material-seated-for-alignment",
+              "step-4-detect-orientation",
+              "step-5-rotate-align",
+              "orientation-confirmed",
+              "rotation-stopped",
+              "step-6-regrip"
+            ]
+          }
+        },
+        {
+          "id": "alignment-station-ready",
+          "body": {
+            "kind": "WAIT",
+            "condition": "alignment-station-ready",
+            "timeout_ns": "0"
+          }
+        },
+        {
+          "id": "step-3-place-on-rotary-station",
+          "body": {
+            "kind": "OPERATION",
+            "binding": "robot/place-next-on-rotary-alignment-station"
+          }
+        },
+        {
+          "id": "material-seated-for-alignment",
+          "body": {
+            "kind": "WAIT",
+            "condition": "alignment-station-material-seated",
+            "timeout_ns": "0"
+          }
+        },
+        {
+          "id": "step-4-detect-orientation",
+          "body": {
+            "kind": "OPERATION",
+            "binding": "alignment-station/detect-orientation"
+          }
+        },
+        {
+          "id": "step-5-rotate-align",
+          "body": {
+            "kind": "OPERATION",
+            "binding": "alignment-station/rotate-to-required-orientation"
+          }
+        },
+        {
+          "id": "orientation-confirmed",
+          "body": {
+            "kind": "WAIT",
+            "condition": "alignment-station-orientation-confirmed",
+            "timeout_ns": "0"
+          }
+        },
+        {
+          "id": "rotation-stopped",
+          "body": {
+            "kind": "WAIT",
+            "condition": "alignment-station-rotation-stopped",
+            "timeout_ns": "0"
+          }
+        },
+        {
+          "id": "step-6-regrip",
+          "body": {
+            "kind": "OPERATION",
+            "binding": "robot/regrip-aligned-next"
+          }
+        }
+      ]
+    },
+    {
+      "id": "wait-for-machine",
+      "root": "sequence",
+      "nodes": [
+        {
+          "id": "sequence",
+          "body": {
+            "kind": "SEQUENCE",
+            "children": [
+              "step-7-staging",
+              "machining-complete"
+            ]
+          }
+        },
+        {
+          "id": "step-7-staging",
+          "body": {
+            "kind": "OPERATION",
+            "binding": "robot/move-to-machine-staging"
+          }
+        },
+        {
+          "id": "machining-complete",
+          "body": {
+            "kind": "WAIT",
+            "condition": "cnc-cycle-complete",
+            "timeout_ns": "0"
+          }
+        }
+      ]
+    },
+    {
+      "id": "exchange",
+      "root": "sequence",
+      "nodes": [
+        {
+          "id": "sequence",
+          "body": {
+            "kind": "SEQUENCE",
+            "children": [
+              "step-8-open-door",
+              "door-open-confirmed",
+              "step-9-grip-finished",
+              "finished-held",
+              "step-10-unclamp",
+              "unclamped",
+              "step-11-extract-finished",
+              "step-12-switch-ee",
+              "step-13-air-blow",
+              "step-14-insert-next",
+              "step-14-1-seat-check",
+              "step-15-clamp",
+              "clamped",
+              "step-16-release-next",
+              "step-17-retreat",
+              "robot-clear"
+            ]
+          }
+        },
+        {
+          "id": "step-8-open-door",
+          "body": {
+            "kind": "OPERATION",
+            "binding": "machine/open-door"
+          }
+        },
+        {
+          "id": "door-open-confirmed",
+          "body": {
+            "kind": "WAIT",
+            "condition": "cnc-door-open-confirmed",
+            "timeout_ns": "0"
+          }
+        },
+        {
+          "id": "step-9-grip-finished",
+          "body": {
+            "kind": "OPERATION",
+            "binding": "robot/grip-finished-in-chuck"
+          }
+        },
+        {
+          "id": "finished-held",
+          "body": {
+            "kind": "WAIT",
+            "condition": "gripper-finished-part-held",
+            "timeout_ns": "0"
+          }
+        },
+        {
+          "id": "step-10-unclamp",
+          "body": {
+            "kind": "OPERATION",
+            "binding": "machine/unclamp"
+          }
+        },
+        {
+          "id": "unclamped",
+          "body": {
+            "kind": "WAIT",
+            "condition": "cnc-chuck-open-confirmed",
+            "timeout_ns": "0"
+          }
+        },
+        {
+          "id": "step-11-extract-finished",
+          "body": {
+            "kind": "OPERATION",
+            "binding": "robot/extract-finished"
+          }
+        },
+        {
+          "id": "step-12-switch-ee",
+          "body": {
+            "kind": "OPERATION",
+            "binding": "robot/select-incoming-end-effector"
+          }
+        },
+        {
+          "id": "step-13-air-blow",
+          "body": {
+            "kind": "OPERATION",
+            "binding": "cell/air-blow-chuck"
+          }
+        },
+        {
+          "id": "step-14-insert-next",
+          "body": {
+            "kind": "OPERATION",
+            "binding": "robot/insert-next-in-chuck"
+          }
+        },
+        {
+          "id": "step-14-1-seat-check",
+          "body": {
+            "kind": "WAIT",
+            "condition": "fixture-next-material-seated",
+            "timeout_ns": "0"
+          }
+        },
+        {
+          "id": "step-15-clamp",
+          "body": {
+            "kind": "OPERATION",
+            "binding": "machine/clamp"
+          }
+        },
+        {
+          "id": "clamped",
+          "body": {
+            "kind": "WAIT",
+            "condition": "cnc-chuck-clamped-confirmed",
+            "timeout_ns": "0"
+          }
+        },
+        {
+          "id": "step-16-release-next",
+          "body": {
+            "kind": "OPERATION",
+            "binding": "robot/release-next"
+          }
+        },
+        {
+          "id": "step-17-retreat",
+          "body": {
+            "kind": "OPERATION",
+            "binding": "robot/retreat-from-machine"
+          }
+        },
+        {
+          "id": "robot-clear",
+          "body": {
+            "kind": "WAIT",
+            "condition": "cell-robot-clear-of-door",
+            "timeout_ns": "0"
+          }
+        }
+      ]
+    },
+    {
+      "id": "restart-machining",
+      "root": "sequence",
+      "nodes": [
+        {
+          "id": "sequence",
+          "body": {
+            "kind": "SEQUENCE",
+            "children": [
+              "step-18-close-door",
+              "door-closed",
+              "step-18-cycle-start"
+            ]
+          }
+        },
+        {
+          "id": "step-18-close-door",
+          "body": {
+            "kind": "OPERATION",
+            "binding": "machine/close-door"
+          }
+        },
+        {
+          "id": "door-closed",
+          "body": {
+            "kind": "WAIT",
+            "condition": "cnc-door-closed-confirmed",
+            "timeout_ns": "0"
+          }
+        },
+        {
+          "id": "step-18-cycle-start",
+          "body": {
+            "kind": "OPERATION",
+            "binding": "machine/start-cycle"
+          }
+        }
+      ]
+    },
+    {
+      "id": "deposit-finished",
+      "root": "sequence",
+      "nodes": [
+        {
+          "id": "sequence",
+          "body": {
+            "kind": "SEQUENCE",
+            "children": [
+              "step-19-deposit-finished"
+            ]
+          }
+        },
+        {
+          "id": "step-19-deposit-finished",
+          "body": {
+            "kind": "OPERATION",
+            "binding": "robot/deposit-finished-in-output-tray"
+          }
+        }
+      ]
+    }
+  ]
+}

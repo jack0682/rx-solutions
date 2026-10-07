@@ -65,3 +65,8 @@ required-features = ["test-harness"]
 name = "rx-executor-cell-service-fixture"
 path = "tests/support/cell_service_fixture.rs"
 required-features = ["test-harness"]
+
+[[bin]]
+name = "rx-executor-v2-registered-fixture"
+path = "tests/support/execution_v2_registered.rs"
+required-features = ["test-harness"]

@@ -62,7 +62,7 @@ export async function buildBundle(directory) {
   await visit(root);
   files.sort((a, b) => a.path < b.path ? -1 : a.path > b.path ? 1 : 0);
   if (!files.some(f => f.path === 'index.html')) throw new Error('index.html missing');
-  const manifest = { schema: 'rx.operator-ui-bundle.v1', api_schema: 'rx.operator-api.v1', files };
+  const manifest = { schema: 'rx.operator-ui-bundle.v2', api_schema: 'rx.operator-api.v1', files };
   const bytes = Buffer.from(JSON.stringify(manifest) + '\n');
   const destination = path.join(root, manifestName);
   try {

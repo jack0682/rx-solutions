@@ -294,3 +294,44 @@ fn owner_conflict_symlink_parent_and_size_limit_fail_without_source_writes() {
     assert_eq!(before.mtime_nsec(), after.mtime_nsec());
     assert_eq!(before.len(), after.len());
 }
+
+#[test]
+fn execution_v2_request_inspection_accepts_reader10_without_rewriting_source() {
+    let (_dir, root) = root();
+    let mut a = initialized(&root);
+    let mut j = current_run(&root, &mut a);
+    let p = preparation();
+    let logical = Logical {
+        visit: Counter(2),
+        node: n("production/part"),
+        stage: Stage::BeginPart,
+        control: None,
+    };
+    let context = frame::Identity {
+        run: p.scope.run.clone(),
+        executor_session: p.executor_session.clone(),
+        resolved_digest: p.scope.resolved_digest,
+        visit: Counter(2),
+        epoch: p.epoch,
+    };
+    let body = Body::BeginExecutionPart(Box::new(rx_executor::journal::execution_v2::Begin {
+        cell: p.scope.cell,
+        run: p.scope.run,
+        ordinal: Counter(2),
+        mandate: id(44),
+        expected_budget: Counter(2),
+        expected_cell: Counter(1),
+    }));
+    let entry = j.prepare(logical, context, body, p.basis).unwrap();
+    j.enter(&entry.key).unwrap();
+    drop(j);
+    drop(a);
+    let before = files(&root);
+    let value = inspect(&root);
+    assert_eq!(files(&root), before);
+    assert!(
+        serde_json::to_string(&value)
+            .unwrap()
+            .contains(entry.key.as_str())
+    );
+}

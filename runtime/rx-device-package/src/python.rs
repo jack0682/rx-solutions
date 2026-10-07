@@ -6,6 +6,46 @@ pub fn assemble(
     environment: &[u8],
     recipe: &Recipe,
 ) -> Result<Candidate> {
+    let (profile, files) = python_package::documents(registration, environment)
+        .map_err(|e| Error::Invalid(e.to_string()))?;
+    let rx_domain::intent::Body::Program(goal) = &profile.intent.body else {
+        return Err(Error::Invalid("ProgramGoal required".into()));
+    };
+    assemble_files(
+        environment,
+        recipe,
+        files,
+        vec![goal.program.clone(), goal.parameter_set.clone()],
+    )
+}
+pub fn assemble_library(
+    library: &rx_host::service::python_library::Library,
+    environment: &[u8],
+    recipe: &Recipe,
+) -> Result<Candidate> {
+    let (profile, files) = rx_host::service::python_library::documents(library, environment)
+        .map_err(|e| Error::Invalid(e.to_string()))?;
+    let assets = profile
+        .assets()
+        .map_err(|e| Error::Invalid(e.to_string()))?;
+    assemble_files(environment, recipe, files, assets)
+}
+pub fn assemble_execution(
+    assembly: &rx_host::service::python_execution_package::Assembly,
+    environment: &[u8],
+    recipe: &Recipe,
+) -> Result<Candidate> {
+    let (_, _, files, assets) =
+        rx_host::service::python_execution_package::documents(assembly, environment)
+            .map_err(|e| Error::Invalid(e.to_string()))?;
+    assemble_files(environment, recipe, files, assets)
+}
+fn assemble_files(
+    environment: &[u8],
+    recipe: &Recipe,
+    files: BTreeMap<PackagePath, Vec<u8>>,
+    assets: Vec<ArtifactRef>,
+) -> Result<Candidate> {
     if recipe.schema.as_str() != "rx.device-package-recipe.v1"
         || !recipe.version.build.is_empty()
         || recipe.targets.len() != 1
@@ -31,11 +71,6 @@ pub fn assemble(
             "Python environment architecture or skill version differs from recipe".into(),
         ));
     }
-    let (profile, files) = python_package::documents(registration, environment)
-        .map_err(|e| Error::Invalid(e.to_string()))?;
-    let rx_domain::intent::Body::Program(goal) = &profile.intent.body else {
-        return Err(Error::Invalid("ProgramGoal required".into()));
-    };
     let manifest = Manifest {
         schema: name("rx.package.v2"),
         package: recipe.package.clone(),
@@ -55,7 +90,7 @@ pub fn assemble(
             },
         ],
         dependencies: vec![],
-        assets: vec![goal.program.clone(), goal.parameter_set.clone()],
+        assets,
         files: files
             .iter()
             .map(|(path, data)| FileEntry {

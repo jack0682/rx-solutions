@@ -78,6 +78,8 @@ fn client() -> (Client, Arc<TestClock>) {
     // called after the authenticated RPC response in assignment_view.
     let channel = Channel::from_static("http://127.0.0.1:1").connect_lazy();
     let client = Client {
+            execution: rx_protocol::execution_v2::execution_control_service_client::ExecutionControlServiceClient::new(channel.clone()),
+            execution_session: None,
         pin: PeerPin {
             principal: raw.executor,
             peer_boot: uid(7),

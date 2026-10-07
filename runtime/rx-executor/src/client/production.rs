@@ -178,6 +178,8 @@ impl ValidatedProduction {
         production::validate(&raw).expect("valid test production view");
         let channel = Channel::from_static("http://127.0.0.1:1").connect_lazy();
         let client = Client {
+            execution: rx_protocol::execution_v2::execution_control_service_client::ExecutionControlServiceClient::new(channel.clone()),
+            execution_session: None,
             pin: PeerPin {
                 principal,
                 peer_boot: Id::new(uuid::Uuid::new_v4().to_string()).expect("UUID"),

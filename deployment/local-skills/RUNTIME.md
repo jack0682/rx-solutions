@@ -1,10 +1,37 @@
 # Calling an installed RX process
 
+## Existing P API documents
+
+For configuration, review and qualification steps not covered by a higher-level command,
+the installed client can transport explicit documents to the existing authenticated P API:
+
+```sh
+rx api --connection engineer.json get '/api/v1/package-intake-context?cell=cell%2Fa'
+rx api --connection engineer.json --state-dir ./requests post /api/v1/package-intakes \
+  --body intake-request.json --request-id LOCAL_REQUEST_UUID --output intake.json
+```
+
+The body is the complete API document, including the P request_key/command wrapper when
+that endpoint requires it. The local request ID binds the connection, path and body hash;
+reuse it and the same document after an uncertain response. It does not replace P's request
+key or create authority. Every invocation contacts P; saved replies are observations, not
+cached permission. Role, current-context, signature and activation checks remain in P.
+Existing output paths are refused before login or any server request. Body contents are not
+copied to the request journal; retain the original input file for retries.
+
+This is a low-level transport for the installed API, not an automated commissioner or a
+signing service. Review/qualification documents still require their actual evidence and
+existing signatures. It exists so external package work need not import repository helpers.
+
+## Installed process facade
+
 This unreleased bridge calls an already configured P/Host/Executor installation.
 It uses the existing P Run and operation ledger. It does not submit a LOCAL_SIM
 Python skill, install the runtime, or register arbitrary device skills.
 
-The current input mode is `BOUND_CONFIGURATION`: the approved process, recipe,
+This legacy facade uses input mode `BOUND_CONFIGURATION`. For explicit published
+workflow inputs (`PUBLISHED_SELECTION_V2`), use [EXECUTION.md](EXECUTION.md).
+In the legacy mode, the approved process, recipe,
 site and envelope are fixed by the installed configuration. Only the material
 count is supplied at invocation. Catalog visibility does not grant start permission.
 P independently evaluates start admission, current roles, qualification and resources.

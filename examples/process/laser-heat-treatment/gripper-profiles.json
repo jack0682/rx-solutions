@@ -1,0 +1,56 @@
+{
+  "schema": "rx.laser-gripper-profiles.v1",
+  "qualification": "AUTHORING_DRAFT_ONLY",
+  "selection": "Explicit gripper configuration; no automatic inference from robot name or number of fingers",
+  "tooling_reference": "tooling-reference.json",
+  "profiles": [
+    {
+      "id": "dual",
+      "source": "dual-gripper.source.json",
+      "independent_grasp_slots": 2,
+      "material_roles": [
+        "incoming",
+        "finished"
+      ],
+      "incoming_prefetch": true,
+      "end_effector_switch": true,
+      "temporary_buffer_required": false,
+      "rotary_alignment_station_required": true
+    },
+    {
+      "id": "single",
+      "source": "single-gripper.source.json",
+      "independent_grasp_slots": 1,
+      "material_roles": [
+        "finished then incoming"
+      ],
+      "incoming_prefetch": false,
+      "end_effector_switch": false,
+      "temporary_buffer_required": false,
+      "rotary_alignment_station_required": true
+    },
+    {
+      "id": "single-buffered",
+      "source": "single-buffered.source.json",
+      "independent_grasp_slots": 1,
+      "material_roles": [
+        "incoming to buffer",
+        "finished to output",
+        "incoming from buffer"
+      ],
+      "incoming_prefetch": true,
+      "end_effector_switch": false,
+      "temporary_buffer_required": true,
+      "buffer_resource": "UNSPECIFIED",
+      "rotary_alignment_station_required": true
+    }
+  ],
+  "invariants": [
+    "A single grasp slot cannot hold incoming and finished workpieces simultaneously",
+    "Dual slots have distinct material identities and current occupancy observations",
+    "Stored grip/clamp state is not a current custody or authority proof",
+    "A buffer must be explicitly selected and its support/occupancy confirmed before releasing material",
+    "Unresolved release, clamp or cycle-start must reconcile the original operation before retry"
+  ],
+  "equipment_reference": "equipment-reference.json"
+}

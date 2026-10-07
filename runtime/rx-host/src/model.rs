@@ -57,6 +57,8 @@ pub enum PermitParent {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct HostMeta {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub execution_reader: Option<Counter>,
     pub delivery_journal: Id,
     pub evidence_journal: Id,
     pub delivery_seq: Counter,

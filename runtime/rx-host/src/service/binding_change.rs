@@ -36,7 +36,17 @@ fn signed_package(backend: &Backend) -> Option<(&std::path::Path, Digest)> {
             ..
         } => Some((directory, *manifest_digest)),
         #[cfg(unix)]
-        Backend::PythonSkillPackage {
+        Backend::PythonExecutionPackage {
+            directory,
+            manifest_digest,
+            ..
+        }
+        | Backend::PythonSkillPackage {
+            directory,
+            manifest_digest,
+            ..
+        }
+        | Backend::PythonSkillLibraryPackage {
             directory,
             manifest_digest,
             ..

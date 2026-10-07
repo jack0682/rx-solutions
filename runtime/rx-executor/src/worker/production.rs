@@ -100,6 +100,9 @@ impl<R: Repository> Worker<R> {
             if !complete_hint {
                 return Ok(Coordination::Visit(part.ordinal));
             }
+            if data.resolved.schema_id.as_str() == rx_process_contract::execution_v2::PLAN_SCHEMA {
+                return self.complete_execution_part(view, part).await;
+            }
             let snapshot = self.snapshot(part.ordinal).await?;
             if snapshot.context_identity() != view.identity(part.ordinal) {
                 return Ok(Coordination::Deferred(Outcome::ContextChanged));
@@ -139,22 +142,40 @@ impl<R: Repository> Worker<R> {
             view,
             visit: ordinal,
         };
-        let body = Body::BeginPart {
-            cell: run.cell.clone(),
-            run: run.id.clone(),
-            ordinal,
-            mandate: run
-                .mandate
-                .clone()
-                .ok_or_else(|| Error::Invalid("production mandate missing".into()))?,
-            expected_budget: budget.revision(),
-            expected_cell: data.cell_revision,
-        };
+        let body =
+            if data.resolved.schema_id.as_str() == rx_process_contract::execution_v2::PLAN_SCHEMA {
+                Body::BeginExecutionPart(Box::new(crate::journal::execution_v2::Begin {
+                    cell: run.cell.clone(),
+                    run: run.id.clone(),
+                    ordinal,
+                    mandate: run
+                        .mandate
+                        .clone()
+                        .ok_or_else(|| Error::Invalid("v2 mandate missing".into()))?,
+                    expected_budget: budget.revision(),
+                    expected_cell: data.cell_revision,
+                }))
+            } else {
+                Body::BeginPart {
+                    cell: run.cell.clone(),
+                    run: run.id.clone(),
+                    ordinal,
+                    mandate: run
+                        .mandate
+                        .clone()
+                        .ok_or_else(|| Error::Invalid("production mandate missing".into()))?,
+                    expected_budget: budget.revision(),
+                    expected_cell: data.cell_revision,
+                }
+            };
         match self
             .execute(logical(ordinal, Stage::BeginPart), body, &source)
             .await?
         {
             Execution::Reply(Response::Part(part)) => Ok(Coordination::Visit(part.ordinal)),
+            Execution::Reply(Response::ExecutionPart(part)) => {
+                Ok(Coordination::Visit(part.binding.ordinal))
+            }
             Execution::Reply(_) => Err(Error::Invalid("part begin reply differs".into())),
             Execution::Deferred(value) => Ok(Coordination::Deferred(value)),
         }

@@ -86,8 +86,15 @@ impl<R: Repository> Worker<R> {
         if let Some(origin) = &control.record.origin_context
             && view.state == rx_process_contract::execution::RunState::Executing
         {
-            let snapshot = self.snapshot(origin.visit).await?;
-            if snapshot.context_identity() != *origin {
+            let context = if self.execution_v2 {
+                self.negotiate_execution().await?;
+                self.execution_snapshot(origin.visit)
+                    .await?
+                    .context_identity()
+            } else {
+                self.snapshot(origin.visit).await?.context_identity()
+            };
+            if context != *origin {
                 control.record.phase = StopPhase::Attention;
                 control.record.observation = Some(view);
                 self.persist_stop(control);

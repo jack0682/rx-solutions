@@ -107,6 +107,7 @@ pub fn fixture() -> (tempfile::TempDir, PathBuf, ManualClock) {
     let runtime = root.join("runtime");
     std::fs::create_dir(&runtime).unwrap();
     let config = Configuration {
+        execution_materials: vec![],
         schema: name("rx.host-startup.v1"),
         installation: id(),
         release_digest: Digest::from_bytes([8; 32]),

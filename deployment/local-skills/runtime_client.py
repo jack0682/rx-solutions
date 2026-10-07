@@ -124,6 +124,23 @@ class RuntimeClient:
         self.state = Path(state_directory)
         self.state.mkdir(parents=True, exist_ok=True, mode=0o700)
 
+    def api_request(self, path, body=None, request_id=None):
+        """Transport existing P API documents; decisions and authorization remain in P."""
+        if not path.startswith('/api/v1/') or path.startswith('//'):
+            raise ValueError('registered P API path required')
+        if body is None:
+            return self.terminal.request(path)
+        if request_id is None:
+            raise ValueError('original local request identity required')
+        with self.journal(request_id) as root:
+            # Bind retries without copying potential private input fields into the journal.
+            save_new(root/'api-request.json', {'connection': self.terminal.fingerprint,
+                     'path': path, 'body_sha256': hashlib.sha256(encoded(body)).hexdigest()})
+            result = self.terminal.request(path, body)
+            # Never use a cached context/qualification response as current authority.
+            save_new(root/('api-reply-'+str(uuid.uuid4())+'.json'), result)
+            return result
+
     def catalog(self):
         result = self.terminal.get("/api/v1/runtime-skills")
         if result.get("schema") != "rx.runtime-skill-catalog.v1":

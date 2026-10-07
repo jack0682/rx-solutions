@@ -33,8 +33,10 @@ pub(super) fn observation_shutdown(status: &mut Status) {
     }
 }
 pub(super) fn check_options(options: &service::Options) -> Result<(), Error> {
-    if options.coordination != CoordinationMode::SerialProduction
-        || !(10..=1000).contains(&options.poll_ms)
+    if !matches!(
+        options.coordination,
+        CoordinationMode::SerialProduction | CoordinationMode::SerialExecutionV2
+    ) || !(10..=1000).contains(&options.poll_ms)
         || !(100..=60000).contains(&options.communication_grace_ms)
         || !(100..=60000).contains(&options.stop_timeout_ms)
     {

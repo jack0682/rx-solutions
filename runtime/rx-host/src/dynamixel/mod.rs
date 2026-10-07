@@ -424,6 +424,7 @@ mod tests {
         let op = id();
         let inv = id();
         let context = NativeDispatch {
+            execution: None,
             device_session: identity.instance.clone(),
             expires_at: TimePoint {
                 clock_id: "test/dynamixel".into(),

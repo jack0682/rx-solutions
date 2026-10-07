@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Real subprocess/SDK journal boundaries; separate from P/Host admission tests."""
+import hashlib
 import json
 import fcntl
 import os
@@ -48,6 +49,45 @@ class RunnerTests(unittest.TestCase):
             self.assertEqual((root/'effects').read_text(),'effect\n')
             r['invocation']=str(uuid.uuid4())
             self.assertIn('original Python execution request differs',self.call('execute',state,r,1))
+    def test_owned_entry_precedes_five_second_completion_and_saved_entry_cannot_reenter(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root=Path(temp);state,r=self.setup_skill(root,'from rx_fixture_sdk import record\nimport time\ndef main(inputs):\n record(inputs["path"])\n time.sleep(5)\n return {}\n')
+            raw=json.dumps(r)
+            child=subprocess.Popen([sys.executable,'-I','-S','-B',str(RUNNER),'execute-entered',str(state)],
+                stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
+            try:
+                started=time.monotonic()
+                child.stdin.write(raw);child.stdin.close()
+                entry=json.loads(child.stdout.readline())
+                self.assertLess(time.monotonic()-started,3)
+                self.assertIsNone(child.poll())
+                self.assertEqual(entry['schema'],'rx.python-native-entry.v2')
+                self.assertEqual(entry['request_sha256'],hashlib.sha256(raw.encode()).hexdigest())
+                self.assertEqual(entry,json.loads((state/r['operation']/'entry.json').read_bytes()))
+                self.assertEqual(self.call('lookup',state,r)['status'],'UNKNOWN')
+                completed=json.loads(child.stdout.read());child.wait(timeout=10)
+                self.assertEqual(child.returncode,0,child.stderr.read())
+                self.assertGreaterEqual(time.monotonic()-started,5)
+                self.assertEqual(completed['status'],'RETURNED')
+                self.assertEqual(self.call('execute-entered',state,r),completed)
+                self.assertEqual((root/'effects').read_text(),'effect\n')
+            finally:
+                if child.poll() is None:child.kill();child.wait(timeout=5)
+                child.stdout.close();child.stderr.close()
+
+    def test_v2_correlation_comes_from_owned_request_not_input_and_replay_preserves_it(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root=Path(temp);state,r=self.setup_skill(root,'import os\ndef main(inputs):\n return {"operation":os.environ["RX_HOST_OPERATION_ID"],"invocation":os.environ["RX_HOST_INVOCATION_ID"],"inputs":inputs}\n')
+            r['input']['operation']='caller-supplied-not-authority'
+            raw=json.dumps(r)
+            result=subprocess.run([sys.executable,'-I','-S','-B',str(RUNNER),'execute-entered',str(state)],
+                input=raw,text=True,capture_output=True,timeout=20)
+            self.assertEqual(result.returncode,0,result.stderr)
+            entry,done=[json.loads(row) for row in result.stdout.splitlines()]
+            self.assertEqual(done['output'],{'operation':r['operation'],'invocation':r['invocation'],'inputs':r['input']})
+            self.assertEqual(entry['operation'],r['operation'])
+            self.assertEqual(self.call('execute-entered',state,r),done)
+
     def test_sigkill_after_sdk_effect_never_replays_unknown(self):
         with tempfile.TemporaryDirectory() as temp:
             root=Path(temp);state,r=self.setup_skill(root,'from rx_fixture_sdk import record\nimport time\ndef main(inputs):\n record(inputs["path"])\n time.sleep(60)\n return {}\n')

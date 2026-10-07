@@ -769,3 +769,6 @@ fn material_identity_is_observed_without_rewriting_a_lost_begin_reply() {
     assert!(journal.reply(&entry.key, Response::Part(wrong)).is_err());
     journal.reply(&entry.key, Response::Part(done)).unwrap();
 }
+
+#[path = "support/execution_v2_journal.rs"]
+mod execution_v2_tests;

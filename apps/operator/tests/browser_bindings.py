@@ -10,9 +10,11 @@ def check_bindings(page,context,origin,headers,output):
     expect(page.get_by_label('Draft title',exact=True)).to_have_value('Material supply copy')
     drafts=context.request.get(f'{origin}/api/v1/process-drafts?cell=cell%2Fdemo').json()['drafts'];draft=next(d for d in drafts if d['title']=='Material supply copy')
     draft_id=draft['id'];detail_url=f'{origin}/api/v1/process-draft?cell=cell%2Fdemo&id={draft_id}';bindings_url=f'{origin}/api/v1/process-draft-bindings?cell=cell%2Fdemo&id={draft_id}'
+    page.locator('details.binding-details > summary').click()
     page.get_by_label('load-material Device operation',exact=True).select_option('step/place')
     expect(page.get_by_role('button',name='Save bindings',exact=True)).to_be_enabled()
     page.get_by_role('button',name='Operations',exact=True).click();page.get_by_role('button',name='Workflow design',exact=True).click()
+    page.locator('details.binding-details > summary').click()
     expect(page.get_by_label('load-material Device operation',exact=True)).to_have_value('step/place')
     sent=[]
     def lose(route):sent.append(route.request.post_data_json);response=route.fetch();assert response.ok,response.text();route.abort('failed')
@@ -26,6 +28,7 @@ def check_bindings(page,context,origin,headers,output):
     page.route('**/api/v1/process-draft-bindings',recover,times=1)
     page.get_by_role('button',name='Check original request',exact=True).click();expect(page.get_by_text('The request outcome needs verification',exact=True)).not_to_be_visible();assert sent==recovered
     page.get_by_role('button',name='Workflow design',exact=True).click();page.get_by_role('button',name='Material supply copy',exact=False).click()
+    page.locator('details.binding-details > summary').click()
     expect(page.locator('.draft-bindings .badge')).to_have_text('All bindings selected')
     with page.expect_download() as download:page.get_by_role('button',name='Export compiler input',exact=True).click()
     download.value.save_as(str(output/'draft-compile-input.json'))
@@ -44,6 +47,7 @@ def check_bindings(page,context,origin,headers,output):
     assert context.request.get(f'{origin}/api/v1/overview').json()['cells'][0]['cell']==before
     page.get_by_role('button',name='Operations',exact=True).click();page.get_by_role('button',name='Workflow design',exact=True).click()
     page.get_by_role('button',name='Updated material supply',exact=False).click()
+    page.locator('details.binding-details > summary').click()
     page.get_by_role('button',name='Review against current baseline',exact=True).click();page.get_by_role('button',name='Save bindings',exact=True).click()
     expect(page.locator('.draft-bindings .badge')).to_have_text('All bindings selected')
     final=context.request.get(bindings_url).json();assert final['binding']['revision']=='2' and final['binding']['source_revision']=='2' and not final['stale']

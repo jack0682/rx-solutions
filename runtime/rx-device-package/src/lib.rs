@@ -6,6 +6,8 @@ use rx_package::*;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 pub mod directory;
+#[cfg(unix)]
+pub mod external;
 pub mod jtc;
 #[cfg(unix)]
 pub mod python;
@@ -181,6 +183,12 @@ pub fn from_files(mut files: BTreeMap<PackagePath, Vec<u8>>) -> Result<Candidate
     let source: serde_json::Value =
         canonical::decode_json(assembly).map_err(|e| Error::Invalid(e.to_string()))?;
     let rebuilt = match source["schema"].as_str() {
+        #[cfg(unix)]
+        Some("rx.external-process-assembly.v1") => {
+            let source =
+                canonical::decode_json(assembly).map_err(|e| Error::Invalid(e.to_string()))?;
+            external::assemble(&source, &recipe)?
+        }
         Some("rx.melsec-assembly.v1") => {
             let a: Assembly =
                 canonical::decode_json(assembly).map_err(|e| Error::Invalid(e.to_string()))?;
@@ -192,6 +200,17 @@ pub fn from_files(mut files: BTreeMap<PackagePath, Vec<u8>>) -> Result<Candidate
             jtc::assemble(&a.template, &a.site, &recipe)?
         }
         #[cfg(unix)]
+        Some("rx.python-execution-assembly.v2") => {
+            let a = canonical::decode_json(assembly).map_err(|e| Error::Invalid(e.to_string()))?;
+            python::assemble_execution(
+                &a,
+                files
+                    .get(&path("environment.json"))
+                    .ok_or_else(|| Error::Invalid("Python environment absent".into()))?,
+                &recipe,
+            )?
+        }
+        #[cfg(unix)]
         Some("rx.python-skill-assembly.v1") => {
             let registration: rx_host::service::python_skill::Registration =
                 serde_json::from_value(source["registration"].clone())
@@ -201,6 +220,18 @@ pub fn from_files(mut files: BTreeMap<PackagePath, Vec<u8>>) -> Result<Candidate
                 files
                     .get(&path("environment.json"))
                     .ok_or_else(|| Error::Invalid("Python environment manifest absent".into()))?,
+                &recipe,
+            )?
+        }
+        #[cfg(unix)]
+        Some("rx.python-skill-library-assembly.v1") => {
+            let library = serde_json::from_value(source["library"].clone())
+                .map_err(|e| Error::Invalid(e.to_string()))?;
+            python::assemble_library(
+                &library,
+                files
+                    .get(&path("environment.json"))
+                    .ok_or_else(|| Error::Invalid("library environment absent".into()))?,
                 &recipe,
             )?
         }
@@ -221,11 +252,49 @@ pub fn decode_verified(
 }
 pub enum Device {
     #[cfg(unix)]
+    External(rx_host::service::external_package::Checked),
+    #[cfg(unix)]
+    PythonExecution(rx_host::service::python_execution_package::Checked),
+    #[cfg(unix)]
+    PythonLibrary(rx_host::service::python_library::Library),
+    #[cfg(unix)]
     Python(rx_host::service::python_skill::Registration),
     Melsec(rx_host::service::device_package::LoadedDevice),
     Jtc(rx_host::service::jtc_package::LoadedDevice),
 }
 pub fn decode_verified_any(package: &VerifiedPackage) -> Result<Device> {
+    #[cfg(unix)]
+    if package
+        .file(&path("authoring/assembly.json"))
+        .and_then(|raw| serde_json::from_slice::<serde_json::Value>(raw).ok())
+        .is_some_and(|v| v["schema"] == "rx.external-process-assembly.v1")
+    {
+        return rx_host::service::external_package::decode(package)
+            .map(Device::External)
+            .map_err(|e| Error::Invalid(e.to_string()));
+    }
+    #[cfg(unix)]
+    if package
+        .file(&path("authoring/assembly.json"))
+        .and_then(|raw| serde_json::from_slice::<serde_json::Value>(raw).ok())
+        .is_some_and(|v| v["schema"] == "rx.python-execution-assembly.v2")
+    {
+        return rx_host::service::python_execution_package::decode(package)
+            .map(Device::PythonExecution)
+            .map_err(|e| Error::Invalid(e.to_string()));
+    }
+
+    #[cfg(unix)]
+    if package
+        .file(&path("authoring/assembly.json"))
+        .and_then(|raw| serde_json::from_slice::<serde_json::Value>(raw).ok())
+        .is_some_and(|v| v["schema"] == "rx.python-skill-library-assembly.v1")
+    {
+        return rx_host::service::python_library::decode(package)
+            .map(Device::PythonLibrary)
+            .map_err(|e| Error::Invalid(e.to_string()));
+    }
+
     let EntryPoint::DeviceReference { adapter, .. } = &package.manifest().entry else {
         return Err(Error::Invalid("device reference required".into()));
     };

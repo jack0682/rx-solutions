@@ -452,3 +452,22 @@ fn closing_a_preserves_its_stop_and_frees_only_the_next_attachment() {
         b.id
     );
 }
+
+#[test]
+fn cell_service_accepts_explicit_serial_v2_without_enabling_manual_visit() {
+    for coordination in [
+        CoordinationMode::SerialProduction,
+        CoordinationMode::SerialExecutionV2,
+    ] {
+        let options = service::Options {
+            coordination,
+            ..service::Options::default()
+        };
+        assert!(policy::check_options(&options).is_ok());
+    }
+    let options = service::Options {
+        coordination: CoordinationMode::ManualVisit,
+        ..service::Options::default()
+    };
+    assert!(policy::check_options(&options).is_err());
+}
